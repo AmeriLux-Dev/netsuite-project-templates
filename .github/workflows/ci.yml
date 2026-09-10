@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scaffold:
+    # Renders react-app with a build of the CLI's main branch (or the CREATE_NETSUITE_PROJECT_REF
+    # repository variable), then installs, checks and builds the result on both platforms.
+    name: Scaffold with the CLI (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: AmeriLux-Dev/create-netsuite-project
+          ref: ${{ vars.CREATE_NETSUITE_PROJECT_REF || 'main' }}
+          path: create-netsuite-project
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: create-netsuite-project/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+        working-directory: create-netsuite-project
+      - run: npm run build
+        working-directory: create-netsuite-project
+      - run: node scripts/e2e.mjs --cli create-netsuite-project
+
+  secrets:
+    name: Secret and private-reference scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-no-private-refs.mjs
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
