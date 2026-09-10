@@ -7,7 +7,7 @@ vi.mock('@/api/apiClient', () => ({
 
 import { callEndpoint } from '@/api/apiClient';
 import { fetchCustomers } from '@/api/customersApi';
-import { customersQueryKey, customersQueryOptions } from '@/features/customers/useCustomers';
+import { customersQueryKey, customersQueryOptions } from '@/hooks/useCustomers';
 
 describe('customersQueryKey', () => {
     it('is stable for equal requests and distinct for different ones', () => {

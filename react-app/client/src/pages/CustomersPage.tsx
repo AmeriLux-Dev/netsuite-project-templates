@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCustomers } from './useCustomers';
+import { useCustomers } from '@/hooks/useCustomers';
 
 // @netsuite-project:example — scaffold example page. Replace or delete it together with the
 // customers controller; npm run deploy refuses to upload files carrying this marker.

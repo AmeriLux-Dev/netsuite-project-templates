@@ -1,7 +1,4 @@
 // Single home for NetSuite magic strings. No N/* imports: the client bundles this file too.
-//
-// Group identifiers by the party that owns them (NetSuite itself, then each third party),
-// so a rename or an integration swap touches one block.
 
 export const app = {
     name: '{{appName}}',
@@ -18,26 +15,12 @@ export const app = {
     rootElementId: 'react-root',
 } as const;
 
-/** Standard NetSuite record types and field ids used by this application. */
+/** Record types and field ids, one flat map. A custom field follows the same pattern: customerExampleFlag: 'custentity_{{prefix}}_example'. */
 export const netsuite = {
-    records: {
-        customer: 'customer',
-    },
-    fields: {
-        customer: {
-            id: 'id',
-            companyName: 'companyname',
-            email: 'email',
-            // Custom fields follow the same pattern: exampleFlag: 'custentity_{{prefix}}_example',
-        },
-    },
-} as const;
-
-/** SPS Commerce identifiers (example third-party group; fill in or delete). */
-export const sps = {} as const;
-
-/** Avalara identifiers (example third-party group; fill in or delete). */
-export const avalara = {} as const;
+    customer: 'customer',
+    customerCompanyName: 'companyname',
+    customerEmail: 'email',
+} as const satisfies Record<string, string>;
 
 /** How a script is reached over HTTP; the client builds the URL from it. */
 export type ScriptKind = 'restlet' | 'suitelet';
@@ -48,10 +31,7 @@ export interface ScriptRef {
     deployId: string;
 }
 
-/**
- * Every script this application deploys. The client calls API controllers through these entries;
- * `kind` must match the controller's @NScriptType and its SDF object.
- */
+/** Every script this application deploys. `kind` must match the controller's @NScriptType and its SDF object. */
 export const scripts = {
     home: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_home', deployId: 'customdeploy_{{prefix}}_home' },
     customers: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_customers', deployId: 'customdeploy_{{prefix}}_customers' },

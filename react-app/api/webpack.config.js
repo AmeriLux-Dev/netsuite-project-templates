@@ -23,7 +23,7 @@ function readScriptHeader(filePath) {
 
 /**
  * One entry per SuiteScript entry point: a file under src/ whose leading JSDoc carries
- * @NScriptType. Helpers, domain code, models, stubs and tests never become File Cabinet files.
+ * @NScriptType. Helpers, services, repositories, models, stubs and tests never become File Cabinet files.
  * The entry name keeps the folder, so src/controllers/x.ts lands at api/controllers/x.js.
  */
 function collectScriptEntries() {
@@ -31,7 +31,7 @@ function collectScriptEntries() {
     const files = globSync('**/*.ts', {
         cwd: sourceDir,
         nodir: true,
-        ignore: ['**/__tests__/**', '**/*.d.ts', 'models/generated/**'],
+        ignore: ['**/__tests__/**', '**/*.d.ts', 'repositories/generated/**'],
     });
     for (const relativePath of files) {
         const filePath = path.join(sourceDir, relativePath);

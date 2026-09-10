@@ -4,11 +4,11 @@ import { netsuite } from '../../../common/netsuite';
 /**
  * The customer record, as much of it as this application reads. Every declared property
  * is a mapped field; `@Field` only where the property name differs from the field id.
- * Run `npm run generate` after editing to refresh src/models/generated/.
+ * Run `npm run generate` after editing to refresh src/repositories/generated/.
  */
-@RecordType(netsuite.records.customer)
+@RecordType(netsuite.customer)
 export class Customer {
     @ReadOnly() id!: number;
-    @Field(netsuite.fields.customer.companyName) companyName!: string;
-    @Field(netsuite.fields.customer.email) email!: string | null;
+    @Field(netsuite.customerCompanyName) companyName!: string;
+    @Field(netsuite.customerEmail) email!: string | null;
 }

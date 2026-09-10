@@ -52,15 +52,18 @@ common/                 Shared by api and client; compiles without NetSuite type
 api/                    SuiteScript, bundled by webpack into one AMD file per script
   src/controllers/      One folder per controller: <name>Controller.ts (Restlet or Suitelet) + endpoints/
   src/host/             The Suitelet that serves the SPA and its client script
-  src/domain/           Pure functions over the repository context
-  src/models/           Decorated record models (generated/ is produced, gitignored)
+  src/services/         Decisions: open the unit of work, call repositories, shape the reply
+  src/repositories/     Query and write functions over the unit of work (generated/ is produced, gitignored)
+  src/specifications/   Query predicates, one module per record type
+  src/models/           Decorated record models, the source of repositories/generated/
   src/lib/              endpoint, defineRestlet, defineSuitelet, ApiError, File Cabinet helpers
   test/stubs/N/         vi.fn shells for N/* modules
   __tests__/            Vitest specs
 client/                 React 19, TanStack Router (file-based, hash history), TanStack Query, Tailwind 4
   src/routes/           One file per route; __root.tsx is the layout (routeTree.gen.ts is generated)
   src/api/              callRestlet and one module per controller
-  src/features/         Pages and their hooks
+  src/pages/            One component per page; a page calls hooks, never the api modules
+  src/hooks/            TanStack Query hooks, the only callers of src/api
   server.ts             Local dev proxy that signs OAuth 2.0 requests to the sandbox
 netsuite/               The SDF project: manifest, deploy.xml, Objects/, FileCabinet/ (build output)
 scripts/                deploy.mjs, buildInfo.cjs
@@ -84,7 +87,7 @@ Building the client empties only `client/`; building the API empties only `api/`
 
 ## Deploy
 
-The customers controller, its SDF object and the customers page are scaffold examples, marked with `@netsuite-project:example`. `npm run deploy` and `npm run deploy:files` refuse to run while any marked file is present, so the example never ends up in a File Cabinet. Replace it with `npm run add:controller -- <name>` or delete it (`api/src/controllers/customers/`, `netsuite/Objects/customscript_{{prefix}}_customers.xml`, `client/src/features/customers/`, `client/src/api/customersApi.ts`, `common/types/customers.ts`, and the `customers` entry in `scripts`). `--allow-example` overrides the guard for a throwaway sandbox.
+The customers controller, its SDF object and the customers page are scaffold examples, marked with `@netsuite-project:example`. `npm run deploy` and `npm run deploy:files` refuse to run while any marked file is present, so the example never ends up in a File Cabinet. Replace it with `npm run add:controller -- <name>` or delete it (`api/src/controllers/customers/`, `api/src/services/customers.ts`, `api/src/repositories/customers.ts`, `api/src/specifications/customers.ts`, `netsuite/Objects/customscript_{{prefix}}_customers.xml`, `client/src/pages/CustomersPage.tsx`, `client/src/hooks/useCustomers.ts`, `client/src/api/customersApi.ts`, `common/types/customers.ts`, and the `customers` entry in `scripts`). `--allow-example` overrides the guard for a throwaway sandbox.
 
 `npm run deploy` needs a `project.json` with the authentication id to use. `npx suitecloud account:setup` writes it. The Suitelet appears under Customization › Scripting › Scripts as **{{appTitle}} Home**.
 
@@ -108,13 +111,13 @@ Add `--suitelet` to serve the same endpoints from a Suitelet instead of a Restle
 
 ## Adding a page
 
-Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `orders.$orderId.tsx` serves `#/orders/:orderId`, and `__root.tsx` is the layout around all of them. Export a `Route` built with `createFileRoute` and point its `component` at a page under `src/features/`. The Vite plugin regenerates `src/routeTree.gen.ts` on `npm run dev` and `npm run build`; commit that file but never edit it.
+Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `orders.$orderId.tsx` serves `#/orders/:orderId`, and `__root.tsx` is the layout around all of them. Export a `Route` built with `createFileRoute` and point its `component` at a page under `src/pages/`; the page's data comes from a hook under `src/hooks/`. The Vite plugin regenerates `src/routeTree.gen.ts` on `npm run dev` and `npm run build`; commit that file but never edit it.
 
 ## Adding a model
 
 1. Add a decorated class under `api/src/models/` (see `Customer.ts`).
-2. `npm run generate` writes `api/src/models/generated/<Model>.gen.ts` and refreshes `context.gen.ts`.
-3. Use it through `createAppContext()` in a domain function; keep controllers thin.
+2. `npm run generate` writes `api/src/repositories/generated/<Model>.gen.ts` and refreshes `context.gen.ts`.
+3. Add its query vocabulary under `api/src/specifications/`, the query functions under `api/src/repositories/` (they take the `UnitOfWork` first), and the decisions under `api/src/services/`, where `openUnitOfWork()` is called. Endpoints call services and stay thin.
 
 {{#if performanceTracker}}
 ## PerformanceTracker
@@ -130,7 +133,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 
 - `api/__tests__/` and `client/__tests__/` hold the Vitest specs; tests are never colocated with source.
 - `N/*` modules and the wrapper's module entry points resolve to `api/test/stubs/N/`.
-- Domain functions take the repository context as an argument, so a test passes a fake.
+- Repository functions take the unit of work as an argument, so a test passes a fake with the record sets it needs. Service tests mock the repository module and the generated `openUnitOfWork`.
 - UI markup is not unit-tested; hooks and API modules are.
 
 ## Working with an AI coding agent
@@ -138,7 +141,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 - `CLAUDE.md` is the project brief Claude Code reads on every session: commands, layout and the rules below.
 - `.claude/settings.json` pre-approves the read-only npm scripts (generate, typecheck, lint, build, test).
 {{#if probity}}
-- `probity.config.ts` turns the mechanical rules into guardrails through [Probity](https://github.com/nizos/probity): no destructive commands, tests and typecheck before a commit, no `N/*` in `common/`, no writes to generated output or secrets, tests only under `__tests__/`, no focused tests, and test-first for domain functions, the restlet primitive, client API modules and hooks. `.claude/settings.json` wires it into Claude Code's `PreToolUse` hook; the same config works for Codex and Copilot CLI (see Probity's setup guide).
+- `probity.config.ts` turns the mechanical rules into guardrails through [Probity](https://github.com/nizos/probity): no destructive commands, tests and typecheck before a commit, no `N/*` in `common/`, no writes to generated output or secrets, tests only under `__tests__/`, no focused tests, and test-first for services, repositories, the restlet primitive, client API modules and hooks. `.claude/settings.json` wires it into Claude Code's `PreToolUse` hook; the same config works for Codex and Copilot CLI (see Probity's setup guide).
 - Remove the `enforceTdd` block from `probity.config.ts` if test-first enforcement is not wanted; the rest stays useful on its own.
 {{/if}}
 {{#unless probity}}
@@ -151,4 +154,6 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 - `common/` never imports `N/*`.
 - Script ids: `customscript_{{prefix}}_<name>` and `customdeploy_{{prefix}}_<name>`, at most 40 characters.
 - Endpoints are transport-agnostic functions under `controllers/<name>/endpoints/`; a Restlet controller exports only the HTTP methods it implements.
+- Layers: endpoint calls service, service calls repository, repository composes specifications. Only `models/`, `specifications/` and `repositories/` import `@amerilux/netsuite-repository`; only a repository touches records. `npm run lint` enforces the boundaries.
+- Log titles are constant phrases; controller, method and ids go in the details object.
 - Secrets never enter the repository: no account ids, auth ids, `project.json`, `.env` or key files.

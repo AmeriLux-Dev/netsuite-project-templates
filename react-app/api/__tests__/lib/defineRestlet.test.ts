@@ -29,7 +29,7 @@ describe('defineRestlet', () => {
     it('wraps an endpoint result in the envelope and audits the call', () => {
         const restlet = defineRestlet('things', defineEndpoints({ get: (request: { id: string }) => ({ id: Number(request.id) }) }));
         expect(restlet.get({ id: '7' })).toEqual({ status: 200, error: null, data: { id: 7 } });
-        expect(log.audit).toHaveBeenCalledWith('things.GET', expect.objectContaining({ status: 200 }));
+        expect(log.audit).toHaveBeenCalledWith('endpoint completed', expect.objectContaining({ controller: 'things', method: 'GET', status: 200 }));
     });
 
     it('maps ApiError to its status and message', () => {
@@ -41,7 +41,7 @@ describe('defineRestlet', () => {
     it('hides unexpected errors behind a 500 and logs them', () => {
         const restlet = defineRestlet('things', { put: () => { throw new Error('boom'); } });
         expect(restlet.put({})).toEqual({ status: 500, error: 'Internal Server Error', data: null });
-        expect(log.error).toHaveBeenCalledWith('things.PUT', expect.objectContaining({ message: 'boom' }));
+        expect(log.error).toHaveBeenCalledWith('endpoint failed', expect.objectContaining({ controller: 'things', method: 'PUT', message: 'boom' }));
     });
 
     it('answers 405 for methods without an endpoint', () => {

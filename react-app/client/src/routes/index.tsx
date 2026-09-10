@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { CustomersPage } from '@/features/customers/CustomersPage';
+import { CustomersPage } from '@/pages/CustomersPage';
 
 // File-based routing: this file is the "/" route. Add src/routes/orders.tsx for "/orders",
 // src/routes/orders.$orderId.tsx for "/orders/:orderId", and so on. The Vite plugin keeps

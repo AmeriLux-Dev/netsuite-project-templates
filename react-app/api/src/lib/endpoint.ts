@@ -57,10 +57,10 @@ export function endpointForMethod(endpoints: EndpointMap, method: string): AnyEn
 
 /**
  * Runs one endpoint and produces the envelope: 200 with data, an ApiError's own status and
- * message, or 500 with the details logged. Audits the outcome and timing either way.
+ * message, or 500 with the details logged. Audits the outcome and timing either way. Log titles
+ * are constant phrases; the controller, method and ids live in the details object.
  */
 export function invokeEndpoint(controllerName: string, method: HttpMethod, endpoint: AnyEndpoint | undefined, rawRequest: unknown): ApiEnvelope<unknown> {
-    const operation = `${controllerName}.${method}`;
     if (!endpoint) {
         return { status: 405, error: `${method} is not supported by ${controllerName}`, data: null };
     }
@@ -73,13 +73,13 @@ export function invokeEndpoint(controllerName: string, method: HttpMethod, endpo
     } catch (error) {
         if (error instanceof ApiError) {
             status = error.status;
-            log.debug(operation, { status, message: error.message, details: error.details });
+            log.debug('endpoint rejected', { controller: controllerName, method, status, message: error.message, details: error.details });
             return { status, error: error.message, data: null };
         }
         status = 500;
-        log.error(operation, describeError(error));
+        log.error('endpoint failed', { controller: controllerName, method, ...describeError(error) });
         return { status, error: 'Internal Server Error', data: null };
     } finally {
-        log.audit(operation, { status, durationMs: Date.now() - started });
+        log.audit('endpoint completed', { controller: controllerName, method, status, durationMs: Date.now() - started });
     }
 }

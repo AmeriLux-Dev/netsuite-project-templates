@@ -56,7 +56,7 @@ const warnTypeEscapes = warnIfContent(
     'Type-safety escape hatch (any / @ts-ignore). Fix the underlying type instead.',
 );
 
-/* Components are thin shells; behaviour lives in .ts hooks, services and domain functions, which stay enforced. */
+/* Components are thin shells; behaviour lives in .ts hooks, services and repositories, which stay enforced. */
 const enforceTddExceptComponents = (options: Parameters<typeof enforceTdd>[0]): Rule => {
     const rule = enforceTdd(options);
     return async (action, context) => {
@@ -107,7 +107,7 @@ export default defineConfig({
 
         /* Generated and account-specific files are never written by an agent */
         {
-            files: ['netsuite/FileCabinet/**', 'api/src/models/generated/**', 'client/src/routeTree.gen.ts'],
+            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'client/src/routeTree.gen.ts'],
             rules: [forbidAnyWrite('Generated output. Change the source (models, routes, bundles) and run npm run generate or npm run build instead.')],
         },
         {
@@ -146,9 +146,9 @@ export default defineConfig({
             ],
         },
 
-        /* Test-first for the pure logic the tests are designed around: domain functions, the restlet primitive, client API modules and hooks. */
+        /* Test-first for the pure logic the tests are designed around: services, repositories, the restlet primitive, client API modules and hooks. */
         {
-            files: ['api/src/domain/**', 'api/src/lib/**', 'client/src/api/**', 'client/src/features/**'],
+            files: ['api/src/services/**', 'api/src/repositories/**', 'api/src/lib/**', 'client/src/api/**', 'client/src/hooks/**'],
             rules: [
                 enforceTddExceptComponents({
                     instructions: (defaults) => `${defaults}
