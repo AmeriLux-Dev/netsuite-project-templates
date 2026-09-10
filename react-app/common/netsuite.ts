@@ -1,4 +1,7 @@
-// Single home for NetSuite magic strings. No N/* imports: the client bundles this file too.
+// The application's names and the ids no model owns. No N/* imports: the client bundles this file too.
+// A record's type and field ids are declared on its model in common/models/; this file is for the
+// rest: script ids for the client, and anything reached without a model (script parameters, saved
+// searches, list values).
 
 export const app = {
     name: '{{appName}}',
@@ -14,13 +17,6 @@ export const app = {
     },
     rootElementId: 'react-root',
 } as const;
-
-/** Record types and field ids, one flat map. A custom field follows the same pattern: customerExampleFlag: 'custentity_{{prefix}}_example'. */
-export const netsuite = {
-    customer: 'customer',
-    customerCompanyName: 'companyname',
-    customerEmail: 'email',
-} as const satisfies Record<string, string>;
 
 /** How a script is reached over HTTP; the client builds the URL from it. */
 export type ScriptKind = 'restlet' | 'suitelet';

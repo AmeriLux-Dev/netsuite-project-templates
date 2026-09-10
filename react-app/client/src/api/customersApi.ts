@@ -1,10 +1,8 @@
 import { scripts } from 'common/netsuite';
-import type { CustomerListRequest, CustomerListResponse } from 'common/types/customers';
-import { callEndpoint } from './apiClient';
+import { customersContract } from 'common/types/customers';
+import { createApiClient } from './apiClient';
 
-export function fetchCustomers(request: CustomerListRequest = {}, signal?: AbortSignal): Promise<CustomerListResponse> {
-    return callEndpoint<CustomerListResponse>(scripts.customers, 'GET', {
-        query: { search: request.search, limit: request.limit },
-        signal,
-    });
-}
+// @netsuite-project:example — scaffold example; see api/src/controllers/customers/customersController.ts.
+
+/** One typed function per endpoint of the customers controller: `customersApi.list({ search })`, `customersApi.byId({ id })`. */
+export const customersApi = createApiClient(scripts.customers, customersContract);

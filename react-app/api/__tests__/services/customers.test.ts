@@ -3,23 +3,59 @@ import type { Customer } from '../../src/repositories/generated/Customer.gen';
 
 // The service is tested against a mocked repositories layer: the unit of work it opens and the
 // repository function it calls are both fakes, so the test sees only the service's decisions.
-const { fakeUnitOfWork, openUnitOfWork, listCustomersByCompanyName } = vi.hoisted(() => {
+const { fakeUnitOfWork, openUnitOfWork, listCustomersByCompanyName, findCustomerById } = vi.hoisted(() => {
     const fakeUnitOfWork = { customers: {} };
     return {
         fakeUnitOfWork,
         openUnitOfWork: vi.fn(() => fakeUnitOfWork),
         listCustomersByCompanyName: vi.fn<(work: unknown, query: unknown) => Customer[]>(),
+        findCustomerById: vi.fn<(work: unknown, id: number) => Customer | null>(),
     };
 });
 vi.mock('../../src/repositories/generated/context.gen', () => ({ openUnitOfWork }));
-vi.mock('../../src/repositories/customers', () => ({ listCustomersByCompanyName }));
+vi.mock('../../src/repositories/customers', () => ({ listCustomersByCompanyName, findCustomerById }));
 
+import { ApiError } from '../../src/lib/apiError';
 import {
     clampCustomerLimit,
     DEFAULT_CUSTOMER_LIMIT,
+    getCustomer,
     listCustomers,
     MAX_CUSTOMER_LIMIT,
+    parseCustomerId,
 } from '../../src/services/customers';
+
+describe('parseCustomerId', () => {
+    it('parses strings and rejects anything that is not a positive whole number as a 400', () => {
+        expect(parseCustomerId('12')).toBe(12);
+        expect(parseCustomerId(3)).toBe(3);
+        for (const bad of ['abc', '0', -1, undefined]) {
+            expect(() => parseCustomerId(bad)).toThrow(ApiError);
+            expect(() => parseCustomerId(bad)).toThrow(expect.objectContaining({ status: 400 }));
+        }
+    });
+});
+
+describe('getCustomer', () => {
+    const customer: Customer = { id: 12, companyName: 'Acme', email: null };
+
+    beforeEach(() => {
+        openUnitOfWork.mockClear();
+        findCustomerById.mockReset();
+    });
+
+    it('looks the customer up in a read-only unit of work and returns its summary', () => {
+        findCustomerById.mockReturnValue(customer);
+        expect(getCustomer({ id: '12' })).toEqual({ id: 12, companyName: 'Acme', email: null });
+        expect(openUnitOfWork).toHaveBeenCalledWith({ tracking: false });
+        expect(findCustomerById).toHaveBeenCalledWith(fakeUnitOfWork, 12);
+    });
+
+    it('answers 404 when there is no such customer', () => {
+        findCustomerById.mockReturnValue(null);
+        expect(() => getCustomer({ id: 99 })).toThrow(expect.objectContaining({ status: 404 }));
+    });
+});
 
 describe('clampCustomerLimit', () => {
     it('falls back to the default for missing or invalid values', () => {

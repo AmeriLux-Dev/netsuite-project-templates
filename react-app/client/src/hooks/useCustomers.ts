@@ -1,6 +1,6 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import type { CustomerListRequest } from 'common/types/customers';
-import { fetchCustomers } from '@/api/customersApi';
+import { customersApi } from '@/api/customersApi';
 
 export function customersQueryKey(request: CustomerListRequest) {
     return ['customers', { search: request.search ?? '', limit: request.limit ?? null }] as const;
@@ -9,7 +9,7 @@ export function customersQueryKey(request: CustomerListRequest) {
 export function customersQueryOptions(request: CustomerListRequest) {
     return queryOptions({
         queryKey: customersQueryKey(request),
-        queryFn: ({ signal }) => fetchCustomers(request, signal),
+        queryFn: ({ signal }) => customersApi.list(request, { signal }),
     });
 }
 

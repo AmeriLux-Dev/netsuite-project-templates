@@ -137,7 +137,7 @@ export default defineConfig({
             ],
         },
         {
-            files: ['api/src/**', 'client/src/**', '!api/src/models/**'],
+            files: ['api/src/**', 'client/src/**', '!common/models/**'],
             rules: [
                 forbidContentPattern({
                     match: /['"`](customscript|customdeploy|customrecord|customlist|custentity|custbody|custitem|custrecord)_[a-z0-9_]+['"`]/,

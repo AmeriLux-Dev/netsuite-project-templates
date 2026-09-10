@@ -5,10 +5,11 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// netsuite.ts standards: a NetSuite id written anywhere else is a string id scattered through a script.
+// Id standards: a record's type and field ids are declared on its model (common/models); ids no model owns
+// live in common/netsuite.ts. A NetSuite id written anywhere else is a string id scattered through a script.
 // custpage_ ids are form-local field names on a Suitelet form, not account objects, so they are not checked.
 const netsuiteIdPattern = '/^(custbody|custcol|custrecord|custentity|custitem|custevent|custform|custlist|custsublist|customscript|customdeploy|customsearch)_/i';
-const netsuiteIdMessage = 'NetSuite ids live in common/netsuite.ts. Import the constant.';
+const netsuiteIdMessage = 'NetSuite ids live on the model that owns them (common/models) or in common/netsuite.ts. Import the constant.';
 const netsuiteIdOutsideNetsuiteTs = [
     { selector: `Literal[value=${netsuiteIdPattern}]`, message: netsuiteIdMessage },
     { selector: `TemplateElement[value.raw=${netsuiteIdPattern}]`, message: netsuiteIdMessage },
@@ -29,7 +30,7 @@ const logEntryShape = [
 // Alerting strategy: no script sends its own alert. Rules over the span stream do, and recipients come from the README owners.
 const alertingImports = [{ group: ['N/email'], message: 'No script sends its own alert. Alert rules read the span stream.' }];
 // Dependency governance: the shared package is imported by the data-access layers only (models, specifications, repositories).
-const sharedPackageImports = [{ group: ['@amerilux/netsuite-repository', '@amerilux/netsuite-repository/*'], message: 'Only api/src/models, api/src/specifications and api/src/repositories import the shared repository package.' }];
+const sharedPackageImports = [{ group: ['@amerilux/netsuite-repository', '@amerilux/netsuite-repository/*'], message: 'Only common/models, api/src/specifications and api/src/repositories import the shared repository package.' }];
 // An endpoint never queries, a service never loads a record.
 const recordAccessImports = [{ group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' }];
 

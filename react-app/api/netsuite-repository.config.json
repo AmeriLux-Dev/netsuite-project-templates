@@ -1,5 +1,5 @@
 {
-  "models": ["src/models/**/*.ts"],
+  "models": ["../common/models/**/*.ts"],
   "outDir": "src/repositories/generated",
   "context": { "name": "App", "fileName": "context.gen.ts" },
   "tsconfig": "tsconfig.json",

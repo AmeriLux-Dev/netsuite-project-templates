@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { listCustomersByCompanyName, type CustomerUnitOfWork } from '../../src/repositories/customers';
+import { findCustomerById, listCustomersByCompanyName, type CustomerUnitOfWork } from '../../src/repositories/customers';
 import type { Customer } from '../../src/repositories/generated/Customer.gen';
 
 /** Records the query builder calls a specification makes, so a test can assert on them. */
@@ -52,4 +52,16 @@ describe('listCustomersByCompanyName', () => {
         listCustomersByCompanyName(work, { search: '', limit: 50 });
         expect(calls.map((call) => call.method)).toEqual(['orderByAsc', 'page']);
     });
+});
+
+describe('findCustomerById', () => {
+    it('asks the set for the id and passes its answer through', () => {
+        const find = vi.fn((id: number) => (id === 1 ? rowsById[1] : null));
+        const work = { customers: { find } } as unknown as CustomerUnitOfWork;
+        expect(findCustomerById(work, 1)).toBe(rowsById[1]);
+        expect(findCustomerById(work, 2)).toBeNull();
+        expect(find).toHaveBeenCalledWith(1);
+    });
+
+    const rowsById: Record<number, Customer> = { 1: { id: 1, companyName: 'Acme', email: null } };
 });

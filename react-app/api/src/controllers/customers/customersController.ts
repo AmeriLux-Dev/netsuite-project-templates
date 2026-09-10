@@ -7,7 +7,9 @@
 // @netsuite-project:example — scaffold example. Replace it with your own controller
 // (npm run add:controller -- <name>) or delete it; npm run deploy refuses to upload files carrying this marker.
 //
-// The only transport-specific file of this controller. To serve the same endpoints from a Suitelet:
+// The only transport-specific file of this controller. Its endpoints (list, byId) are both GET, so
+// only `get` is exported; an endpoint with another method adds that export. To serve the same
+// endpoints from a Suitelet:
 //   1. change @NScriptType above to Suitelet,
 //   2. replace the body with `export const onRequest = defineSuitelet('customers', customersEndpoints);`
 //      (import from '../../lib/defineSuitelet'),

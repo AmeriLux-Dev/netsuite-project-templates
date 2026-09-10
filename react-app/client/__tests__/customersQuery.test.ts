@@ -1,13 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
 import { scripts } from 'common/netsuite';
+import { customersContract } from 'common/types/customers';
 
-vi.mock('@/api/apiClient', () => ({
-    callEndpoint: vi.fn(async () => ({ customers: [], limit: 50 })),
-}));
+// The hook is tested against a fake customers client: what it asks for, not how the wire looks.
+const { listMock, createApiClient } = vi.hoisted(() => {
+    const listMock = vi.fn(async () => ({ customers: [], limit: 50 }));
+    return { listMock, createApiClient: vi.fn(() => ({ list: listMock })) };
+});
+vi.mock('@/api/apiClient', () => ({ createApiClient }));
 
-import { callEndpoint } from '@/api/apiClient';
-import { fetchCustomers } from '@/api/customersApi';
+import { customersApi } from '@/api/customersApi';
 import { customersQueryKey, customersQueryOptions } from '@/hooks/useCustomers';
+
+// The client is built when its module loads, before any test runs, and mock state is cleared per test: keep the call.
+const clientConstructionArguments = createApiClient.mock.calls[0] as unknown[] | undefined;
+
+describe('customersApi', () => {
+    it('is the typed client for the customers script and contract', () => {
+        expect(clientConstructionArguments).toEqual([scripts.customers, customersContract]);
+        expect(customersApi.list).toBe(listMock);
+    });
+});
 
 describe('customersQueryKey', () => {
     it('is stable for equal requests and distinct for different ones', () => {
@@ -17,18 +30,13 @@ describe('customersQueryKey', () => {
     });
 });
 
-describe('fetchCustomers', () => {
-    it('calls the customers controller with GET and the request as query parameters', async () => {
-        await fetchCustomers({ search: 'acme', limit: 10 });
-        expect(callEndpoint).toHaveBeenCalledWith(scripts.customers, 'GET', expect.objectContaining({ query: { search: 'acme', limit: 10 } }));
-    });
-});
-
 describe('customersQueryOptions', () => {
-    it('binds the query function to the request', async () => {
+    it('binds the list endpoint to the request and forwards the abort signal', async () => {
         const options = customersQueryOptions({ search: 'zeta' });
         expect(options.queryKey).toEqual(customersQueryKey({ search: 'zeta' }));
+        const signal = new AbortController().signal;
         const queryFunction = options.queryFn as (context: { signal: AbortSignal }) => Promise<unknown>;
-        await expect(queryFunction({ signal: new AbortController().signal })).resolves.toEqual({ customers: [], limit: 50 });
+        await expect(queryFunction({ signal })).resolves.toEqual({ customers: [], limit: 50 });
+        expect(listMock).toHaveBeenCalledWith({ search: 'zeta' }, { signal });
     });
 });

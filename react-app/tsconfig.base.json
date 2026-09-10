@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "strict": true,
+    "experimentalDecorators": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,

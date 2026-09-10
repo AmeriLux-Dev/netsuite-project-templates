@@ -9,7 +9,7 @@
 ## Why this shape
 
 - **A Suitelet hosts a React single-page app.** NetSuite serves the page and the session; the bundle is one file in the File Cabinet, found by folder and file name, never by internal id.
-- **One script per controller, no router.** Each controller is a folder under `api/src/controllers/`: transport-agnostic handlers under `endpoints/` and one file with an `@NScriptType` header that serves them as a Restlet or a Suitelet. Switching transport is a change to that file, its SDF object and the `kind` in `scripts`; the endpoints and the client do not change. Permissions, logging and log filtering stay per script.
+- **One script per controller, no router.** Each controller is a folder under `api/src/controllers/`: transport-agnostic handlers under `endpoints/` and one file with an `@NScriptType` header that serves them as a Restlet or a Suitelet. Endpoints are the controller's actions, as in ASP.NET: named, each with its own HTTP method, chosen by the `endpoint` parameter of the call, so a controller can have as many GETs as it needs. Switching transport is a change to that file, its SDF object and the `kind` in `scripts`; the endpoints and the client do not change. Permissions, logging and log filtering stay per script.
 - **Every NetSuite magic string lives in `common/netsuite.ts`.** Record types, field ids and script ids are grouped by the party that owns them. The client calls restlets through the `scripts` registry, so ids are typed and change in one place.
 - **Typed data access** through `@amerilux/netsuite-repository` (decorated models, generated context) and instrumented `N/*` calls through `@amerilux/netsuite-wrapper`.
 - **Rationale placeholder:** record here why this application exists and what it replaced.
@@ -96,10 +96,10 @@ The client bundle URL carries `?v=<version>-<buildId>`, so a new deploy is picke
 ## Adding a controller
 
 ```sh
-npm run add:controller -- orders --methods get,post
+npm run add:controller -- orders --endpoints list:get,byId:get,create:post
 ```
 
-writes `api/src/controllers/orders/` (`ordersController.ts` plus `endpoints/index.ts`, `endpoints/getOrders.ts`, `endpoints/postOrders.ts`), `netsuite/Objects/customscript_{{prefix}}_orders.xml`, `common/types/orders.ts`, `client/src/api/ordersApi.ts`, and adds `scripts.orders` to `common/netsuite.ts`. Implement the endpoints, then `npm run deploy`.
+writes `api/src/controllers/orders/` (`ordersController.ts` plus `endpoints/index.ts` and one file per endpoint: `endpoints/list.ts`, `endpoints/byId.ts`, `endpoints/create.ts`), `netsuite/Objects/customscript_{{prefix}}_orders.xml`, `common/types/orders.ts` with the request and response types and the `ordersContract` that gives each endpoint its method, `client/src/api/ordersApi.ts` (`ordersApi.list({})`, `ordersApi.byId({ id })`, `ordersApi.create({...})`), and adds `scripts.orders` to `common/netsuite.ts`. A bare name in `--endpoints` answers GET; with no flag you get `list`. Implement the endpoints, then `npm run deploy`.
 
 Add `--suitelet` to serve the same endpoints from a Suitelet instead of a Restlet.
 
@@ -153,7 +153,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 - Function names get more specific as their scope narrows; variable names get more specific as their visibility widens. Never abbreviate.
 - `common/` never imports `N/*`.
 - Script ids: `customscript_{{prefix}}_<name>` and `customdeploy_{{prefix}}_<name>`, at most 40 characters.
-- Endpoints are transport-agnostic functions under `controllers/<name>/endpoints/`; a Restlet controller exports only the HTTP methods it implements.
+- Endpoints are transport-agnostic functions under `controllers/<name>/endpoints/`, one file per endpoint named like an ASP.NET action; the contract in `common/types/<name>.ts` gives each its method, and a Restlet controller exports only the HTTP methods its endpoints use.
 - Layers: endpoint calls service, service calls repository, repository composes specifications. Only `models/`, `specifications/` and `repositories/` import `@amerilux/netsuite-repository`; only a repository touches records. `npm run lint` enforces the boundaries.
 - Log titles are constant phrases; controller, method and ids go in the details object.
 - Secrets never enter the repository: no account ids, auth ids, `project.json`, `.env` or key files.

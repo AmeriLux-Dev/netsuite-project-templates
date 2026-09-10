@@ -1,7 +1,7 @@
+import { customersContract } from 'common/types/customers';
 import { defineEndpoints } from '../../../lib/endpoint';
-import { getCustomers } from './getCustomers';
+import { byId } from './byId';
+import { list } from './list';
 
-/** One entry per HTTP method; each endpoint lives in its own file next to this one. */
-export const customersEndpoints = defineEndpoints({
-    get: getCustomers,
-});
+/** The controller's endpoints by name, each in its own file next to this one; the contract in common/ gives each its method. */
+export const customersEndpoints = defineEndpoints(customersContract, { list, byId });

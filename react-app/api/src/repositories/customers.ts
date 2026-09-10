@@ -26,3 +26,8 @@ export function listCustomersByCompanyName(work: CustomerUnitOfWork, query: Cust
     specifications.push(orderedByCompanyName(), firstPage(query.limit));
     return work.customers.list(...specifications);
 }
+
+/** The customer with this internal id, or null when there is none. */
+export function findCustomerById(work: CustomerUnitOfWork, id: number): Customer | null {
+    return work.customers.find(id);
+}

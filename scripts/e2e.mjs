@@ -152,7 +152,7 @@ run('npm', ['run', 'build', '-w', 'client'], projectDir);
 assertEqual(statSync(path.join(fileCabinet, 'api', 'host', 'homeController.js')).mtimeMs, homeBefore, 'client build leaves api/ untouched');
 
 // add controller through the CLI, then the new restlet must show up in the bundle set.
-runCli(['add', 'controller', 'orders', '--methods', 'get,post'], projectDir);
+runCli(['add', 'controller', 'orders', '--endpoints', 'list:get,create:post'], projectDir);
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);
 run('npm', ['run', 'build', '-w', 'api'], projectDir);
@@ -162,7 +162,7 @@ assertEqual(listFiles(path.join(fileCabinet, 'api')), [
     'host/homeController.js',
     'host/host.js',
 ], 'api output after add controller');
-assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'controllers', 'orders', 'endpoints', 'postOrders.ts')), true, 'orders endpoints written');
+assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'controllers', 'orders', 'endpoints', 'create.ts')), true, 'orders endpoints written');
 
 // A suitelet-backed controller shares the endpoint shape and must build and typecheck the same way.
 runCli(['add', 'controller', 'reports', '--suitelet'], projectDir);
