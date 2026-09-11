@@ -47,6 +47,12 @@ const clientApiImports = [
     { group: ['api/**', '!api/controllers/*Controller'], message: 'The client reaches the api through controllers/<name>Controller.ts only, and only as a type.' },
     { group: ['api/controllers/*Controller'], allowTypeImports: true, message: 'The client imports the endpoint types only (import type); the code behind them runs in NetSuite.' },
 ];
+// Dependency guard: npm workspaces hoist every package into the root node_modules, so an import of a package this
+// workspace never declared still resolves. The rule checks each import (type imports included) against the workspace's
+// own package.json. Add a package with `npm install -w <workspace> <package>`.
+const onlyDeclaredDependencies = (workspaceDir) => ({
+    'import-x/no-extraneous-dependencies': ['error', { includeTypes: true, packageDir: [`${import.meta.dirname}/${workspaceDir}`] }],
+});
 // common/ runs on both sides of the wire.
 const commonSideImports = [
     { group: ['N/*'], message: 'NetSuite modules belong in api/.' },
@@ -76,6 +82,8 @@ export default defineConfig([
                     noWarnOnMultipleProjects: true,
                 },
             },
+            // common/*, api/* and @/* point into this repository, not into node_modules, so the dependency guard skips them.
+            'import-x/internal-regex': '^(common|api|@)/',
         },
         rules: {
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
@@ -128,6 +136,10 @@ export default defineConfig([
             }],
         },
     },
+    { files: ['api/**'], rules: onlyDeclaredDependencies('api') },
+    { files: ['client/**'], rules: onlyDeclaredDependencies('client') },
+    { files: ['common/**'], rules: onlyDeclaredDependencies('common') },
+    { files: ['scripts/**', 'eslint.config.mjs', 'probity.config.ts'], rules: onlyDeclaredDependencies('.') },
     {
         files: ['client/src/**/*.{ts,tsx}'],
         languageOptions: { globals: { ...globals.browser } },

@@ -97,7 +97,8 @@ The SDF project that suitecloud deploys.
 {{#if probity}}
 - `probity.config.ts` Agent guardrails, hooked up in `.claude/settings.json`.
 {{/if}}
-- `package.json` Workspace root: the npm scripts (dev, generate, typecheck, lint, test, build, deploy).
+- `package.json` Workspace root: the `workspaces` list (common, api, client) and the npm scripts (dev, generate, typecheck, lint, test, build, deploy).
+- `node_modules/` The only install. npm workspaces hoist every workspace's packages here, so one `npm install` at the root installs everything. Add a package to the workspace that uses it: `npm install -w api <package>`. `npm run lint` fails when a workspace imports a package its own `package.json` does not declare.
 
 ## Adding a controller
 

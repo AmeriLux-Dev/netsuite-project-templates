@@ -45,6 +45,7 @@ Use the `add-controller` skill (`.claude/skills/add-controller/SKILL.md`): the c
 - **SuiteScript constraints.** Server handlers are synchronous. Emitted code targets ES2019, so optional chaining and nullish coalescing are downlevelled by TypeScript. `N/*` calls are rewritten to the wrapper at build time; do not add a custom externals function to `api/webpack.config.js`.
 - **Script ids** are `customscript_{{prefix}}_<name>` / `customdeploy_{{prefix}}_<name>`, at most 40 characters, declared only in `common/netsuite.ts`.
 - **Layers.** Endpoint calls service, service calls repository, repository composes specifications. `npm run lint` enforces the imports each layer may make (endpoints never query; services and repositories see a controller file as types only; the client sees it as types only; models know nothing about the wire); a violation names the layer that should do the work instead.
+- **Dependencies.** One `node_modules` at the root (npm workspaces). A workspace imports only what its own `package.json` declares; `npm run lint` fails on anything else. Add a package to the workspace that uses it, `npm install -w api <package>` (or `-w client`, `-w common`), never a bare `npm install <package>` at the root.
 - **Logging.** A log title is the same short phrase every time (`endpoint completed`); the controller, method and record ids go in the details object. Never glue ids into a title or a details string, and never `console.log` in `api/`.
 {{#unless probity}}
 
