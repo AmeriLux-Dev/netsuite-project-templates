@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RoleSummary } from '../../src/controllers/userRoles/endpoints';
-import type { ActiveUser } from '../../src/repositories/activeUser';
+import type { RoleSummary } from '../../src/controllers/userRolesController';
+import type { ActiveUser } from '../../src/repositories/activeUserRepository';
 
 // The service is tested against mocked repositories: the session reader and the role lookup are fakes.
 const { readActiveUser, listRolesForEmployee } = vi.hoisted(() => ({
     readActiveUser: vi.fn<() => ActiveUser>(),
     listRolesForEmployee: vi.fn<(employeeId: number) => RoleSummary[]>(),
 }));
-vi.mock('../../src/repositories/activeUser', () => ({ readActiveUser }));
-vi.mock('../../src/repositories/userRoles', () => ({ listRolesForEmployee }));
+vi.mock('../../src/repositories/activeUserRepository', () => ({ readActiveUser }));
+vi.mock('../../src/repositories/userRolesRepository', () => ({ listRolesForEmployee }));
 
-import { getActiveUserRoles } from '../../src/services/user';
+import { getActiveUserRoles } from '../../src/services/userService';
 
 describe('getActiveUserRoles', () => {
     beforeEach(() => {

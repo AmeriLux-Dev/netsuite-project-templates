@@ -1,6 +1,6 @@
-import type { UserRolesResponse } from '../controllers/user/endpoints';
-import { readActiveUser } from '../repositories/activeUser';
-import { listRolesForEmployee } from '../repositories/userRoles';
+import type { UserRolesResponse } from '../controllers/userController';
+import { readActiveUser } from '../repositories/activeUserRepository';
+import { listRolesForEmployee } from '../repositories/userRolesRepository';
 
 /**
  * Decisions about the caller. The service composes repository answers into the reply; it never sees

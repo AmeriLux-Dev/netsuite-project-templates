@@ -36,16 +36,16 @@ const recordAccessImports = [
     { group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
-// The request and response shapes live in controllers/<name>/endpoints.ts. The layers below take them as types
-// only: a service or repository that imported the endpoints value would be calling the wire it serves.
+// The request and response shapes live in controllers/<name>Controller.ts. The layers below take them as types
+// only: a service or repository that imported a controller's value would be pulling a deployed script into itself.
 const wireShapeImports = [
-    { group: ['**/controllers/**', '!**/controllers/*/endpoints'], message: 'Below a controller, only its endpoints.ts is visible, and only its types.' },
-    { group: ['**/controllers/*/endpoints'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>/endpoints.ts as types (import type); nothing below a controller calls an endpoint.' },
+    { group: ['**/controllers/**', '!**/controllers/*Controller'], message: 'Below a controller, only controllers/<name>Controller.ts is visible, and only its types.' },
+    { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>Controller.ts as types (import type); nothing below a controller imports its code.' },
 ];
 // The client takes the endpoint types from the api (`import type { UserEndpoints }`); the code stays server-side.
 const clientApiImports = [
-    { group: ['api/**', '!api/controllers/*/endpoints'], message: 'The client reaches the api through controllers/<name>/endpoints.ts only, and only as a type.' },
-    { group: ['api/controllers/*/endpoints'], allowTypeImports: true, message: 'The client imports the endpoint types only (import type); the code behind them runs in NetSuite.' },
+    { group: ['api/**', '!api/controllers/*Controller'], message: 'The client reaches the api through controllers/<name>Controller.ts only, and only as a type.' },
+    { group: ['api/controllers/*Controller'], allowTypeImports: true, message: 'The client imports the endpoint types only (import type); the code behind them runs in NetSuite.' },
 ];
 // common/ runs on both sides of the wire.
 const commonSideImports = [
@@ -114,13 +114,13 @@ export default defineConfig([
                     { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
-                    { target: './api/src/lib', from: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './common/model'], message: 'lib/ is transport plumbing; it depends on nothing above it.' },
+                    { target: './api/src/_lib', from: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './common/model'], message: '_lib/ is transport plumbing; it depends on nothing above it.' },
                     { target: './client', from: './common/model', message: 'Models are server-side. The client uses the endpoint types and the generated types in common/types/models.gen.ts.' },
                     { target: './common/model', from: './common/types', message: 'A model declares a record; it knows nothing about the wire.' },
                     { target: ['./client/src/pages', './client/src/routes', './client/src/components'], from: './client/src/api', message: 'A component never fetches. Use a hook.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client/src/api', from: ['./client/src/hooks', './client/src/pages', './client/src/routes', './client/src/components'], message: 'client/src/api only talks to endpoints.' },
-                    // The client may import a controller's endpoints.ts, as a type only (clientApiImports below).
+                    // The client may import a controller file, as a type only (clientApiImports below).
                     { target: './client', from: './api', except: ['./src/controllers'], message: 'Client and API share code through common/ and the endpoint types only.' },
                     { target: './api', from: './client', message: 'Client and API share code through common/ only.' },
                     { target: './common', from: ['./api', './client'], message: 'common/ depends on nothing project-specific.' },

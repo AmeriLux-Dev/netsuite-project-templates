@@ -6,7 +6,7 @@ import type { EmployeeRole } from 'common/types/models.gen';
 const { fakeEmployeeRoles } = vi.hoisted(() => ({ fakeEmployeeRoles: { list: vi.fn() } }));
 vi.mock('../../src/repositories/generated/context.gen', () => ({ dbContext: { employeeRoles: fakeEmployeeRoles } }));
 
-import { listEmployeeRolesByEmployee } from '../../src/repositories/employeeRoles';
+import { listEmployeeRolesByEmployee } from '../../src/repositories/employeeRolesRepository';
 
 /** Records the query builder calls a specification makes, so a test can assert on them. */
 function createRecordingQuery() {

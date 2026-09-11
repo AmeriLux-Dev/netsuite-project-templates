@@ -13,7 +13,7 @@ export const app = {
         clientFolder: 'client',
         clientBundle: 'app.js',
         /** Module path of the client script attached to the Suitelet form. */
-        hostScriptPath: '/SuiteScripts/{{appName}}/api/host/host.js',
+        hostScriptPath: '/SuiteScripts/{{appName}}/api/_host/host.js',
     },
     rootElementId: 'react-root',
 } as const;
@@ -31,7 +31,7 @@ export interface ScriptRef {
 export const scripts = {
     home: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_home', deployId: 'customdeploy_{{prefix}}_home' },
     user: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' },
-    /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/lib/suiteletClient.ts, not by the browser. */
+    /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/_lib/suiteletClient.ts, not by the browser. */
     userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles' },
     // @netsuite-project:scripts
 } as const satisfies Record<string, ScriptRef>;

@@ -6,7 +6,7 @@
   <notifyemails></notifyemails>
   <notifyowner>T</notifyowner>
   <notifyuser>F</notifyuser>
-  <scriptfile>[/SuiteScripts/{{appName}}/api/host/homeController.js]</scriptfile>
+  <scriptfile>[/SuiteScripts/{{appName}}/api/_host/homeController.js]</scriptfile>
   <scriptdeployments>
     <scriptdeployment scriptid="customdeploy_{{prefix}}_home">
       <allemployees>F</allemployees>

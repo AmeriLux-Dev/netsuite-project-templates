@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as runtime from 'N/runtime';
-import { readActiveUser } from '../../src/repositories/activeUser';
+import { readActiveUser } from '../../src/repositories/activeUserRepository';
 
 // N/runtime resolves to the stub in api/__tests__/test/stubs/N; the repository is tested on how it reads the session.
 const getCurrentUser = vi.mocked(runtime.getCurrentUser);

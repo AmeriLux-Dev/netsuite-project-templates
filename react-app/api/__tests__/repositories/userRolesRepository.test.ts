@@ -6,9 +6,9 @@ const { byEmployee, createSuiteletClient } = vi.hoisted(() => {
     const byEmployee = vi.fn();
     return { byEmployee, createSuiteletClient: vi.fn(() => ({ byEmployee })) };
 });
-vi.mock('../../src/lib/suiteletClient', () => ({ createSuiteletClient }));
+vi.mock('../../src/_lib/suiteletClient', () => ({ createSuiteletClient }));
 
-import { listRolesForEmployee } from '../../src/repositories/userRoles';
+import { listRolesForEmployee } from '../../src/repositories/userRolesRepository';
 
 // The client is built when the module loads, before any test runs, and mock state is cleared per test: keep the call.
 const clientConstructionArguments = createSuiteletClient.mock.calls[0] as unknown[] | undefined;

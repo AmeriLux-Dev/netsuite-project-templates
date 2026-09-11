@@ -1,7 +1,7 @@
 import type { EmployeeRole } from 'common/types/models.gen';
-import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from '../controllers/userRoles/endpoints';
+import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from '../controllers/userRolesController';
 import { ApiError } from '../_lib/apiError';
-import { listEmployeeRolesByEmployee } from '../repositories/employeeRoles';
+import { listEmployeeRolesByEmployee } from '../repositories/employeeRolesRepository';
 
 /**
  * Decisions about role assignments: what the request means and what the caller gets back. Runs

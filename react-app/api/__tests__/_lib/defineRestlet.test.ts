@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as log from 'N/log';
-import { ApiError } from '../../src/lib/apiError';
-import { defineRestlet } from '../../src/lib/defineRestlet';
-import { defineEndpoints, parseEndpointRequest, readEndpointCall } from '../../src/lib/endpoint';
+import { ApiError } from '../../src/_lib/apiError';
+import { defineRestlet } from '../../src/_lib/defineRestlet';
+import { defineEndpoints, parseEndpointRequest, readEndpointCall } from '../../src/_lib/endpoint';
 
 const thingsEndpoints = defineEndpoints({
     byId: (request: { id: string }): { id: number } => ({ id: Number(request.id) }),

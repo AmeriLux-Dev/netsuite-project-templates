@@ -8,11 +8,11 @@
  *   - the script id and deployment id share the prefix and the name, and fit NetSuite's 40-character cap
  *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching `kind`, declares the
  *     deployment, and points at a source file under api/src whose @NScriptType header matches `kind`
- *   - a controller (source under api/src/controllers/<name>/) has <name>Controller.ts and endpoints.ts, which
- *     exports <name>Endpoints = defineEndpoints({ ... }) and the type <Name>Endpoints; client/src/api/<name>Api.ts,
- *     when the browser calls it, is createApiClient<<Name>Endpoints>(scripts.<name>)
+ *   - a controller (api/src/controllers/<name>Controller.ts) exports <name>Endpoints = defineEndpoints({ ... }),
+ *     the type <Name>Endpoints, and the entry point of its kind (`post` for a Restlet, `onRequest` for a Suitelet);
+ *     client/src/api/<name>Api.ts, when the browser calls it, is createApiClient<<Name>Endpoints>(scripts.<name>)
  * (TypeScript checks the rest: a client call that names an endpoint the controller lacks does not compile.)
- * And the other way round: every controller folder, every SDF script object and every server-side @NScriptType
+ * And the other way round: every controller file, every SDF script object and every server-side @NScriptType
  * file belongs to an entry of `scripts` (a ClientScript attached to a form has no script record).
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -131,39 +131,42 @@ function checkScriptSource(entry, sourcePath) {
     }
 }
 
+const ENTRY_POINT_BY_KIND = { restlet: 'export const post = defineRestlet(', suitelet: 'export const onRequest = defineSuitelet(' };
+
 function checkController(entry, sourcePath) {
     const name = entry.name;
-    const controllerDirectory = `api/src/controllers/${name}`;
-    const endpointsPath = `${controllerDirectory}/endpoints.ts`;
+    const controllerPath = `api/src/controllers/${name}Controller.ts`;
     const endpointsTypeName = `${name.charAt(0).toUpperCase()}${name.slice(1)}Endpoints`;
-    if (sourcePath !== `${controllerDirectory}/${name}Controller.ts`) {
-        report(`scripts.${name}: a controller's script file is ${controllerDirectory}/${name}Controller.ts (the object points at ${sourcePath}).`);
-    }
-    if (!projectFileExists(endpointsPath)) {
-        report(`scripts.${name}: ${endpointsPath} is missing; it declares the endpoints and the shapes they send and receive.`);
+    if (sourcePath !== controllerPath) {
+        report(`scripts.${name}: a controller's script file is ${controllerPath} (the object points at ${sourcePath}).`);
         return;
     }
-    const endpointsSource = readProjectFile(endpointsPath);
-    if (!endpointsSource.includes(`export const ${name}Endpoints = defineEndpoints(`)) {
-        report(`${endpointsPath}: must export ${name}Endpoints = defineEndpoints({ ... }), as api/src/controllers/user/endpoints.ts does.`);
+    const controllerSource = readProjectFile(controllerPath);
+    if (!controllerSource.includes(`export const ${name}Endpoints = defineEndpoints(`)) {
+        report(`${controllerPath}: must export ${name}Endpoints = defineEndpoints({ ... }), as api/src/controllers/userController.ts does.`);
     }
-    if (!new RegExp(`export type ${endpointsTypeName} = typeof ${name}Endpoints;`).test(endpointsSource)) {
-        report(`${endpointsPath}: must export type ${endpointsTypeName} = typeof ${name}Endpoints; the clients are built from it.`);
+    if (!controllerSource.includes(`export type ${endpointsTypeName} = typeof ${name}Endpoints;`)) {
+        report(`${controllerPath}: must export type ${endpointsTypeName} = typeof ${name}Endpoints; the clients are built from it.`);
+    }
+    const entryPoint = ENTRY_POINT_BY_KIND[entry.kind];
+    if (entryPoint && !controllerSource.includes(entryPoint)) {
+        report(`${controllerPath}: must end with \`${entryPoint}'${name}', ${name}Endpoints);\` to match kind "${entry.kind}" on scripts.${name}.`);
     }
     // The browser's client module exists only for controllers the browser calls (a helper Suitelet called by another script has none).
     const clientModulePath = `client/src/api/${name}Api.ts`;
     if (projectFileExists(clientModulePath)) {
         const clientSource = readProjectFile(clientModulePath);
         if (!clientSource.includes(`createApiClient<${endpointsTypeName}>(scripts.${name})`)) {
-            report(`${clientModulePath}: must be createApiClient<${endpointsTypeName}>(scripts.${name}), with ${endpointsTypeName} imported as a type from api/controllers/${name}/endpoints.`);
+            report(`${clientModulePath}: must be createApiClient<${endpointsTypeName}>(scripts.${name}), with ${endpointsTypeName} imported as a type from api/controllers/${name}Controller.`);
         }
     }
 }
 
 function checkNothingIsOrphaned(entries, sourcePathsByEntry) {
     const entryNames = new Set(entries.map((entry) => entry.name));
-    for (const directory of listDirectories('api/src/controllers')) {
-        if (!entryNames.has(directory)) report(`api/src/controllers/${directory}/ has no scripts.${directory} entry in common/netsuite.ts.`);
+    for (const controllerFile of listFilesRecursively('api/src/controllers')) {
+        const name = path.basename(controllerFile, '.ts').replace(/Controller$/, '');
+        if (!controllerFile.endsWith('Controller.ts') || !entryNames.has(name)) report(`${controllerFile} has no scripts.${name} entry in common/netsuite.ts (a controller is named <name>Controller.ts after its entry).`);
     }
     const scriptIds = new Set(entries.map((entry) => entry.scriptId));
     for (const objectFile of listFilesRecursively('netsuite/Objects')) {
@@ -174,7 +177,7 @@ function checkNothingIsOrphaned(entries, sourcePathsByEntry) {
     for (const sourceFile of listFilesRecursively('api/src')) {
         if (!sourceFile.endsWith('.ts') || sourceFile.endsWith('.d.ts') || sourceFile.includes('/__tests__/') || sourceFile.includes('/repositories/generated/')) continue;
         const declaredKind = readScriptHeader(readProjectFile(sourceFile)).match(/@NScriptType\s+(\w+)/)?.[1];
-        // A client script attached to a Suitelet form (api/src/host/host.ts) has no script record of its own.
+        // A client script attached to a Suitelet form (api/src/_host/host.ts) has no script record of its own.
         if (!declaredKind || declaredKind === 'ClientScript') continue;
         if (!referencedSources.has(sourceFile)) report(`${sourceFile} carries @NScriptType but no SDF object under netsuite/Objects points at it; add a scripts entry and its object.`);
     }

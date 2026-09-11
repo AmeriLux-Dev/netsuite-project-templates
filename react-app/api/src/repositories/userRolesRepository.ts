@@ -1,5 +1,5 @@
 import { scripts } from 'common/netsuite';
-import type { RoleSummary, UserRolesEndpoints } from '../controllers/userRoles/endpoints';
+import type { RoleSummary, UserRolesEndpoints } from '../controllers/userRolesController';
 import { createSuiteletClient } from '../_lib/suiteletClient';
 
 /**

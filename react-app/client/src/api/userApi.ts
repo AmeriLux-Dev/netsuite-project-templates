@@ -1,4 +1,4 @@
-import type { UserEndpoints } from 'api/controllers/user/endpoints';
+import type { UserEndpoints } from 'api/controllers/userController';
 import { scripts } from 'common/netsuite';
 import { createApiClient } from './apiClient';
 

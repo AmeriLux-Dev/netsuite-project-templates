@@ -146,9 +146,9 @@ export default defineConfig({
             ],
         },
 
-        /* Test-first for the pure logic the tests are designed around: services, repositories, the transport wrappers in api/src/lib, client API modules and hooks. */
+        /* Test-first for the pure logic the tests are designed around: services, repositories, the transport wrappers in api/src/_lib, client API modules and hooks. */
         {
-            files: ['api/src/services/**', 'api/src/repositories/**', 'api/src/lib/**', 'client/src/api/**', 'client/src/hooks/**'],
+            files: ['api/src/services/**', 'api/src/repositories/**', 'api/src/_lib/**', 'client/src/api/**', 'client/src/hooks/**'],
             rules: [
                 enforceTddExceptComponents({
                     instructions: (defaults) => `${defaults}

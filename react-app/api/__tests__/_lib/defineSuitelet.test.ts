@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EntryPoints } from 'N/types';
-import { ApiError } from '../../src/lib/apiError';
-import { defineSuitelet } from '../../src/lib/defineSuitelet';
-import { defineEndpoints } from '../../src/lib/endpoint';
+import { ApiError } from '../../src/_lib/apiError';
+import { defineSuitelet } from '../../src/_lib/defineSuitelet';
+import { defineEndpoints } from '../../src/_lib/endpoint';
 
 /** The parts of a Suitelet context the wrapper touches, with the response captured for assertions. */
 function createSuiteletContext(method: string, body = '') {

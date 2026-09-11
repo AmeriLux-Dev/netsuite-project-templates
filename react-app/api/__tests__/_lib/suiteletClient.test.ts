@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as https from 'N/https';
 import type { ScriptRef } from 'common/netsuite';
-import { ApiError } from '../../src/lib/apiError';
-import { callSuiteletEndpoint, createSuiteletClient } from '../../src/lib/suiteletClient';
+import { ApiError } from '../../src/_lib/apiError';
+import { callSuiteletEndpoint, createSuiteletClient } from '../../src/_lib/suiteletClient';
 
 // N/https resolves to the stub in api/__tests__/test/stubs/N; the client is tested on what it sends and how it reads the answer.
 const requestSuitelet = vi.mocked(https.requestSuitelet);

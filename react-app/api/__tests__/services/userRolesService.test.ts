@@ -5,10 +5,10 @@ import type { EmployeeRole } from 'common/types/models.gen';
 const { listEmployeeRolesByEmployee } = vi.hoisted(() => ({
     listEmployeeRolesByEmployee: vi.fn<(employeeId: number) => EmployeeRole[]>(),
 }));
-vi.mock('../../src/repositories/employeeRoles', () => ({ listEmployeeRolesByEmployee }));
+vi.mock('../../src/repositories/employeeRolesRepository', () => ({ listEmployeeRolesByEmployee }));
 
-import { ApiError } from '../../src/lib/apiError';
-import { getRolesByEmployee, parseEmployeeId, toRoleSummary } from '../../src/services/userRoles';
+import { ApiError } from '../../src/_lib/apiError';
+import { getRolesByEmployee, parseEmployeeId, toRoleSummary } from '../../src/services/userRolesService';
 
 describe('parseEmployeeId', () => {
     it('parses strings and rejects anything that is not a positive whole number as a 400', () => {

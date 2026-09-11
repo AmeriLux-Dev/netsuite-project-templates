@@ -6,7 +6,7 @@
   <notifyemails></notifyemails>
   <notifyowner>T</notifyowner>
   <notifyuser>F</notifyuser>
-  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/userRoles/userRolesController.js]</scriptfile>
+  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/userRolesController.js]</scriptfile>
   <scriptdeployments>
     <scriptdeployment scriptid="customdeploy_{{prefix}}_user_roles">
       <allemployees>F</allemployees>

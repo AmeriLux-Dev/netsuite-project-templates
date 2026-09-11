@@ -1,6 +1,6 @@
 import type { EmployeeRole } from 'common/types/models.gen';
 import { dbContext } from './generated/context.gen';
-import { forEmployee } from '../specifications/employeeRoles';
+import { forEmployee } from '../specifications/employeeRolesSpecifications';
 
 /**
  * Data access for role assignments: sentences built from the specifications over dbContext. Reads
