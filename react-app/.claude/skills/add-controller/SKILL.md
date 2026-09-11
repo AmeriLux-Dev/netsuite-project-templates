@@ -12,10 +12,11 @@ Ask for, or infer from the request: the controller name (camelCase, no `Controll
 ## Rules that cannot bend
 
 - The script id is `customscript_{{prefix}}_<snake_name>` and the deployment id `customdeploy_{{prefix}}_<snake_name>`, both at most 40 characters. `<snake_name>` is the controller name in snake_case (`salesOrders` gives `sales_orders`). They are written once, in `common/netsuite.ts`; everywhere else imports `scripts.<name>`.
-- The request and response shapes are declared in `api/src/controllers/<name>/endpoints.ts`, above the handlers: an entity type from `common/types/models.gen.ts`, a `Pick` of one, or a composition of several. Never a record or a model class. The service maps entities to them.
-- `endpoints.ts` exports exactly `<name>Endpoints = defineEndpoints({ ... })` and `type <Name>Endpoints = typeof <name>Endpoints`. Every handler annotates its parameter (the request) and its return type (the response); a handler with no parameter takes no request.
-- Endpoint names are camelCase and never `endpoint`.
-- Services and repositories take the shapes from `endpoints.ts` with `import type`; the client takes `<Name>Endpoints` from `api/controllers/<name>/endpoints` with `import type`. Nothing below a controller, and nothing in the client, imports the endpoints value.
+- A controller is one file, `api/src/controllers/<name>Controller.ts`, in this order: the `@NScriptType` header, the request and response shapes, `<name>Endpoints = defineEndpoints({ ... })`, `type <Name>Endpoints = typeof <name>Endpoints`, and the entry point (`export const post = defineRestlet('<name>', <name>Endpoints)` or `export const onRequest = defineSuitelet(...)`).
+- The shapes are an entity type from `common/types/models.gen.ts`, a `Pick` of one, or a composition of several. Never a record or a model class. The service maps entities to them.
+- Every handler annotates its parameter (the request) and its return type (the response); a handler with no parameter takes no request. Endpoint names are camelCase and never `endpoint`.
+- Services and repositories take the shapes from the controller file with `import type`; the client takes `<Name>Endpoints` from `api/controllers/<name>Controller` with `import type`. Nothing below a controller, and nothing in the client, imports a controller's code.
+- Files are named after their layer: `<subject>Service.ts`, `<subject>Repository.ts`, `<record>Specifications.ts`, with tests of the same name under `api/__tests__/<layer>/`. A service or repository is named after what it handles, not after the controller that calls it. Nothing is added under `api/src/_lib/` or `api/src/_host/`.
 - A service never imports `N/*`; reading the session, a script parameter or another script is a repository function.
 - Nothing under `api/src/repositories/generated/`, `common/types/models.gen.ts` or `netsuite/FileCabinet/` is edited.
 
@@ -24,12 +25,11 @@ Ask for, or infer from the request: the controller name (camelCase, no `Controll
 | # | File | Reference |
 |---|---|---|
 | 1 | `common/netsuite.ts`: the `scripts.<name>` line above the `@netsuite-project:scripts` marker | `scripts.user` |
-| 2 | `api/src/controllers/<name>/endpoints.ts`: the request and response shapes, then `<name>Endpoints = defineEndpoints({ ... })` with one handler per endpoint calling a service, then `type <Name>Endpoints` | `controllers/user/endpoints.ts`, `controllers/userRoles/endpoints.ts` |
-| 3 | `api/src/controllers/<name>/<name>Controller.ts`: the `@NScriptType` header and `export const post = defineRestlet(...)` or `export const onRequest = defineSuitelet(...)` | `userController.ts`, `userRolesController.ts` |
-| 4 | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: copy the user (Restlet) or userRoles (Suitelet) object; change ids, names and the script file path | both objects under `netsuite/Objects/` |
-| 5 | `client/src/api/<name>Api.ts`: `createApiClient<<Name>Endpoints>(scripts.<name>)`, only when the browser calls the controller; then a hook under `client/src/hooks/` and a test | `userApi.ts`, `useActiveUserRoles.ts` |
+| 2 | `api/src/controllers/<name>Controller.ts`: header, shapes, `<name>Endpoints = defineEndpoints({ ... })` with one handler per endpoint calling a service, `type <Name>Endpoints`, and `post` (Restlet) or `onRequest` (Suitelet) | `userController.ts` (Restlet), `userRolesController.ts` (Suitelet) |
+| 3 | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: copy the user (Restlet) or userRoles (Suitelet) object; change ids, names and the script file path (`api/controllers/<name>Controller.js`) | both objects under `netsuite/Objects/` |
+| 4 | `client/src/api/<name>Api.ts`: `createApiClient<<Name>Endpoints>(scripts.<name>)`, only when the browser calls the controller; then a hook under `client/src/hooks/` and a test | `userApi.ts`, `useActiveUserRoles.ts` |
 
-Behind the endpoints: a service under `api/src/services/`, repository functions under `api/src/repositories/` and, for a new record type, a model under `common/model/` (then `npm run generate`) with its specifications; the shipped `userRoles` chain (`services/userRoles.ts`, `repositories/employeeRoles.ts`, `specifications/employeeRoles.ts`, `common/model/EmployeeRole.ts`) is the reference. A new service or repository function starts with a failing test under `api/__tests__/`. A helper script that must run as another role follows `userRoles`: a Suitelet whose deployment carries `<runasrole>`, called from a repository through `createSuiteletClient<...>(scripts.<name>)`.
+Behind the controller: a service under `api/src/services/`, repository functions under `api/src/repositories/` and, for a new record type, a model under `common/model/` (then `npm run generate`) with its specifications; the shipped `userRoles` chain (`userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `common/model/EmployeeRole.ts`) is the reference. A new service or repository function starts with a failing test under `api/__tests__/`. A helper script that must run as another role follows `userRoles`: a Suitelet whose deployment carries `<runasrole>`, called from a repository through `createSuiteletClient<...>(scripts.<name>)`.
 
 ## Finish
 

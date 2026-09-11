@@ -13,11 +13,11 @@ The application has two halves: a frontend (React, runs in the browser) in `clie
   netsuite.ts
 <a href="#api">api/</a>
   src/controllers/
-  src/host/
   src/services/
   src/repositories/
   src/specifications/
-  src/lib/
+  src/_host/
+  src/_lib/
   __tests__/
 <a href="#client">client/</a>
   src/routes/
@@ -56,12 +56,14 @@ Code both halves import. Never imports `N/*` modules, because the browser bundle
 
 The backend. Webpack bundles it into one JavaScript file per deployed script.
 
-- `src/controllers/` One folder per deployed script, two files: `endpoints.ts` (the request and response shapes and one function per endpoint) and `<name>Controller.ts` (the Restlet or Suitelet that serves them).
-- `src/host/` The Suitelet that serves the frontend page, and its client script.
-- `src/services/` The decisions: read the request, call repository functions, shape the reply.
-- `src/repositories/` The only code that touches NetSuite: records, queries, the session, other scripts. `generated/` is written by `npm run generate`.
-- `src/specifications/` Reusable query filters, one file per record type, used by repositories.
-- `src/lib/` Plumbing: `defineRestlet`, `defineSuitelet`, the endpoint envelope, `ApiError`, File Cabinet helpers, the Suitelet client.
+Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller.
+
+- `src/controllers/` One file per deployed script, `<name>Controller.ts`: the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them.
+- `src/services/` The decisions: read the request, call repository functions, shape the reply. `<subject>Service.ts`.
+- `src/repositories/` The only code that touches NetSuite: records, queries, the session, other scripts. `<subject>Repository.ts`; `generated/` is written by `npm run generate`.
+- `src/specifications/` Reusable query filters, one file per record type, `<record>Specifications.ts`, used by repositories.
+- `src/_host/` The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folders you do not add to.
+- `src/_lib/` Plumbing: `defineEndpoints`, `defineRestlet`, `defineSuitelet`, the endpoint envelope, `ApiError`, File Cabinet helpers, the Suitelet client. Boilerplate too.
 - `__tests__/` Unit tests for the backend. `test/stubs/N/` stands in for the `N/*` modules.
 
 ## client/
@@ -99,23 +101,29 @@ The SDF project that suitecloud deploys.
 
 ## Adding a controller
 
-A controller is one deployed script (a Restlet or a Suitelet) with named endpoints. Every call is a POST whose JSON body carries the request plus an `endpoint` property naming the endpoint. The shipped `user` controller is the reference; copy its files and rename. Create these in order:
+A controller is one deployed script (a Restlet or a Suitelet) with named endpoints. Every call is a POST whose JSON body carries the request plus an `endpoint` property naming the endpoint. The shipped `user` controller is the reference; copy it and rename. Create these in order:
 
 1. `common/netsuite.ts`: a line in `scripts` with the kind, script id and deployment id.
     ```typescript
     export const scripts = {
         home: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_home', deployId: 'customdeploy_{{prefix}}_home' },
         user: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' },
-        /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/lib/suiteletClient.ts, not by the browser. */
+        /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/_lib/suiteletClient.ts, not by the browser. */
         userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles' },
         // @netsuite-project:scripts
     } as const satisfies Record<string, ScriptRef>;
     ```
-2. `api/src/controllers/<name>/endpoints.ts`: the request and response shapes, then one function per endpoint. A handler's parameter is its request and its return value its response; a handler with no parameter takes no request. Shapes are the wire, not the record: an entity type from `common/types/models.gen.ts`, a `Pick` of one, or a composition of several.
+2. `api/src/controllers/<name>Controller.ts`: the whole controller in one file. The NetSuite header first, then the request and response shapes, then one function per endpoint, then the entry point. A handler's parameter is its request and its return value its response; a handler with no parameter takes no request. Shapes are the wire, not the record: an entity type from `common/types/models.gen.ts`, a `Pick` of one, or a composition of several.
     ```typescript
+    /**
+     * @NApiVersion 2.1
+     * @NScriptType Suitelet
+     * @NModuleScope SameAccount
+     */
     import type { EmployeeRole } from 'common/types/models.gen';
-    import { defineEndpoints } from '../../lib/endpoint';
-    import { getRolesByEmployee } from '../../services/userRoles';
+    import { defineSuitelet } from '../_lib/defineSuitelet';
+    import { defineEndpoints } from '../_lib/endpoint';
+    import { getRolesByEmployee } from '../services/userRolesService';
 
     export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;
 
@@ -133,24 +141,14 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     });
 
     export type UserRolesEndpoints = typeof userRolesEndpoints;
-    ```
-    An endpoint stays thin: it calls a service and returns the result. A big controller can spread its handlers over more files and gather them in `endpoints.ts`; the two exports are what the rest of the project looks for.
-3. `api/src/controllers/<name>/<name>Controller.ts`: the deployed script file. A Restlet exports `post`, a Suitelet exports `onRequest`; both take the endpoints from step 2.
-    ```typescript
-    /**
-     * @NApiVersion 2.1
-     * @NScriptType Restlet
-     * @NModuleScope SameAccount
-     */
-    import { defineRestlet } from '../../lib/defineRestlet';
-    import { userEndpoints } from './endpoints';
 
-    export const post = defineRestlet('user', userEndpoints);
+    export const onRequest = defineSuitelet('userRoles', userRolesEndpoints);
     ```
-4. `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: the script record and its deployment. Copy the `user` (Restlet) or `userRoles` (Suitelet) object and change the ids, names and script file path.
-5. `client/src/api/<name>Api.ts`: the typed client, only when the browser calls the controller. It imports the endpoint type from the api, as a type only, so none of the server code reaches the bundle.
+    A Restlet ends with `export const post = defineRestlet('user', userEndpoints);` instead, and its header says `@NScriptType Restlet`. That last line, the header and the SDF object are the only transport-specific pieces. An endpoint stays thin: it calls a service and returns the result. The three exports (`<name>Endpoints`, `<Name>Endpoints`, `post` or `onRequest`) are what the rest of the project looks for.
+3. `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: the script record and its deployment. Copy the `user` (Restlet) or `userRoles` (Suitelet) object and change the ids, names and the script file path (`api/controllers/<name>Controller.js`).
+4. `client/src/api/<name>Api.ts`: the typed client, only when the browser calls the controller. It imports the endpoint type from the controller file, as a type only, so none of the server code reaches the bundle.
     ```typescript
-    import type { UserEndpoints } from 'api/controllers/user/endpoints';
+    import type { UserEndpoints } from 'api/controllers/userController';
     import { scripts } from 'common/netsuite';
     import { createApiClient } from './apiClient';
 
@@ -158,6 +156,8 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     ```
     Then a hook under `client/src/hooks/` calls it: `userApi.roles()` for an endpoint without a request, `ordersApi.byId({ id })` for one with. The second argument carries the abort signal: `userApi.roles(undefined, { signal })`.
 
-A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `api/src/lib/suiteletClient.ts`.
+Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`) that decides and shapes the reply, repository functions under `api/src/repositories/` (`<subject>Repository.ts`) that read and write, and for a new record type a model under `common/model/` (then `npm run generate`) with its `<record>Specifications.ts`. The service takes the request and response types from the controller file with `import type`. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `common/model/EmployeeRole.ts`) is the reference.
+
+A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `api/src/_lib/suiteletClient.ts`, with the type imported from the controller file.
 
 `npm run lint` names any piece that is missing or disagrees with the others; `npm run typecheck` catches a client call that names an endpoint the controller lacks.

@@ -47,12 +47,6 @@ function listFilesRecursively(relativeDirectory) {
     return files;
 }
 
-function listDirectories(relativeDirectory) {
-    const directory = path.join(projectRoot, relativeDirectory);
-    if (!existsSync(directory)) return [];
-    return readdirSync(directory).filter((entry) => statSync(path.join(directory, entry)).isDirectory());
-}
-
 /** The leading JSDoc block NetSuite reads, or an empty string when the file has none. */
 function readScriptHeader(source) {
     const match = source.match(/^\s*(\/\*[\s\S]*?\*\/)/);
