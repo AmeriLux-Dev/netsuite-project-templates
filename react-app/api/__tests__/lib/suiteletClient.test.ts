@@ -5,7 +5,7 @@ import { defineContract } from 'common/types/api';
 import { ApiError } from '../../src/lib/apiError';
 import { callSuiteletEndpoint, createSuiteletClient } from '../../src/lib/suiteletClient';
 
-// N/https resolves to the stub in api/test/stubs/N; the client is tested on what it sends and how it reads the answer.
+// N/https resolves to the stub in api/__tests__/test/stubs/N; the client is tested on what it sends and how it reads the answer.
 const requestSuitelet = vi.mocked(https.requestSuitelet);
 const helper: ScriptRef = { kind: 'suitelet', scriptId: 'customscript_test_helper', deployId: 'customdeploy_test_helper' };
 

@@ -15,8 +15,8 @@ export interface ApiErrorBody {
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 /**
- * The wire parameter naming which endpoint of a controller a call is for, the way an action name
- * routes inside an ASP.NET controller: a query parameter on GET, a property of the JSON body otherwise.
+ * The wire parameter naming which endpoint of a controller a call is for: a query parameter on GET,
+ * a property of the JSON body otherwise.
  */
 export const ENDPOINT_PARAMETER = 'endpoint';
 

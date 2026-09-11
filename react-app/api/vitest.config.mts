@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 const apiDir = path.dirname(fileURLToPath(import.meta.url));
-const stubsDir = path.join(apiDir, 'test', 'stubs', 'N');
+const stubsDir = path.join(apiDir, '__tests__', 'test', 'stubs', 'N');
 
 export default defineConfig({
     define: {

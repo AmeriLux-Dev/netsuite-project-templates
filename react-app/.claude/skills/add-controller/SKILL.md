@@ -5,7 +5,7 @@ description: Add a controller to this project (a Restlet or Suitelet script with
 
 # Add a controller
 
-A controller is one deployed script serving named endpoints, as in ASP.NET: `user` with `roles`, or `orders` with `list`, `byId`, `create`. The step-by-step recipe with the shape of every file is HOW-TO-USE.md, "Adding a controller"; read it, and read the shipped `user` controller (and `userRoles` for a Suitelet) before writing. This skill is the checklist and the rules.
+A controller is one deployed script serving named endpoints: `user` with `roles`, or `orders` with `list`, `byId`, `create`. The step-by-step recipe with the shape of every file is HOW-TO-USE.md, "Adding a controller"; read it, and read the shipped `user` controller (and `userRoles` for a Suitelet) before writing. This skill is the checklist and the rules.
 
 Ask for, or infer from the request: the controller name (camelCase, no `Controller` suffix: `orders`, `salesOrders`), each endpoint's name and HTTP method (`list:GET`, `byId:GET`, `create:POST`, `update:PUT`, `remove:DELETE`), the transport (Restlet by default; Suitelet when the caller is a NetSuite page, or when the script must run as another role and is called server-side), and what each endpoint takes and returns.
 

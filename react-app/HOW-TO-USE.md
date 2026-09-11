@@ -5,7 +5,7 @@ Scaffolded with create-netsuite-project {{cliVersion}} (`react-app` template). [
 ## Why this shape
 
 - **A Suitelet hosts a React single-page app.** NetSuite serves the page and the session; the bundle is one file in the File Cabinet, found by folder and file name, never by internal id.
-- **One script per controller, no router.** Each controller is a folder under `api/src/controllers/`: transport-agnostic handlers under `endpoints/` and one file with an `@NScriptType` header that serves them as a Restlet or a Suitelet. Endpoints are the controller's actions, as in ASP.NET: named, each with its own HTTP method, chosen by the `endpoint` parameter of the call, so a controller can have as many GETs as it needs. Switching transport is a change to that file, its SDF object and the `kind` in `scripts`; the endpoints and the client do not change. Permissions, logging and log filtering stay per script.
+- **One script per controller, no router.** Each controller is a folder under `api/src/controllers/`: transport-agnostic handlers under `endpoints/` and one file with an `@NScriptType` header that serves them as a Restlet or a Suitelet. Endpoints are named, each with its own HTTP method, chosen by the `endpoint` parameter of the call, so a controller can have as many GETs as it needs. Switching transport is a change to that file, its SDF object and the `kind` in `scripts`; the endpoints and the client do not change. Permissions, logging and log filtering stay per script.
 - **Every NetSuite magic string has one home.** A record's type and field ids are declared on its model in `common/model/`, which is what the repository package reads; script ids and any id no model owns live in `common/netsuite.ts`. The client calls scripts through the `scripts` registry, so ids are typed and change in one place.
 - **Three kinds of shared type, each in its own folder.** `common/model/` declares records; `npm run generate` turns them into entity types in `common/types/models.gen.ts`, which both sides may import; `common/dto/` holds what goes over the wire, picked from the entity types; `common/types/<controller>.ts` holds the contract that gives each endpoint its method. An endpoint sees DTOs only; the service maps entities to them.
 - **Typed data access** through `@amerilux/netsuite-repository` (decorated models, generated context) and instrumented `N/*` calls through `@amerilux/netsuite-wrapper`.
@@ -54,7 +54,7 @@ api/                    SuiteScript, bundled by webpack into one AMD file per sc
   src/repositories/     Query and write functions over dbContext, session reads, calls to helper scripts (generated/ is produced, gitignored)
   src/specifications/   Query predicates, one module per record type
   src/lib/              endpoint, defineRestlet, defineSuitelet, suiteletClient, ApiError, File Cabinet helpers
-  test/stubs/N/         vi.fn shells for N/* modules
+  __tests__/test/stubs/N/  vi.fn shells for N/* modules
   __tests__/            Vitest specs
 client/                 React 19, TanStack Router (file-based, hash history), TanStack Query, Tailwind 4
   src/routes/           One file per route; __root.tsx is the layout (routeTree.gen.ts is generated)
@@ -102,7 +102,7 @@ Every recipe below is worked on these files. Build on them or replace them.
 
 ## Adding a controller
 
-A controller is one deployed script serving named endpoints, as in ASP.NET: `user` with `roles`, or `orders` with `list`, `byId`, `create`. The steps below are the `user` controller; substitute your own names. With Claude Code, the `add-controller` skill follows the same steps. `npm run lint` fails until every piece exists and they agree, so run it as you go.
+A controller is one deployed script serving named endpoints: `user` with `roles`, or `orders` with `list`, `byId`, `create`. The steps below are the `user` controller; substitute your own names. With Claude Code, the `add-controller` skill follows the same steps. `npm run lint` fails until every piece exists and they agree, so run it as you go.
 
 Names: the controller name is camelCase without a `Controller` suffix (`user`, `salesOrders`); its script id is `customscript_{{prefix}}_<snake_name>` (`sales_orders`). Script ids are capped at 40 characters: `customscript_` takes 13, so `{{prefix}}_<snake_name>` must fit in 27. Endpoint names are camelCase and never `index` or `endpoint`.
 
@@ -485,7 +485,7 @@ export function readMaximumRoles(): number {
 ## Testing
 
 - `api/__tests__/` and `client/__tests__/` hold the Vitest specs; tests are never colocated with source.
-- `N/*` modules and the wrapper's module entry points resolve to `api/test/stubs/N/`.
+- `N/*` modules and the wrapper's module entry points resolve to `api/__tests__/test/stubs/N/`.
 - Repository functions read through the generated `dbContext`, so a test mocks it with a fake carrying the record sets it needs; a repository that calls a helper Suitelet fakes the Suitelet client. Service tests mock the repository modules.
 - UI markup is not unit-tested; hooks and API modules are.
 
@@ -507,7 +507,7 @@ export function readMaximumRoles(): number {
 - Function names get more specific as their scope narrows; variable names get more specific as their visibility widens. Never abbreviate.
 - `common/` never imports `N/*`.
 - Script ids: `customscript_{{prefix}}_<name>` and `customdeploy_{{prefix}}_<name>`, at most 40 characters, written only in `common/netsuite.ts`.
-- Endpoints are transport-agnostic functions under `controllers/<name>/endpoints/`, one file per endpoint named like an ASP.NET action; the contract in `common/types/<name>.ts` gives each its method, and a Restlet controller exports only the HTTP methods its endpoints use.
+- Endpoints are transport-agnostic functions under `controllers/<name>/endpoints/`, one file per endpoint named after it; the contract in `common/types/<name>.ts` gives each its method, and a Restlet controller exports only the HTTP methods its endpoints use.
 - Layers: endpoint calls service, service calls repository, repository composes specifications. Only `model/`, `specifications/` and `repositories/` import `@amerilux/netsuite-repository`; only a repository touches records, the session or another script. Endpoints speak DTOs; services map entities to them. `npm run lint` enforces the boundaries and the structure of every controller.
 - Log titles are constant phrases; controller, method and ids go in the details object.
 - Secrets never enter the repository: no account ids, auth ids, `project.json`, `.env` or key files.

@@ -3,9 +3,9 @@ import { ENDPOINT_PARAMETER, type ApiEnvelope, type EndpointContract, type Endpo
 import { ApiError } from './apiError';
 
 /**
- * Endpoints are the transport-agnostic unit of an API controller, the way actions are the unit of
- * an ASP.NET controller: named, each with an HTTP method, each a synchronous function from a parsed
- * request to a response value, one file per endpoint under `controllers/<name>/endpoints/`. The
+ * Endpoints are the transport-agnostic unit of an API controller: named, each with an HTTP method,
+ * each a synchronous function from a parsed request to a response value, one file per endpoint
+ * under `controllers/<name>/endpoints/`. The
  * contract in common/ names them and gives each its method, so the client calls them by name. The
  * controller file wraps the map as a Restlet (`defineRestlet`) or a Suitelet (`defineSuitelet`);
  * switching transport is a change to that one file and its SDF object, never to the endpoints.
