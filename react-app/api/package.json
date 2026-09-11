@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@amerilux/netsuite-repository": "^1.0.0",
+    "@amerilux/netsuite-repository": "^1.1.0",
     "@amerilux/netsuite-wrapper": "^0.3.95"
   },
   "devDependencies": {

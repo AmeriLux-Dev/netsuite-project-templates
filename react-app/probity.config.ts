@@ -107,7 +107,7 @@ export default defineConfig({
 
         /* Generated and account-specific files are never written by an agent */
         {
-            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'client/src/routeTree.gen.ts'],
+            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'common/types/models.gen.ts', 'client/src/routeTree.gen.ts'],
             rules: [forbidAnyWrite('Generated output. Change the source (models, routes, bundles) and run npm run generate or npm run build instead.')],
         },
         {
@@ -141,7 +141,7 @@ export default defineConfig({
             rules: [
                 forbidContentPattern({
                     match: /['"`](customscript|customdeploy|customrecord|customlist|custentity|custbody|custitem|custrecord)_[a-z0-9_]+['"`]/,
-                    reason: 'NetSuite identifiers are declared on the model that owns them (common/models) or in common/netsuite.ts; import them from there.',
+                    reason: 'NetSuite identifiers are declared on the model that owns them (common/model) or in common/netsuite.ts; import them from there.',
                 }),
             ],
         },

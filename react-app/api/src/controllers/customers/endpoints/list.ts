@@ -1,4 +1,4 @@
-import type { CustomerListRequest, CustomerListResponse } from 'common/types/customers';
+import type { CustomerListRequest, CustomerListResponse } from 'common/dto/customers';
 import type { Endpoint } from '../../../lib/endpoint';
 import { listCustomers } from '../../../services/customers';
 

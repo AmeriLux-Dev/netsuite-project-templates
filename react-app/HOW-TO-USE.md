@@ -6,7 +6,8 @@ Scaffolded with create-netsuite-project {{cliVersion}} (`react-app` template). [
 
 - **A Suitelet hosts a React single-page app.** NetSuite serves the page and the session; the bundle is one file in the File Cabinet, found by folder and file name, never by internal id.
 - **One script per controller, no router.** Each controller is a folder under `api/src/controllers/`: transport-agnostic handlers under `endpoints/` and one file with an `@NScriptType` header that serves them as a Restlet or a Suitelet. Endpoints are the controller's actions, as in ASP.NET: named, each with its own HTTP method, chosen by the `endpoint` parameter of the call, so a controller can have as many GETs as it needs. Switching transport is a change to that file, its SDF object and the `kind` in `scripts`; the endpoints and the client do not change. Permissions, logging and log filtering stay per script.
-- **Every NetSuite magic string has one home.** A record's type and field ids are declared on its model in `common/models/`, which is what the repository package reads; script ids and any id no model owns live in `common/netsuite.ts`. The client calls restlets through the `scripts` registry, so ids are typed and change in one place.
+- **Every NetSuite magic string has one home.** A record's type and field ids are declared on its model in `common/model/`, which is what the repository package reads; script ids and any id no model owns live in `common/netsuite.ts`. The client calls restlets through the `scripts` registry, so ids are typed and change in one place.
+- **Three kinds of shared type, each in its own folder.** `common/model/` declares records; `npm run generate` turns them into entity types in `common/types/models.gen.ts`, which both sides may import; `common/dto/` holds what goes over the wire, picked from the entity types; `common/types/<controller>.ts` holds the contract that gives each endpoint its method. An endpoint sees DTOs only; the service maps entities to them.
 - **Typed data access** through `@amerilux/netsuite-repository` (decorated models, generated context) and instrumented `N/*` calls through `@amerilux/netsuite-wrapper`.
 
 ## Prerequisites
@@ -32,19 +33,19 @@ npm run dev
 | `npm run build` | Builds the client (Vite) and then the API (webpack) into `netsuite/FileCabinet/SuiteScripts/{{appName}}/` |
 | `npm run deploy` | Build, then `suitecloud project:adddependencies` and `project:deploy`; refuses while example code is present |
 | `npm run deploy:files` | Build, then upload only the File Cabinet files (fast path after a UI change); same guard |
-| `npm run generate` | Regenerate the repository context and types from `common/models/` |
+| `npm run generate` | Regenerate the repository context, field paths and `common/types/models.gen.ts` from `common/model/` (build, test, typecheck and dev run it first) |
 | `npm test` | Vitest in every workspace |
 | `npm run typecheck` | `tsc --noEmit` in every workspace |
-| `npm run lint` | ESLint over the whole repository |
-| `npm run add:controller -- <name>` | Add a restlet controller with its SDF object, shared types and client API module |
+| `npm run lint` | ESLint over the whole repository, then the structure check (`scripts/checkStructure.mjs`) |
 
 ## Layout
 
 ```
 common/                 Shared by api and client; compiles without NetSuite types
-  models/               Decorated record models: each declares its record type and field ids (server-side only)
+  model/                Decorated record models: each declares its record type and field ids (server-side only)
+  dto/                  Request and response shapes of each controller's endpoints: the wire, picked from the entity types
+  types/                api.ts (envelope, defineContract), one contract per controller, models.gen.ts (generated entity types)
   netsuite.ts           App names, script ids, and ids no model owns
-  types/                Request and response shapes and each controller's endpoint contract
 api/                    SuiteScript, bundled by webpack into one AMD file per script
   src/controllers/      One folder per controller: <name>Controller.ts (Restlet or Suitelet) + endpoints/
   src/host/             The Suitelet that serves the SPA and its client script
@@ -61,9 +62,10 @@ client/                 React 19, TanStack Router (file-based, hash history), Ta
   src/hooks/            TanStack Query hooks, the only callers of src/api
   server.ts             Local dev proxy that signs OAuth 2.0 requests to the sandbox
 netsuite/               The SDF project: manifest, deploy.xml, Objects/, FileCabinet/ (build output)
-scripts/                deploy.mjs, buildInfo.cjs
+scripts/                deploy.mjs, buildInfo.cjs, checkStructure.mjs (run by npm run lint)
 README.md               Purpose, owners, dependencies, deployment, support and decisions of this application
 CLAUDE.md               Project brief for Claude Code
+.claude/skills/         add-controller: the recipe an agent follows to add a controller
 {{#if probity}}
 probity.config.ts       Agent guardrails (hooked up in .claude/settings.json)
 {{/if}}
@@ -83,12 +85,12 @@ Building the client empties only `client/`; building the API empties only `api/`
 
 ## Deploy
 
-The customers controller, its SDF object and the customers page are scaffold examples, marked with `@netsuite-project:example`. `npm run deploy` and `npm run deploy:files` refuse to run while any marked file is present, so the example never ends up in a File Cabinet. Replace it with `npm run add:controller -- <name>` or delete it. Deleting means every file of the example, its tests included, and then pointing the `/` route at your own page:
+The customers controller, its SDF object and the customers page are scaffold examples, marked with `@netsuite-project:example`. `npm run deploy` and `npm run deploy:files` refuse to run while any marked file is present, so the example never ends up in a File Cabinet. Replace it with your own controller (see [Adding a controller](#adding-a-controller)) or delete it. Deleting means every file of the example, its tests included, and then pointing the `/` route at your own page:
 
 - `api/src/controllers/customers/`, `api/src/services/customers.ts`, `api/src/repositories/customers.ts`, `api/src/specifications/customers.ts`
 - `api/__tests__/services/customers.test.ts`, `api/__tests__/repositories/customers.test.ts`
 - `netsuite/Objects/customscript_{{prefix}}_customers.xml` and the `customers` entry in `scripts` (`common/netsuite.ts`)
-- `common/types/customers.ts`, and `common/models/Customer.ts` unless your own code reads customers
+- `common/types/customers.ts`, `common/dto/customers.ts`, and `common/model/Customer.ts` unless your own code reads customers
 - `client/src/pages/CustomersPage.tsx`, `client/src/hooks/useCustomers.ts`, `client/src/api/customersApi.ts`, `client/__tests__/customersQuery.test.ts`
 - `client/src/routes/index.tsx` imports `CustomersPage`; give it your own component
 
@@ -100,13 +102,22 @@ The client bundle URL carries `?v=<version>-<buildId>`, so a new deploy is picke
 
 ## Adding a controller
 
-```sh
-npm run add:controller -- orders --endpoints list:get,byId:get,create:post
-```
+A controller is one deployed script serving named endpoints, as in ASP.NET: `orders` with `list`, `byId`, `create`. Eight pieces make one; `npm run lint` runs `scripts/checkStructure.mjs`, which fails until every piece exists and they agree, so the structure holds whether a person or an agent writes it. With Claude Code, the `add-controller` skill (`.claude/skills/add-controller/SKILL.md`) walks through the same list with the shape of each file; the `customers` controller is the reference.
 
-writes `api/src/controllers/orders/` (`ordersController.ts` plus `endpoints/index.ts` and one file per endpoint: `endpoints/list.ts`, `endpoints/byId.ts`, `endpoints/create.ts`), `netsuite/Objects/customscript_{{prefix}}_orders.xml`, `common/types/orders.ts` with the request and response types and the `ordersContract` that gives each endpoint its method, `client/src/api/ordersApi.ts` (`ordersApi.list({})`, `ordersApi.byId({ id })`, `ordersApi.create({...})`), and adds `scripts.orders` to `common/netsuite.ts`. A bare name in `--endpoints` answers GET; with no flag you get `list`. Implement the endpoints, then `npm run deploy`.
+| # | File | Holds |
+|---|---|---|
+| 1 | `common/netsuite.ts` | `scripts.orders = { kind, scriptId: 'customscript_{{prefix}}_orders', deployId: 'customdeploy_{{prefix}}_orders' }`, above the `@netsuite-project:scripts` marker. The only place an id is written. |
+| 2 | `common/dto/orders.ts` | One request and one response type per endpoint, picked from the entity types in `common/types/models.gen.ts`. GET parameters arrive as strings. |
+| 3 | `common/types/orders.ts` | `OrdersEndpoints` (request and response per endpoint) and `ordersContract = defineContract<OrdersEndpoints>({ list: { method: 'GET' }, ... })`, one entry per line. |
+| 4 | `api/src/controllers/orders/endpoints/<endpoint>.ts` | One `Endpoint<Request, Response>` per endpoint, named like an ASP.NET action, calling a service. |
+| 5 | `api/src/controllers/orders/endpoints/index.ts` | `defineEndpoints(ordersContract, { list, byId, create })`. |
+| 6 | `api/src/controllers/orders/ordersController.ts` | The `@NScriptType` header and `defineRestlet('orders', ordersEndpoints)` (exporting the methods the contract uses) or `defineSuitelet`. |
+| 7 | `netsuite/Objects/customscript_{{prefix}}_orders.xml` | The SDF `<restlet>` or `<suitelet>` object, named after the script id, pointing at `/SuiteScripts/{{appName}}/api/controllers/orders/ordersController.js` and declaring the deployment. Copy the customers (Restlet) or home (Suitelet) object. |
+| 8 | `client/src/api/ordersApi.ts` | `createApiClient(scripts.orders, ordersContract)`: one typed function per endpoint. A hook under `client/src/hooks/` calls it; pages call the hook. |
 
-Add `--suitelet` to serve the same endpoints from a Suitelet instead of a Restlet.
+Services, repository functions and specifications behind the endpoints follow the customers example and start with a failing test under `api/__tests__/`. Script ids are capped at 40 characters: `customscript_` takes 13, so `{{prefix}}_<snake_name>` must fit in 27.
+
+What the structure check enforces, beyond the files existing: script and deployment ids share the prefix and the name; the SDF object's root element and the source file's `@NScriptType` match `kind`; the contract's endpoint names, the files under `endpoints/` and the handlers bound in `index.ts` are the same set; every controller folder, SDF script object and `@NScriptType` file belongs to a `scripts` entry. ESLint adds the import rules: endpoints never import entity types or query, `defineContract` is only called under `common/types/`, and a model never imports the wire.
 
 ### Switching a controller between Restlet and Suitelet
 
@@ -120,8 +131,8 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 
 ## Adding a model
 
-1. Add a decorated class under `common/models/` (see `Customer.ts`). Its record type and field ids are written on the decorators; nothing goes in `common/netsuite.ts`.
-2. `npm run generate` writes `api/src/repositories/generated/<Model>.gen.ts` and refreshes `context.gen.ts`.
+1. Add a decorated class under `common/model/` (see `Customer.ts`). Its record type and field ids are written on the decorators; nothing goes in `common/netsuite.ts`.
+2. `npm run generate` writes the entity type to `common/types/models.gen.ts` (shared with the client, type-only) and the config and field paths to `api/src/repositories/generated/<Model>.gen.ts`, and refreshes `context.gen.ts`. Both are gitignored; every script that needs them runs generate first.
 3. Add its query vocabulary under `api/src/specifications/`, the query functions under `api/src/repositories/` (reads through `dbContext.<set>`, writes through `dbContext.withTracking()`), and the decisions under `api/src/services/`. Endpoints call services and stay thin.
 
 {{#if performanceTracker}}
@@ -159,6 +170,6 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 - `common/` never imports `N/*`.
 - Script ids: `customscript_{{prefix}}_<name>` and `customdeploy_{{prefix}}_<name>`, at most 40 characters.
 - Endpoints are transport-agnostic functions under `controllers/<name>/endpoints/`, one file per endpoint named like an ASP.NET action; the contract in `common/types/<name>.ts` gives each its method, and a Restlet controller exports only the HTTP methods its endpoints use.
-- Layers: endpoint calls service, service calls repository, repository composes specifications. Only `models/`, `specifications/` and `repositories/` import `@amerilux/netsuite-repository`; only a repository touches records. `npm run lint` enforces the boundaries.
+- Layers: endpoint calls service, service calls repository, repository composes specifications. Only `model/`, `specifications/` and `repositories/` import `@amerilux/netsuite-repository`; only a repository touches records. Endpoints speak DTOs; services map entities to them. `npm run lint` enforces the boundaries and the structure of every controller.
 - Log titles are constant phrases; controller, method and ids go in the details object.
 - Secrets never enter the repository: no account ids, auth ids, `project.json`, `.env` or key files.

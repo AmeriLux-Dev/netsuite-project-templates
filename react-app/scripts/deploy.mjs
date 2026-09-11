@@ -86,7 +86,7 @@ const exampleFiles = findExampleFiles();
 if (exampleFiles.length > 0 && !allowExample) {
     console.error('Refusing to deploy: the scaffold\'s example code is still present and would clutter the File Cabinet and script records:');
     for (const file of exampleFiles) console.error(`  ${file}`);
-    console.error('\nReplace it with your own controller (npm run add:controller -- <name>) or delete it. To deploy the example on purpose, pass --allow-example.');
+    console.error('\nReplace it with your own controller (see HOW-TO-USE.md, Adding a controller) or delete it. To deploy the example on purpose, pass --allow-example.');
     process.exit(1);
 }
 

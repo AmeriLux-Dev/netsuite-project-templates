@@ -1,5 +1,5 @@
 // The application's names and the ids no model owns. No N/* imports: the client bundles this file too.
-// A record's type and field ids are declared on its model in common/models/; this file is for the
+// A record's type and field ids are declared on its model in common/model/; this file is for the
 // rest: script ids for the client, and anything reached without a model (script parameters, saved
 // searches, list values).
 

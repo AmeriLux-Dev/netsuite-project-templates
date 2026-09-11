@@ -13,15 +13,18 @@
     "node": ">=22"
   },
   "scripts": {
+    "predev": "npm run generate",
     "dev": "npm run dev -w client",
     "generate": "npm run generate -w api",
+    "prebuild": "npm run generate",
     "build": "npm run build -w client && npm run build -w api",
     "deploy": "node scripts/deploy.mjs",
     "deploy:files": "node scripts/deploy.mjs --files-only",
+    "pretest": "npm run generate",
     "test": "npm test --workspaces --if-present",
+    "pretypecheck": "npm run generate",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "eslint .",
-    "add:controller": "npx --yes create-netsuite-project@{{cliVersion}} add controller"
+    "lint": "eslint . && node scripts/checkStructure.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

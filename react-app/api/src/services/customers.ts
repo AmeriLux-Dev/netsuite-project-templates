@@ -1,7 +1,7 @@
-import type { CustomerByIdRequest, CustomerListRequest, CustomerListResponse, CustomerSummary } from 'common/types/customers';
+import type { CustomerByIdRequest, CustomerListRequest, CustomerListResponse, CustomerSummary } from 'common/dto/customers';
+import type { Customer } from 'common/types/models.gen';
 import { ApiError } from '../lib/apiError';
 import { findCustomerById, listCustomersByCompanyName } from '../repositories/customers';
-import type { Customer } from '../repositories/generated/Customer.gen';
 
 // @netsuite-project:example — scaffold example; see controllers/customers/customersController.ts.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * End-to-end check of the react-app template: scaffold DemoApp into the OS temp directory with the
- * CLI, install, generate, typecheck, lint, test, build, add a controller, build again, and assert
+ * CLI, install, generate, typecheck, lint (ESLint plus the structure check), test, build, and assert
  * the File Cabinet output is exactly what the CLI README promises.
  *
  * The scratch project lives outside the repository on purpose: nested inside it, its tests would
@@ -129,6 +129,8 @@ rmSync(plainDir, { recursive: true, force: true });
 
 run('npm', ['install', '--no-audit', '--no-fund'], projectDir);
 run('npm', ['run', 'generate'], projectDir);
+assertEqual(existsSync(path.join(projectDir, 'common', 'types', 'models.gen.ts')), true, 'generate writes the shared entity types into common/types');
+assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'repositories', 'generated', 'context.gen.ts')), true, 'generate writes the context into api');
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);
 run('npm', ['test'], projectDir);
@@ -150,29 +152,6 @@ assertEqual(statSync(path.join(fileCabinet, 'client', 'app.js')).mtimeMs, client
 const homeBefore = statSync(path.join(fileCabinet, 'api', 'host', 'homeController.js')).mtimeMs;
 run('npm', ['run', 'build', '-w', 'client'], projectDir);
 assertEqual(statSync(path.join(fileCabinet, 'api', 'host', 'homeController.js')).mtimeMs, homeBefore, 'client build leaves api/ untouched');
-
-// add controller through the CLI, then the new restlet must show up in the bundle set.
-runCli(['add', 'controller', 'orders', '--endpoints', 'list:get,create:post'], projectDir);
-run('npm', ['run', 'typecheck'], projectDir);
-run('npm', ['run', 'lint'], projectDir);
-run('npm', ['run', 'build', '-w', 'api'], projectDir);
-assertEqual(listFiles(path.join(fileCabinet, 'api')), [
-    'controllers/customers/customersController.js',
-    'controllers/orders/ordersController.js',
-    'host/homeController.js',
-    'host/host.js',
-], 'api output after add controller');
-assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'controllers', 'orders', 'endpoints', 'create.ts')), true, 'orders endpoints written');
-
-// A suitelet-backed controller shares the endpoint shape and must build and typecheck the same way.
-runCli(['add', 'controller', 'reports', '--suitelet'], projectDir);
-run('npm', ['run', 'typecheck'], projectDir);
-run('npm', ['run', 'build', '-w', 'api'], projectDir);
-assertEqual(existsSync(path.join(fileCabinet, 'api', 'controllers', 'reports', 'reportsController.js')), true, 'suitelet controller built');
-assertEqual(/@NScriptType Suitelet/.test(readFileSync(path.join(fileCabinet, 'api', 'controllers', 'reports', 'reportsController.js'), 'utf8').slice(0, 200)), true, 'suitelet banner');
-assertEqual(existsSync(path.join(projectDir, 'netsuite', 'Objects', 'customscript_demo_orders.xml')), true, 'orders SDF object written');
-assertEqual(readFileSync(path.join(projectDir, 'common', 'netsuite.ts'), 'utf8').includes("orders: { kind: 'restlet', scriptId: 'customscript_demo_orders'"), true, 'scripts.orders registered');
-assertEqual(readFileSync(path.join(projectDir, 'common', 'netsuite.ts'), 'utf8').includes("reports: { kind: 'suitelet', scriptId: 'customscript_demo_reports'"), true, 'scripts.reports registered as suitelet');
 
 // The deploy script must refuse while the example controller is present, without touching NetSuite.
 mkdirSync(path.join(projectDir, 'netsuite'), { recursive: true });

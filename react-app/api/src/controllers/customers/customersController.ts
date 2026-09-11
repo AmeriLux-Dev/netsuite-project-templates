@@ -4,8 +4,8 @@
  * @NModuleScope SameAccount
  */
 
-// @netsuite-project:example — scaffold example. Replace it with your own controller
-// (npm run add:controller -- <name>) or delete it; npm run deploy refuses to upload files carrying this marker.
+// @netsuite-project:example — scaffold example. Replace it with your own controller (the add-controller
+// skill, or HOW-TO-USE.md "Adding a controller") or delete it; npm run deploy refuses to upload files carrying this marker.
 //
 // The only transport-specific file of this controller. Its endpoints (list, byId) are both GET, so
 // only `get` is exported; an endpoint with another method adds that export. To serve the same

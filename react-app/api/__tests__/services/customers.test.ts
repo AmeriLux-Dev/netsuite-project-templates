@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Customer } from '../../src/repositories/generated/Customer.gen';
+import type { Customer } from 'common/types/models.gen';
 
 // The service is tested against a mocked repositories layer: the repository functions it calls are
 // fakes, so the test sees only the service's decisions.

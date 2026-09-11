@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Customer } from '../../src/repositories/generated/Customer.gen';
+import type { Customer } from 'common/types/models.gen';
 
 // The repository is tested against a fake dbContext carrying only the customers set, whose list()
 // records the specifications applied to it.

@@ -1,5 +1,5 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import type { CustomerListRequest } from 'common/types/customers';
+import type { CustomerListRequest } from 'common/dto/customers';
 import { customersApi } from '@/api/customersApi';
 
 export function customersQueryKey(request: CustomerListRequest) {

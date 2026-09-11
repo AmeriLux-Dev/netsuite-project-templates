@@ -1,4 +1,4 @@
-import type { CustomerByIdRequest, CustomerSummary } from 'common/types/customers';
+import type { CustomerByIdRequest, CustomerSummary } from 'common/dto/customers';
 import type { Endpoint } from '../../../lib/endpoint';
 import { getCustomer } from '../../../services/customers';
 

@@ -1,28 +1,5 @@
+import type { CustomerByIdRequest, CustomerListRequest, CustomerListResponse, CustomerSummary } from '../dto/customers';
 import { defineContract } from './api';
-
-export interface CustomerSummary {
-    id: number;
-    companyName: string;
-    email: string | null;
-}
-
-/** GET parameters arrive as strings; the service parses them. */
-export interface CustomerListRequest {
-    /** Case-insensitive substring of the company name. */
-    search?: string;
-    /** Maximum rows; the service clamps it. */
-    limit?: number | string;
-}
-
-export interface CustomerListResponse {
-    customers: CustomerSummary[];
-    limit: number;
-}
-
-/** GET parameters arrive as strings; the service parses the id. */
-export interface CustomerByIdRequest {
-    id: number | string;
-}
 
 /** The request and response of each endpoint of the customers controller. */
 export interface CustomersEndpoints {
