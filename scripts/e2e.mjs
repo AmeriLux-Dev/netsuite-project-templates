@@ -12,7 +12,7 @@
  *   node scripts/e2e.mjs --keep                              # leave the scratch project in place for inspection
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -138,7 +138,8 @@ run('npm', ['run', 'build'], projectDir);
 
 const fileCabinet = path.join(projectDir, 'netsuite', 'FileCabinet', 'SuiteScripts', 'DemoApp');
 assertEqual(listFiles(fileCabinet), [
-    'api/controllers/customers/customersController.js',
+    'api/controllers/user/userController.js',
+    'api/controllers/userRoles/userRolesController.js',
     'api/host/homeController.js',
     'api/host/host.js',
     'client/app.js',
@@ -153,14 +154,10 @@ const homeBefore = statSync(path.join(fileCabinet, 'api', 'host', 'homeControlle
 run('npm', ['run', 'build', '-w', 'client'], projectDir);
 assertEqual(statSync(path.join(fileCabinet, 'api', 'host', 'homeController.js')).mtimeMs, homeBefore, 'client build leaves api/ untouched');
 
-// The deploy script must refuse while the example controller is present, without touching NetSuite.
-mkdirSync(path.join(projectDir, 'netsuite'), { recursive: true });
-const projectJsonPath = path.join(projectDir, 'project.json');
-writeFileSync(projectJsonPath, JSON.stringify({ defaultAuthId: 'placeholder' }));
+// The deploy script must stop before building or touching NetSuite when no account is selected.
 const deployAttempt = spawnSync('node', ['scripts/deploy.mjs'], { cwd: projectDir, encoding: 'utf8', shell: isWindows });
-assertEqual(deployAttempt.status, 1, 'deploy refuses while the example is present');
-assertEqual(/Refusing to deploy/.test(deployAttempt.stderr), true, 'deploy names the example files');
-rmSync(projectJsonPath);
+assertEqual(deployAttempt.status, 1, 'deploy refuses without project.json');
+assertEqual(/No project.json/.test(deployAttempt.stderr), true, 'deploy names the missing account selection');
 
 const leftoverTokens = listFiles(projectDir)
     .filter((file) => !file.startsWith('node_modules/') && !file.startsWith('netsuite/FileCabinet/'))

@@ -9,7 +9,8 @@
  *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching `kind`, declares the
  *     deployment, and points at a source file under api/src whose @NScriptType header matches `kind`
  *   - a controller (source under api/src/controllers/<name>/) has <name>Controller.ts, endpoints/index.ts,
- *     a contract in common/types/<name>.ts, wire shapes in common/dto/<name>.ts, and client/src/api/<name>Api.ts
+ *     a contract in common/types/<name>.ts and wire shapes in common/dto/<name>.ts; client/src/api/<name>Api.ts,
+ *     when the browser calls it, is built from that contract
  *   - the contract's endpoint names and the files under endpoints/ are the same set, and index.ts binds each
  * And the other way round: every controller folder, every SDF script object and every server-side @NScriptType
  * file belongs to an entry of `scripts` (a ClientScript attached to a form has no script record).
@@ -147,10 +148,17 @@ function checkController(entry, sourcePath) {
         [`${controllerDirectory}/endpoints/index.ts`, 'binds the endpoints to the contract with defineEndpoints'],
         [`common/types/${name}.ts`, `declares the ${name}Contract and its endpoint types`],
         [`common/dto/${name}.ts`, 'holds the request and response shapes'],
-        [`client/src/api/${name}Api.ts`, 'is the typed client for the controller'],
     ];
     for (const [relativePath, purpose] of required) {
         if (!projectFileExists(relativePath)) report(`scripts.${name}: ${relativePath} is missing; it ${purpose}.`);
+    }
+    // The browser's client module exists only for controllers the browser calls (a helper Suitelet called by another script has none); when it exists it is built from the contract.
+    const clientModulePath = `client/src/api/${name}Api.ts`;
+    if (projectFileExists(clientModulePath)) {
+        const clientSource = readProjectFile(clientModulePath);
+        if (!clientSource.includes(`${name}Contract`) || !clientSource.includes(`scripts.${name}`)) {
+            report(`${clientModulePath}: must be createApiClient(scripts.${name}, ${name}Contract), so the browser calls the endpoints the contract names.`);
+        }
     }
     if (!projectFileExists(`common/types/${name}.ts`) || !projectFileExists(`${controllerDirectory}/endpoints/index.ts`)) return;
 
@@ -160,7 +168,7 @@ function checkController(entry, sourcePath) {
     }
     const contractEndpoints = readContractEndpointNames(contractSource);
     if (contractEndpoints === undefined) {
-        report(`common/types/${name}.ts: could not read the defineContract({ ... }) literal; one entry per line, as in the customers example.`);
+        report(`common/types/${name}.ts: could not read the defineContract({ ... }) literal; one entry per line, as in common/types/user.ts.`);
         return;
     }
     const endpointFiles = listFilesRecursively(`${controllerDirectory}/endpoints`)

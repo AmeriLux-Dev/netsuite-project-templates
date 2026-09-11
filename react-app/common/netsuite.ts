@@ -30,6 +30,8 @@ export interface ScriptRef {
 /** Every script this application deploys. `kind` must match the controller's @NScriptType and its SDF object. */
 export const scripts = {
     home: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_home', deployId: 'customdeploy_{{prefix}}_home' },
-    customers: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_customers', deployId: 'customdeploy_{{prefix}}_customers' },
+    user: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' },
+    /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/lib/suiteletClient.ts, not by the browser. */
+    userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles' },
     // @netsuite-project:scripts
 } as const satisfies Record<string, ScriptRef>;

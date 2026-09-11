@@ -66,7 +66,7 @@ export async function callEndpoint<TData>(scriptRef: ScriptRef, endpointName: st
     return envelope.data as TData;
 }
 
-/** One function per endpoint in the contract, typed by it: `customersApi.byId({ id })`. */
+/** One function per endpoint in the contract, typed by it: `userApi.roles({})`. */
 export type ApiClient<TTypes extends EndpointTypes<TTypes>> = {
     readonly [TName in keyof TTypes]: (request: TTypes[TName]['request'], options?: ApiCallOptions) => Promise<TTypes[TName]['response']>;
 };

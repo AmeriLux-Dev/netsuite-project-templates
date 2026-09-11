@@ -1,0 +1,25 @@
+<suitelet scriptid="customscript_{{prefix}}_user_roles">
+  <description>Returns an employee&apos;s role assignments for {{appTitle}}. Runs as Administrator because the role a Restlet caller logged in with cannot read them.</description>
+  <isinactive>F</isinactive>
+  <name>{{appTitle}} User Roles</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/userRoles/userRolesController.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_{{prefix}}_user_roles">
+      <allemployees>F</allemployees>
+      <allpartners>F</allpartners>
+      <allroles>T</allroles>
+      <audslctrole></audslctrole>
+      <eventtype></eventtype>
+      <isdeployed>T</isdeployed>
+      <isonline>F</isonline>
+      <loglevel>DEBUG</loglevel>
+      <runasrole>ADMINISTRATOR</runasrole>
+      <status>RELEASED</status>
+      <title>{{appTitle}} User Roles</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</suitelet>
