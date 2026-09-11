@@ -10,7 +10,7 @@
 
 - **A Suitelet hosts a React single-page app.** NetSuite serves the page and the session; the bundle is one file in the File Cabinet, found by folder and file name, never by internal id.
 - **One script per controller, no router.** Each controller is a folder under `api/src/controllers/`: transport-agnostic handlers under `endpoints/` and one file with an `@NScriptType` header that serves them as a Restlet or a Suitelet. Endpoints are the controller's actions, as in ASP.NET: named, each with its own HTTP method, chosen by the `endpoint` parameter of the call, so a controller can have as many GETs as it needs. Switching transport is a change to that file, its SDF object and the `kind` in `scripts`; the endpoints and the client do not change. Permissions, logging and log filtering stay per script.
-- **Every NetSuite magic string lives in `common/netsuite.ts`.** Record types, field ids and script ids are grouped by the party that owns them. The client calls restlets through the `scripts` registry, so ids are typed and change in one place.
+- **Every NetSuite magic string has one home.** A record's type and field ids are declared on its model in `common/models/`, which is what the repository package reads; script ids and any id no model owns live in `common/netsuite.ts`. The client calls restlets through the `scripts` registry, so ids are typed and change in one place.
 - **Typed data access** through `@amerilux/netsuite-repository` (decorated models, generated context) and instrumented `N/*` calls through `@amerilux/netsuite-wrapper`.
 - **Rationale placeholder:** record here why this application exists and what it replaced.
 
@@ -37,7 +37,7 @@ npm run dev
 | `npm run build` | Builds the client (Vite) and then the API (webpack) into `netsuite/FileCabinet/SuiteScripts/{{appName}}/` |
 | `npm run deploy` | Build, then `suitecloud project:adddependencies` and `project:deploy`; refuses while example code is present |
 | `npm run deploy:files` | Build, then upload only the File Cabinet files (fast path after a UI change); same guard |
-| `npm run generate` | Regenerate the repository context and types from `api/src/models/` |
+| `npm run generate` | Regenerate the repository context and types from `common/models/` |
 | `npm test` | Vitest in every workspace |
 | `npm run typecheck` | `tsc --noEmit` in every workspace |
 | `npm run lint` | ESLint over the whole repository |
@@ -47,15 +47,15 @@ npm run dev
 
 ```
 common/                 Shared by api and client; compiles without NetSuite types
-  netsuite.ts           Record types, field ids, script ids, File Cabinet names
-  types/                Request and response shapes
+  models/               Decorated record models: each declares its record type and field ids (server-side only)
+  netsuite.ts           App names, script ids, and ids no model owns
+  types/                Request and response shapes and each controller's endpoint contract
 api/                    SuiteScript, bundled by webpack into one AMD file per script
   src/controllers/      One folder per controller: <name>Controller.ts (Restlet or Suitelet) + endpoints/
   src/host/             The Suitelet that serves the SPA and its client script
   src/services/         Decisions: open the unit of work, call repositories, shape the reply
   src/repositories/     Query and write functions over the unit of work (generated/ is produced, gitignored)
   src/specifications/   Query predicates, one module per record type
-  src/models/           Decorated record models, the source of repositories/generated/
   src/lib/              endpoint, defineRestlet, defineSuitelet, ApiError, File Cabinet helpers
   test/stubs/N/         vi.fn shells for N/* modules
   __tests__/            Vitest specs
@@ -115,7 +115,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 
 ## Adding a model
 
-1. Add a decorated class under `api/src/models/` (see `Customer.ts`).
+1. Add a decorated class under `common/models/` (see `Customer.ts`). Its record type and field ids are written on the decorators; nothing goes in `common/netsuite.ts`.
 2. `npm run generate` writes `api/src/repositories/generated/<Model>.gen.ts` and refreshes `context.gen.ts`.
 3. Add its query vocabulary under `api/src/specifications/`, the query functions under `api/src/repositories/` (they take the `UnitOfWork` first), and the decisions under `api/src/services/`, where `openUnitOfWork()` is called. Endpoints call services and stay thin.
 

@@ -68,8 +68,8 @@ export default defineConfig([
         },
     },
     {
-        // Stubs and tests need literal ids to stand in for real ones.
-        files: ['**/__tests__/**', '**/test/**'],
+        // Stubs and tests need literal ids to stand in for real ones; a model declares its own record and field ids.
+        files: ['**/__tests__/**', '**/test/**', 'common/models/**'],
         rules: { 'no-restricted-syntax': 'off' },
     },
     {
@@ -88,13 +88,14 @@ export default defineConfig([
         rules: {
             'import-x/no-restricted-paths': ['error', {
                 zones: [
-                    { target: './api/src/controllers', from: ['./api/src/repositories', './api/src/specifications', './api/src/models'], message: 'An endpoint never queries. Call a service.' },
+                    { target: './api/src/controllers', from: ['./api/src/repositories', './api/src/specifications', './common/models'], message: 'An endpoint never queries. Call a service.' },
                     { target: './api/src/services', from: './api/src/controllers', message: 'A service does not know about the wire.' },
-                    { target: './api/src/services', from: ['./api/src/specifications', './api/src/models'], message: 'A service decides; the repository queries.' },
+                    { target: './api/src/services', from: ['./api/src/specifications', './common/models'], message: 'A service decides; the repository queries.' },
                     { target: './api/src/repositories', from: ['./api/src/services', './api/src/controllers'], message: 'A repository never decides.' },
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
-                    { target: './api/src/lib', from: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './api/src/models'], message: 'lib/ is transport plumbing; it depends on nothing above it.' },
+                    { target: './api/src/lib', from: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './common/models'], message: 'lib/ is transport plumbing; it depends on nothing above it.' },
+                    { target: './client', from: './common/models', message: 'Models are server-side. The client uses the shared types and the generated entity types.' },
                     { target: ['./client/src/pages', './client/src/routes', './client/src/components'], from: './client/src/api', message: 'A component never fetches. Use a hook.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client/src/api', from: ['./client/src/hooks', './client/src/pages', './client/src/routes', './client/src/components'], message: 'client/src/api only talks to endpoints.' },
@@ -135,8 +136,9 @@ export default defineConfig([
         rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports] }] },
     },
     {
-        // The data-access layers: decorators in models, Specification in specifications, the unit of work in repositories.
-        files: ['api/src/models/**/*.ts', 'api/src/specifications/**/*.ts', 'api/src/repositories/**/*.ts'],
+        // The data-access layers inside api/: Specification in specifications, the unit of work in repositories.
+        // Models live in common/models and import the package's decorators; common/ is not restricted from it.
+        files: ['api/src/specifications/**/*.ts', 'api/src/repositories/**/*.ts'],
         rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports] }] },
     },
     {

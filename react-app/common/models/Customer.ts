@@ -9,6 +9,9 @@ import { Field, ReadOnly, RecordType } from '@amerilux/netsuite-repository';
 @RecordType('customer')
 export class Customer {
     @ReadOnly() id!: number;
-    @Field('companyname') companyName!: string;
+
+    @Field('companyname')
+    companyName!: string;
+    
     email!: string | null;
 }

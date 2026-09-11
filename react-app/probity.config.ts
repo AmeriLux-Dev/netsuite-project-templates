@@ -137,11 +137,11 @@ export default defineConfig({
             ],
         },
         {
-            files: ['api/src/**', 'client/src/**', '!common/models/**'],
+            files: ['api/src/**', 'client/src/**'],
             rules: [
                 forbidContentPattern({
                     match: /['"`](customscript|customdeploy|customrecord|customlist|custentity|custbody|custitem|custrecord)_[a-z0-9_]+['"`]/,
-                    reason: 'NetSuite identifiers live in common/netsuite.ts (records, fields, scripts); import them from there.',
+                    reason: 'NetSuite identifiers are declared on the model that owns them (common/models) or in common/netsuite.ts; import them from there.',
                 }),
             ],
         },
@@ -158,7 +158,7 @@ export default defineConfig({
 - Behaviour change (new or changed outputs, validation, side-effects, error handling): write or extend a test in the matching __tests__/ folder, see it fail, then implement the minimum.
 - Refactor with unchanged behaviour, configuration, documentation, generated files and .gitignore changes need no new test.
 - Test observable behaviour through the public surface: inputs to outputs, calls made to the repository context or callEndpoint, envelope status and error. Never assert on DOM structure, CSS classes or internal state.
-- Domain functions take the repository context as an argument; tests pass a fake that records the specifications applied to it.
+- Repository functions take the unit of work as an argument; tests pass a fake that records the specifications applied to it. Service tests mock the repository module.
 - Prefer extending an existing test file over a duplicate; prefer the lowest level that proves the behaviour.`,
                 }),
             ],

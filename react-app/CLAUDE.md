@@ -6,7 +6,7 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 
 | Command | Use it for |
 |---|---|
-| `npm run generate` | Regenerate `api/src/repositories/generated/` from the decorated models. Run after touching `api/src/models/`. |
+| `npm run generate` | Regenerate `api/src/repositories/generated/` from the decorated models. Run after touching `common/models/`. |
 | `npm run typecheck` | `tsc --noEmit` in every workspace (runs generate first). |
 | `npm run lint` | ESLint over the repository. |
 | `npm test` | Vitest in `api/` and `client/`. |
@@ -19,13 +19,12 @@ Before a commit: `npm run typecheck`, `npm run lint`, `npm test`.
 
 ## Where things live
 
-- `common/` is shared by api and client. `common/netsuite.ts` is the single home for NetSuite identifiers: `app` (the application's names and File Cabinet files), `netsuite` (a flat map of record types and field ids), and `scripts` with every script and deployment id. Keep the `// @netsuite-project:scripts` marker inside `scripts`.
+- `common/` is shared by api and client. `common/models/` holds the `@RecordType` classes: a model is the declaration of a record, so its type and field ids are written on it and nowhere else; `npm run generate` reads them. `common/netsuite.ts` holds `app` (the application's names and File Cabinet files), `scripts` with every script and deployment id, and any id no model owns (script parameters, saved searches, list values). Keep the `// @netsuite-project:scripts` marker inside `scripts`. The client never imports a model.
 - The `customers` controller, page and API module are the scaffold's example, marked `@netsuite-project:example`; `npm run deploy` refuses while they exist. Replace or delete them rather than building on them.
 - `api/src/controllers/<name>/`: one folder per controller. `endpoints/` holds one transport-agnostic function per endpoint, named like an ASP.NET action (`list`, `byId`, `create`) in a file of the same name, each with the HTTP method the contract in `common/types/<name>.ts` gives it (`Endpoint<Request, Response>`, bound in `endpoints/index.ts` by `defineEndpoints(contract, handlers)`). The caller names the endpoint with the `endpoint` parameter: a query parameter on GET, a body property otherwise. `<name>Controller.ts` is the only transport-specific file and serves them through `defineRestlet` or `defineSuitelet` from `api/src/lib/`, which supply the envelope, error mapping and timing. A file becomes a deployed script only when its leading JSDoc carries `@NScriptType`; everything else under `api/src/` is bundled into the scripts that import it. Endpoints stay thin: call a service, return its result. Switching transport touches the controller file, its SDF object and `kind` on the `scripts` entry, nothing else.
 - `api/src/services/`: decisions. A service interprets the request, opens the unit of work with `openUnitOfWork()` from `repositories/generated/context.gen`, calls repository functions, and calls `saveChanges()` if it wrote anything. It never imports `N/*`, the generated models or the repository package.
 - `api/src/repositories/`: data access. Functions take the unit of work as their first argument and compose specifications over its record sets; `generated/` is produced by `npm run generate` and holds the models' types, fields and the context.
 - `api/src/specifications/`: query vocabulary, one module per record type of `Specification` builders. Imported by repositories only.
-- `api/src/models/`: `@RecordType` classes, the source `npm run generate` reads.
 - `api/src/host/`: the Suitelet that serves the SPA and its client script. The bundle is found by folder and file name, never by internal id.
 - `client/src/routes/`: file-based routing (TanStack Router, hash history); `routeTree.gen.ts` is produced by the Vite plugin. Pages live under `client/src/pages/`, hooks under `client/src/hooks/`, one API module per controller under `client/src/api/`, each `createApiClient(scripts.<name>, <name>Contract)`: one typed function per endpoint (`customersApi.byId({ id })`), the URL picked from the script's `kind`. A page calls a hook; only a hook calls `client/src/api`.
 - `netsuite/`: the SDF project. `Objects/*.xml` are script records; `FileCabinet/` is build output.
@@ -44,7 +43,7 @@ Before a commit: `npm run typecheck`, `npm run lint`, `npm test`.
 
 - Tests go under a `__tests__/` folder, never next to source, and are never focused or skipped.
 - `common/` never imports `N/*`; it is bundled into the client too.
-- NetSuite identifiers are imported from `common/netsuite.ts`, not written as string literals in `api/src/` or `client/src/`.
+- NetSuite identifiers are declared on the model that owns them (`common/models/`) or in `common/netsuite.ts`, never written as string literals in `api/src/` or `client/src/`.
 - Never edit generated output: `api/src/repositories/generated/`, `client/src/routeTree.gen.ts`, `netsuite/FileCabinet/`.
 - Never write secrets or account selection: no `project.json`, `client/.env`, keys or certificates, and nothing account-specific under the Vite client prefix (Vite inlines it into the uploaded bundle). Update `.env.example` instead.
 - Run `npm test` and `npm run typecheck` before a commit, and `npm test` before any deploy. Deploying is a human action: do not run `npm run deploy` or `suitecloud` uploads unless asked.
