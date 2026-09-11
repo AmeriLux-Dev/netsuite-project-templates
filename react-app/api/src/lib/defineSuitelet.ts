@@ -1,27 +1,21 @@
 import type { EntryPoints } from 'N/types';
-import { invokeEndpoint, type EndpointMap, type HttpMethod } from './endpoint';
+import type { ApiEnvelope } from 'common/types/api';
+import { invokeEndpoint, type Endpoints } from './endpoint';
 
 /**
- * Exposes the same endpoint map as a JSON Suitelet: `export const onRequest = defineSuitelet(...)`.
- * GET reads the query parameters (the `endpoint` name among them), other methods read the JSON body
- * (with `endpoint` as a property). The response is the same envelope a Restlet returns, so the
- * client does not care which transport answered.
+ * Exposes a controller's endpoints as a JSON Suitelet: `export const onRequest = defineSuitelet('userRoles', userRolesEndpoints);`.
+ * A POST's JSON body names the endpoint; any other method is answered 405. The response is the same
+ * envelope a Restlet returns, so a caller does not care which transport answered.
  */
 
 export type SuiteletEntryPoint = (context: EntryPoints.Suitelet.onRequestContext) => void;
 
-const SUPPORTED_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE'];
-
-function toHttpMethod(method: string): HttpMethod {
-    const upper = method.toUpperCase() as HttpMethod;
-    return SUPPORTED_METHODS.includes(upper) ? upper : 'GET';
-}
-
-export function defineSuitelet(controllerName: string, endpoints: EndpointMap): SuiteletEntryPoint {
+export function defineSuitelet(controllerName: string, endpoints: Endpoints): SuiteletEntryPoint {
     return (context) => {
-        const method = toHttpMethod(context.request.method);
-        const rawRequest = method === 'GET' ? context.request.parameters : context.request.body;
-        const envelope = invokeEndpoint(controllerName, method, endpoints, rawRequest);
+        const method = context.request.method.toUpperCase();
+        const envelope: ApiEnvelope<unknown> = method === 'POST'
+            ? invokeEndpoint(controllerName, endpoints, context.request.body)
+            : { status: 405, error: `${controllerName} answers POST, not ${method}.`, data: null };
         context.response.setHeader({ name: 'Content-Type', value: 'application/json' });
         context.response.write({ output: JSON.stringify(envelope) });
     };

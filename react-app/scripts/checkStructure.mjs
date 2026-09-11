@@ -8,10 +8,10 @@
  *   - the script id and deployment id share the prefix and the name, and fit NetSuite's 40-character cap
  *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching `kind`, declares the
  *     deployment, and points at a source file under api/src whose @NScriptType header matches `kind`
- *   - a controller (source under api/src/controllers/<name>/) has <name>Controller.ts, endpoints/index.ts,
- *     a contract in common/types/<name>.ts and wire shapes in common/dto/<name>.ts; client/src/api/<name>Api.ts,
- *     when the browser calls it, is built from that contract
- *   - the contract's endpoint names and the files under endpoints/ are the same set, and index.ts binds each
+ *   - a controller (source under api/src/controllers/<name>/) has <name>Controller.ts and endpoints.ts, which
+ *     exports <name>Endpoints = defineEndpoints({ ... }) and the type <Name>Endpoints; client/src/api/<name>Api.ts,
+ *     when the browser calls it, is createApiClient<<Name>Endpoints>(scripts.<name>)
+ * (TypeScript checks the rest: a client call that names an endpoint the controller lacks does not compile.)
  * And the other way round: every controller folder, every SDF script object and every server-side @NScriptType
  * file belongs to an entry of `scripts` (a ClientScript attached to a form has no script record).
  */
@@ -131,58 +131,32 @@ function checkScriptSource(entry, sourcePath) {
     }
 }
 
-/** The endpoint names a contract declares: the keys of the defineContract(...) literal. */
-function readContractEndpointNames(contractSource) {
-    const literal = contractSource.match(/defineContract<[^>]*>\(\{([\s\S]*?)\n\}\)/)?.[1];
-    if (literal === undefined) return undefined;
-    return [...literal.matchAll(/^\s*([A-Za-z][A-Za-z0-9]*):\s*\{\s*method:/gm)].map((match) => match[1]);
-}
-
 function checkController(entry, sourcePath) {
     const name = entry.name;
     const controllerDirectory = `api/src/controllers/${name}`;
+    const endpointsPath = `${controllerDirectory}/endpoints.ts`;
+    const endpointsTypeName = `${name.charAt(0).toUpperCase()}${name.slice(1)}Endpoints`;
     if (sourcePath !== `${controllerDirectory}/${name}Controller.ts`) {
         report(`scripts.${name}: a controller's script file is ${controllerDirectory}/${name}Controller.ts (the object points at ${sourcePath}).`);
     }
-    const required = [
-        [`${controllerDirectory}/endpoints/index.ts`, 'binds the endpoints to the contract with defineEndpoints'],
-        [`common/types/${name}.ts`, `declares the ${name}Contract and its endpoint types`],
-        [`common/dto/${name}.ts`, 'holds the request and response shapes'],
-    ];
-    for (const [relativePath, purpose] of required) {
-        if (!projectFileExists(relativePath)) report(`scripts.${name}: ${relativePath} is missing; it ${purpose}.`);
+    if (!projectFileExists(endpointsPath)) {
+        report(`scripts.${name}: ${endpointsPath} is missing; it declares the endpoints and the shapes they send and receive.`);
+        return;
     }
-    // The browser's client module exists only for controllers the browser calls (a helper Suitelet called by another script has none); when it exists it is built from the contract.
+    const endpointsSource = readProjectFile(endpointsPath);
+    if (!endpointsSource.includes(`export const ${name}Endpoints = defineEndpoints(`)) {
+        report(`${endpointsPath}: must export ${name}Endpoints = defineEndpoints({ ... }), as api/src/controllers/user/endpoints.ts does.`);
+    }
+    if (!new RegExp(`export type ${endpointsTypeName} = typeof ${name}Endpoints;`).test(endpointsSource)) {
+        report(`${endpointsPath}: must export type ${endpointsTypeName} = typeof ${name}Endpoints; the clients are built from it.`);
+    }
+    // The browser's client module exists only for controllers the browser calls (a helper Suitelet called by another script has none).
     const clientModulePath = `client/src/api/${name}Api.ts`;
     if (projectFileExists(clientModulePath)) {
         const clientSource = readProjectFile(clientModulePath);
-        if (!clientSource.includes(`${name}Contract`) || !clientSource.includes(`scripts.${name}`)) {
-            report(`${clientModulePath}: must be createApiClient(scripts.${name}, ${name}Contract), so the browser calls the endpoints the contract names.`);
+        if (!clientSource.includes(`createApiClient<${endpointsTypeName}>(scripts.${name})`)) {
+            report(`${clientModulePath}: must be createApiClient<${endpointsTypeName}>(scripts.${name}), with ${endpointsTypeName} imported as a type from api/controllers/${name}/endpoints.`);
         }
-    }
-    if (!projectFileExists(`common/types/${name}.ts`) || !projectFileExists(`${controllerDirectory}/endpoints/index.ts`)) return;
-
-    const contractSource = readProjectFile(`common/types/${name}.ts`);
-    if (!contractSource.includes(`export const ${name}Contract`)) {
-        report(`common/types/${name}.ts: must export ${name}Contract = defineContract<${name.charAt(0).toUpperCase()}${name.slice(1)}Endpoints>({ ... }).`);
-    }
-    const contractEndpoints = readContractEndpointNames(contractSource);
-    if (contractEndpoints === undefined) {
-        report(`common/types/${name}.ts: could not read the defineContract({ ... }) literal; one entry per line, as in common/types/user.ts.`);
-        return;
-    }
-    const endpointFiles = listFilesRecursively(`${controllerDirectory}/endpoints`)
-        .map((relativePath) => path.basename(relativePath, '.ts'))
-        .filter((baseName) => baseName !== 'index');
-    for (const endpointName of contractEndpoints) {
-        if (!endpointFiles.includes(endpointName)) report(`${controllerDirectory}/endpoints/${endpointName}.ts is missing; the contract names an endpoint "${endpointName}".`);
-    }
-    for (const endpointName of endpointFiles) {
-        if (!contractEndpoints.includes(endpointName)) report(`common/types/${name}.ts: the contract has no "${endpointName}" entry for ${controllerDirectory}/endpoints/${endpointName}.ts.`);
-    }
-    const indexSource = readProjectFile(`${controllerDirectory}/endpoints/index.ts`);
-    for (const endpointName of contractEndpoints) {
-        if (!new RegExp(`\\b${endpointName}\\b`).test(indexSource)) report(`${controllerDirectory}/endpoints/index.ts: does not bind the "${endpointName}" endpoint.`);
     }
 }
 

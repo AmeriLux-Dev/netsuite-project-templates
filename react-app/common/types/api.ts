@@ -1,4 +1,4 @@
-/** Every restlet answers with this envelope; `data` is null whenever `error` is set. */
+/** Every controller answers with this envelope; `data` is null whenever `error` is set. */
 export interface ApiEnvelope<TData> {
     status: number;
     error: string | null;
@@ -12,29 +12,24 @@ export interface ApiErrorBody {
     details?: unknown;
 }
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
-
 /**
- * The wire parameter naming which endpoint of a controller a call is for: a query parameter on GET,
- * a property of the JSON body otherwise.
+ * Every call is a POST whose JSON body carries the request plus this property, naming which endpoint
+ * of the controller the call is for.
  */
 export const ENDPOINT_PARAMETER = 'endpoint';
 
 /**
- * The shape of a controller's endpoint types: the request and response type of each endpoint, keyed
- * by endpoint name, declared as an interface next to the contract. Used as `TTypes extends EndpointTypes<TTypes>`
- * so that an interface (which has no index signature) satisfies it.
+ * An endpoint as the controller declares it: a synchronous function from a request to a response.
+ * The parameter type is the request shape and the return type the response shape; a handler with no
+ * parameter takes no request. The clients derive their call signatures from these types.
  */
-export type EndpointTypes<TTypes> = { [TName in keyof TTypes]: { request: unknown; response: unknown } };
+export type Endpoint = (request: never) => unknown;
 
-/**
- * A controller's endpoints as both sides see them: name and HTTP method. `endpointTypes` is never
- * set at runtime; it only carries the request and response types from the contract to
- * `defineEndpoints` on the server and `createApiClient` on the client.
- */
-export type EndpointContract<TTypes extends EndpointTypes<TTypes>> = { readonly [TName in keyof TTypes]: { readonly method: HttpMethod } } & { readonly endpointTypes?: TTypes };
+/** A controller's endpoints by name: `typeof userEndpoints`, the type the clients are built from. */
+export type Endpoints = Record<string, Endpoint>;
 
-/** Declares a controller's endpoints once; a handler or a client call that disagrees with it is a compile error. */
-export function defineContract<TTypes extends EndpointTypes<TTypes>>(entries: { [TName in keyof TTypes]: { method: HttpMethod } }): EndpointContract<TTypes> {
-    return entries;
-}
+/** The request type of an endpoint, or void when its handler takes no parameter. */
+export type EndpointRequest<TEndpoint extends Endpoint> = Parameters<TEndpoint> extends [] ? void : Parameters<TEndpoint>[0];
+
+/** The response type of an endpoint: what its handler returns. */
+export type EndpointResponse<TEndpoint extends Endpoint> = ReturnType<TEndpoint>;

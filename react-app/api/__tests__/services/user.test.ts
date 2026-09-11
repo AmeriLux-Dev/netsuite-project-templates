@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RoleSummary } from 'common/dto/userRoles';
+import type { RoleSummary } from '../../src/controllers/userRoles/endpoints';
 import type { ActiveUser } from '../../src/repositories/activeUser';
 
 // The service is tested against mocked repositories: the session reader and the role lookup are fakes.

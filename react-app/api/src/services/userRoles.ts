@@ -1,5 +1,5 @@
-import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from 'common/dto/userRoles';
 import type { EmployeeRole } from 'common/types/models.gen';
+import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from '../controllers/userRoles/endpoints';
 import { ApiError } from '../lib/apiError';
 import { listEmployeeRolesByEmployee } from '../repositories/employeeRoles';
 
@@ -8,6 +8,7 @@ import { listEmployeeRolesByEmployee } from '../repositories/employeeRoles';
  * inside the userRoles Suitelet; the user restlet asks it for the caller's roles.
  */
 
+/** The wire promises a number; a caller that sends something else still gets a 400, not a query for NaN. */
 export function parseEmployeeId(requested: number | string | undefined): number {
     const parsed = typeof requested === 'string' ? Number.parseInt(requested, 10) : requested;
     if (parsed === undefined || Number.isNaN(parsed) || parsed <= 0) {

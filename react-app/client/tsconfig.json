@@ -13,7 +13,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "common/*": ["../common/*"]
+      "common/*": ["../common/*"],
+      "api/*": ["../api/src/*"],
+      "N/*": ["../node_modules/@hitc/netsuite-types/N/*", "../api/node_modules/@hitc/netsuite-types/N/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "__tests__/**/*.ts", "__tests__/**/*.tsx", "../common/**/*.ts"]

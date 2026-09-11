@@ -1,29 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as log from 'N/log';
-import { defineContract } from 'common/types/api';
 import { ApiError } from '../../src/lib/apiError';
 import { defineRestlet } from '../../src/lib/defineRestlet';
 import { defineEndpoints, parseEndpointRequest, readEndpointCall } from '../../src/lib/endpoint';
 
-interface ThingsEndpoints {
-    byId: { request: { id: string }; response: { id: number } };
-    create: { request: { name: string }; response: { created: string } };
-    explode: { request: Record<string, never>; response: never };
-}
-
-const thingsContract = defineContract<ThingsEndpoints>({
-    byId: { method: 'GET' },
-    create: { method: 'POST' },
-    explode: { method: 'PUT' },
-});
-
-const thingsEndpoints = defineEndpoints(thingsContract, {
-    byId: (request) => ({ id: Number(request.id) }),
-    create: (request) => {
+const thingsEndpoints = defineEndpoints({
+    byId: (request: { id: string }): { id: number } => ({ id: Number(request.id) }),
+    create: (request: { name: string }): { created: string } => {
         if (!request.name) throw ApiError.notFound('No such thing');
         return { created: request.name };
     },
-    explode: () => {
+    explode: (): never => {
         throw new Error('boom');
     },
 });
@@ -57,36 +44,35 @@ describe('readEndpointCall', () => {
 });
 
 describe('defineRestlet', () => {
-    const restlet = defineRestlet('things', thingsEndpoints);
+    const post = defineRestlet('things', thingsEndpoints);
 
     beforeEach(() => {
         vi.mocked(log.audit).mockClear();
         vi.mocked(log.error).mockClear();
     });
 
-    it('routes GET to the named endpoint, wraps its result in the envelope and audits the call', () => {
-        expect(restlet.get({ endpoint: 'byId', id: '7' })).toEqual({ status: 200, error: null, data: { id: 7 } });
-        expect(log.audit).toHaveBeenCalledWith('endpoint completed', expect.objectContaining({ controller: 'things', endpoint: 'byId', method: 'GET', status: 200 }));
+    it('routes a JSON body to the named endpoint, wraps its result in the envelope and audits the call', () => {
+        expect(post('{"endpoint":"byId","id":"7"}')).toEqual({ status: 200, error: null, data: { id: 7 } });
+        expect(log.audit).toHaveBeenCalledWith('endpoint completed', expect.objectContaining({ controller: 'things', endpoint: 'byId', status: 200 }));
     });
 
-    it('routes a JSON body to the named endpoint', () => {
-        expect(restlet.post('{"endpoint":"create","name":"widget"}')).toEqual({ status: 200, error: null, data: { created: 'widget' } });
+    it('accepts a body NetSuite already parsed into an object', () => {
+        expect(post({ endpoint: 'create', name: 'widget' })).toEqual({ status: 200, error: null, data: { created: 'widget' } });
     });
 
     it('maps ApiError to its status and message', () => {
-        expect(restlet.post({ endpoint: 'create', name: '' })).toEqual({ status: 404, error: 'No such thing', data: null });
+        expect(post({ endpoint: 'create', name: '' })).toEqual({ status: 404, error: 'No such thing', data: null });
         expect(log.error).not.toHaveBeenCalled();
     });
 
     it('hides unexpected errors behind a 500 and logs them', () => {
-        expect(restlet.put({ endpoint: 'explode' })).toEqual({ status: 500, error: 'Internal Server Error', data: null });
-        expect(log.error).toHaveBeenCalledWith('endpoint failed', expect.objectContaining({ controller: 'things', endpoint: 'explode', method: 'PUT', message: 'boom' }));
+        expect(post({ endpoint: 'explode' })).toEqual({ status: 500, error: 'Internal Server Error', data: null });
+        expect(log.error).toHaveBeenCalledWith('endpoint failed', expect.objectContaining({ controller: 'things', endpoint: 'explode', message: 'boom' }));
     });
 
-    it('answers 400 without an endpoint name, 404 for an unknown one and 405 for the wrong method', () => {
-        expect(restlet.get({ id: '7' })).toMatchObject({ status: 400, data: null });
-        expect(restlet.get({ endpoint: 'nope' })).toMatchObject({ status: 404, data: null });
-        expect(restlet.get({ endpoint: 'constructor' })).toMatchObject({ status: 404, data: null });
-        expect(restlet.delete({ endpoint: 'byId', id: '7' })).toMatchObject({ status: 405, data: null });
+    it('answers 400 without an endpoint name and 404 for an unknown one, inherited names included', () => {
+        expect(post({ id: '7' })).toMatchObject({ status: 400, data: null });
+        expect(post({ endpoint: 'nope' })).toMatchObject({ status: 404, data: null });
+        expect(post({ endpoint: 'constructor' })).toMatchObject({ status: 404, data: null });
     });
 });

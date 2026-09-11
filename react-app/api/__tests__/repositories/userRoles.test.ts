@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { scripts } from 'common/netsuite';
-import { userRolesContract } from 'common/types/userRoles';
 
 // The repository is tested against a fake Suitelet client: what it asks the userRoles script for, not how the wire looks.
 const { byEmployee, createSuiteletClient } = vi.hoisted(() => {
@@ -19,8 +18,8 @@ beforeEach(() => {
 });
 
 describe('listRolesForEmployee', () => {
-    it('builds the client for the userRoles script and its contract', () => {
-        expect(clientConstructionArguments).toEqual([scripts.userRoles, userRolesContract]);
+    it('builds the client for the userRoles script', () => {
+        expect(clientConstructionArguments).toEqual([scripts.userRoles]);
     });
 
     it('asks the Suitelet for the employee and returns its roles', () => {

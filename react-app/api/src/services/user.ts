@@ -1,4 +1,4 @@
-import type { UserRolesResponse } from 'common/dto/user';
+import type { UserRolesResponse } from '../controllers/user/endpoints';
 import { readActiveUser } from '../repositories/activeUser';
 import { listRolesForEmployee } from '../repositories/userRoles';
 

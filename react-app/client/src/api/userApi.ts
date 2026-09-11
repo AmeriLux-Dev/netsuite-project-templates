@@ -1,6 +1,6 @@
+import type { UserEndpoints } from 'api/controllers/user/endpoints';
 import { scripts } from 'common/netsuite';
-import { userContract } from 'common/types/user';
 import { createApiClient } from './apiClient';
 
-/** One typed function per endpoint of the user controller: `userApi.roles({})`. */
-export const userApi = createApiClient(scripts.user, userContract);
+/** One typed function per endpoint of the user controller: `userApi.roles()`. The api import is a type only. */
+export const userApi = createApiClient<UserEndpoints>(scripts.user);

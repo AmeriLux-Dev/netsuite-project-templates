@@ -1,46 +1,28 @@
 import * as log from 'N/log';
-import { ENDPOINT_PARAMETER, type ApiEnvelope, type EndpointContract, type EndpointTypes, type HttpMethod } from 'common/types/api';
+import { ENDPOINT_PARAMETER, type ApiEnvelope, type Endpoints } from 'common/types/api';
 import { ApiError } from './apiError';
 
 /**
- * Endpoints are the transport-agnostic unit of an API controller: named, each with an HTTP method,
- * each a synchronous function from a parsed request to a response value, one file per endpoint
- * under `controllers/<name>/endpoints/`. The
- * contract in common/ names them and gives each its method, so the client calls them by name. The
- * controller file wraps the map as a Restlet (`defineRestlet`) or a Suitelet (`defineSuitelet`);
- * switching transport is a change to that one file and its SDF object, never to the endpoints.
+ * Endpoints are the transport-agnostic unit of an API controller: named, each a synchronous function
+ * from a request to a response, declared together in `controllers/<name>/endpoints.ts` with the
+ * request and response shapes they speak. The handler signatures are the contract: a client imports
+ * `typeof <name>Endpoints` as a type and calls each endpoint by name. Every call is a POST whose body
+ * names the endpoint. The controller file wraps the map as a Restlet (`defineRestlet`) or a Suitelet
+ * (`defineSuitelet`); switching transport is a change to that one file and its SDF object, never to
+ * the endpoints.
  */
 
-export type Endpoint<TRequest, TResponse> = (request: TRequest) => TResponse;
+export type { Endpoint, Endpoints } from 'common/types/api';
 
-/** An endpoint for any request type is assignable here: parameters are contravariant and `never` sits below every type. */
-export type AnyEndpoint = Endpoint<never, unknown>;
-
-export type { HttpMethod } from 'common/types/api';
-
-/** One handler per endpoint in the contract, typed by the contract's request and response types. */
-export type EndpointHandlers<TTypes extends EndpointTypes<TTypes>> = {
-    [TName in keyof TTypes]: Endpoint<TTypes[TName]['request'], TTypes[TName]['response']>;
-};
-
-export interface DefinedEndpoint {
-    method: HttpMethod;
-    handler: AnyEndpoint;
-}
-
-/** Endpoints by name: the shape the transports dispatch on. */
-export type EndpointMap = Record<string, DefinedEndpoint>;
-
-/** Binds the contract's endpoints to their handlers. A missing or mistyped handler is a compile error. */
-export function defineEndpoints<TTypes extends EndpointTypes<TTypes>>(contract: EndpointContract<TTypes>, handlers: EndpointHandlers<TTypes>): EndpointMap {
-    const endpoints: EndpointMap = {};
-    for (const name of Object.keys(contract) as Array<keyof TTypes & string>) {
-        endpoints[name] = { method: contract[name].method, handler: handlers[name] as AnyEndpoint };
-    }
+/**
+ * Declares a controller's endpoints. Annotate each handler's parameter with its request type and its
+ * return value with its response type; both reach the clients through `typeof`.
+ */
+export function defineEndpoints<TEndpoints extends Endpoints>(endpoints: TEndpoints): TEndpoints {
     return endpoints;
 }
 
-/** NetSuite hands GET parameters as an object and bodies as either an object or a JSON string. */
+/** NetSuite hands a body as either an object or a JSON string. */
 export function parseEndpointRequest(rawRequest: unknown): unknown {
     if (typeof rawRequest !== 'string') return rawRequest ?? {};
     const trimmed = rawRequest.trim();
@@ -53,13 +35,13 @@ export function parseEndpointRequest(rawRequest: unknown): unknown {
 }
 
 export interface EndpointCall {
-    /** The endpoint named by the request, or undefined when the parameter is missing. */
+    /** The endpoint named by the request, or undefined when the property is missing. */
     name: string | undefined;
-    /** Everything else in the request: the endpoint's own input. */
+    /** Everything else in the body: the endpoint's own input. */
     request: Record<string, unknown>;
 }
 
-/** Splits the endpoint name off the parsed request: `?endpoint=` on GET, an `endpoint` property in the body otherwise. */
+/** Splits the endpoint name off the parsed body. */
 export function readEndpointCall(parsedRequest: unknown): EndpointCall {
     if (!parsedRequest || typeof parsedRequest !== 'object' || Array.isArray(parsedRequest)) {
         throw ApiError.badRequest('The request must be an object.');
@@ -73,46 +55,42 @@ function describeError(error: unknown): { message: string; stack?: string } {
     return { message: String(error) };
 }
 
-function findEndpoint(controllerName: string, method: HttpMethod, endpoints: EndpointMap, call: EndpointCall): DefinedEndpoint {
+function findEndpoint(controllerName: string, endpoints: Endpoints, call: EndpointCall): (request: never) => unknown {
     if (call.name === undefined) {
-        throw ApiError.badRequest(`The ${ENDPOINT_PARAMETER} parameter is required.`, { controller: controllerName });
+        throw ApiError.badRequest(`The ${ENDPOINT_PARAMETER} property is required.`, { controller: controllerName });
     }
     if (!Object.prototype.hasOwnProperty.call(endpoints, call.name)) {
         throw ApiError.notFound(`${controllerName} has no endpoint named ${call.name}.`, { controller: controllerName, endpoint: call.name });
     }
-    const endpoint = endpoints[call.name];
-    if (endpoint.method !== method) {
-        throw new ApiError(405, `${call.name} on ${controllerName} answers ${endpoint.method}, not ${method}.`, { controller: controllerName, endpoint: call.name });
-    }
-    return endpoint;
+    return endpoints[call.name];
 }
 
 /**
- * Runs the endpoint the request names and produces the envelope: 200 with data, an ApiError's own
- * status and message (400 without an endpoint name, 404 for an unknown one, 405 for the wrong
- * method), or 500 with the details logged. Audits the outcome and timing either way. Log titles are
- * constant phrases; the controller, endpoint, method and ids live in the details object.
+ * Runs the endpoint the body names and produces the envelope: 200 with data, an ApiError's own status
+ * and message (400 without an endpoint name, 404 for an unknown one), or 500 with the details logged.
+ * Audits the outcome and timing either way. Log titles are constant phrases; the controller, endpoint
+ * and ids live in the details object.
  */
-export function invokeEndpoint(controllerName: string, method: HttpMethod, endpoints: EndpointMap, rawRequest: unknown): ApiEnvelope<unknown> {
+export function invokeEndpoint(controllerName: string, endpoints: Endpoints, rawRequest: unknown): ApiEnvelope<unknown> {
     const started = Date.now();
     let status = 200;
     let endpointName: string | undefined;
     try {
         const call = readEndpointCall(parseEndpointRequest(rawRequest));
         endpointName = call.name;
-        const endpoint = findEndpoint(controllerName, method, endpoints, call);
-        const data = endpoint.handler(call.request as never);
+        const endpoint = findEndpoint(controllerName, endpoints, call);
+        const data = endpoint(call.request as never);
         return { status, error: null, data: data ?? null };
     } catch (error) {
         if (error instanceof ApiError) {
             status = error.status;
-            log.debug('endpoint rejected', { controller: controllerName, endpoint: endpointName, method, status, message: error.message, details: error.details });
+            log.debug('endpoint rejected', { controller: controllerName, endpoint: endpointName, status, message: error.message, details: error.details });
             return { status, error: error.message, data: null };
         }
         status = 500;
-        log.error('endpoint failed', { controller: controllerName, endpoint: endpointName, method, ...describeError(error) });
+        log.error('endpoint failed', { controller: controllerName, endpoint: endpointName, ...describeError(error) });
         return { status, error: 'Internal Server Error', data: null };
     } finally {
-        log.audit('endpoint completed', { controller: controllerName, endpoint: endpointName, method, status, durationMs: Date.now() - started });
+        log.audit('endpoint completed', { controller: controllerName, endpoint: endpointName, status, durationMs: Date.now() - started });
     }
 }

@@ -36,10 +36,17 @@ const recordAccessImports = [
     { group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
-// An endpoint speaks the wire shapes in common/dto; the service maps entities to them.
-const entityTypeImports = [{ group: ['common/types/models.gen', '**/common/types/models.gen'], message: 'An endpoint takes and returns DTOs from common/dto. The service maps entities to them.' }];
-// A controller's contract is declared once, in common/types/<controller>.ts, next to its endpoint types.
-const contractDeclarationImports = [{ group: ['common/types/api', '**/types/api'], importNames: ['defineContract'], message: 'A contract is declared once, in common/types/<controller>.ts. Import the contract, not defineContract.' }];
+// The request and response shapes live in controllers/<name>/endpoints.ts. The layers below take them as types
+// only: a service or repository that imported the endpoints value would be calling the wire it serves.
+const wireShapeImports = [
+    { group: ['**/controllers/**', '!**/controllers/*/endpoints'], message: 'Below a controller, only its endpoints.ts is visible, and only its types.' },
+    { group: ['**/controllers/*/endpoints'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>/endpoints.ts as types (import type); nothing below a controller calls an endpoint.' },
+];
+// The client takes the endpoint types from the api (`import type { UserEndpoints }`); the code stays server-side.
+const clientApiImports = [
+    { group: ['api/**', '!api/controllers/*/endpoints'], message: 'The client reaches the api through controllers/<name>/endpoints.ts only, and only as a type.' },
+    { group: ['api/controllers/*/endpoints'], allowTypeImports: true, message: 'The client imports the endpoint types only (import type); the code behind them runs in NetSuite.' },
+];
 // common/ runs on both sides of the wire.
 const commonSideImports = [
     { group: ['N/*'], message: 'NetSuite modules belong in api/.' },
@@ -103,19 +110,18 @@ export default defineConfig([
             'import-x/no-restricted-paths': ['error', {
                 zones: [
                     { target: './api/src/controllers', from: ['./api/src/repositories', './api/src/specifications', './common/model'], message: 'An endpoint never queries. Call a service.' },
-                    { target: './api/src/services', from: './api/src/controllers', message: 'A service does not know about the wire.' },
                     { target: './api/src/services', from: ['./api/src/specifications', './common/model'], message: 'A service decides; the repository queries.' },
-                    { target: './api/src/repositories', from: ['./api/src/services', './api/src/controllers'], message: 'A repository never decides.' },
+                    { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
                     { target: './api/src/lib', from: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './common/model'], message: 'lib/ is transport plumbing; it depends on nothing above it.' },
-                    { target: './client', from: './common/model', message: 'Models are server-side. The client uses common/dto and the generated types in common/types/models.gen.ts.' },
-                    { target: './common/model', from: ['./common/dto', './common/types'], message: 'A model declares a record; it knows nothing about the wire.' },
-                    { target: './common/dto', from: './common/model', message: 'A DTO picks from the generated types in common/types/models.gen.ts, never from a model class.' },
+                    { target: './client', from: './common/model', message: 'Models are server-side. The client uses the endpoint types and the generated types in common/types/models.gen.ts.' },
+                    { target: './common/model', from: './common/types', message: 'A model declares a record; it knows nothing about the wire.' },
                     { target: ['./client/src/pages', './client/src/routes', './client/src/components'], from: './client/src/api', message: 'A component never fetches. Use a hook.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client/src/api', from: ['./client/src/hooks', './client/src/pages', './client/src/routes', './client/src/components'], message: 'client/src/api only talks to endpoints.' },
-                    { target: './client', from: './api', message: 'Client and API share code through common/ only.' },
+                    // The client may import a controller's endpoints.ts, as a type only (clientApiImports below).
+                    { target: './client', from: './api', except: ['./src/controllers'], message: 'Client and API share code through common/ and the endpoint types only.' },
                     { target: './api', from: './client', message: 'Client and API share code through common/ only.' },
                     { target: './common', from: ['./api', './client'], message: 'common/ depends on nothing project-specific.' },
                 ],
@@ -131,7 +137,7 @@ export default defineConfig([
             'react-hooks/exhaustive-deps': 'warn',
             'no-console': ['warn', { allow: ['warn', 'error'] }],
             'no-restricted-globals': ['error', { name: 'fetch', message: 'fetch lives in client/src/api. Call a typed api function.' }],
-            'no-restricted-imports': ['error', { patterns: [...contractDeclarationImports] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...clientApiImports] }],
         },
     },
     {
@@ -145,34 +151,30 @@ export default defineConfig([
         rules: {
             'no-console': 'error', // invisible in NetSuite; the wrapper's log is the only signal path
             'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape],
-            'no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...contractDeclarationImports] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports] }],
         },
     },
     {
+        // An endpoint speaks the shapes declared next to it (an entity type, a Pick of one, or a composition) and calls a service.
         files: ['api/src/controllers/**/*.ts'],
-        rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports, ...entityTypeImports, ...contractDeclarationImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports] }] },
     },
     {
         files: ['api/src/services/**/*.ts'],
-        rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports, ...contractDeclarationImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports, ...wireShapeImports] }] },
     },
     {
         // The data-access layers inside api/: Specification in specifications, the context in repositories.
         // Models live in common/model and import the package's decorators; common/ is not restricted from it.
         files: ['api/src/specifications/**/*.ts', 'api/src/repositories/**/*.ts'],
-        rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...wireShapeImports] }] },
     },
     {
         files: ['common/**/*.ts'],
         rules: {
-            'no-restricted-imports': ['error', { patterns: [...commonSideImports] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...commonSideImports] }],
             'no-restricted-globals': ['error', 'window', 'document'],
         },
-    },
-    {
-        // Contracts are declared in common/types; the wire shapes and the models never declare one.
-        files: ['common/dto/**/*.ts', 'common/model/**/*.ts'],
-        rules: { 'no-restricted-imports': ['error', { patterns: [...commonSideImports, ...contractDeclarationImports] }] },
     },
     {
         files: ['common/netsuite.ts'],

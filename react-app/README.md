@@ -18,7 +18,7 @@ _What business process this serves, and for whom. Name the roles that use it and
 
 ## Dependencies
 
-- **Records and fields:** declared on the models in `common/model/`; each model names its record type and every field id it reads or writes. The generated entity types in `common/types/models.gen.ts` are what `common/dto/` picks from.
+- **Records and fields:** declared on the models in `common/model/`; each model names its record type and every field id it reads or writes. The generated entity types in `common/types/models.gen.ts` are what each controller's request and response shapes (in its `endpoints.ts`) pick from.
 - **Scripts and other ids:** `common/netsuite.ts` (script and deployment ids, and any id no model owns: script parameters, saved searches, list values).
 - **Packages:** `@amerilux/netsuite-repository` (data access), `@amerilux/netsuite-wrapper` (instrumented `N/*` calls).
 - **Integrations and vendors:** _external systems, bundles or SuiteApps this depends on, and the accounts or credentials they need._

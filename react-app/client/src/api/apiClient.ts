@@ -1,5 +1,5 @@
 import type { ScriptKind, ScriptRef } from 'common/netsuite';
-import { ENDPOINT_PARAMETER, type ApiEnvelope, type EndpointContract, type EndpointTypes, type HttpMethod } from 'common/types/api';
+import { ENDPOINT_PARAMETER, type ApiEnvelope, type EndpointRequest, type EndpointResponse, type Endpoints } from 'common/types/api';
 
 /**
  * Calls an API controller by its script and deployment ids, one endpoint at a time. The entry's
@@ -7,8 +7,6 @@ import { ENDPOINT_PARAMETER, type ApiEnvelope, type EndpointContract, type Endpo
  * the caller. In the deployed app the call rides the NetSuite session on the same origin; in
  * development it goes through the local proxy in server.ts.
  */
-
-export type ApiQuery = Record<string, string | number | boolean | undefined | null>;
 
 export interface ApiCallOptions {
     signal?: AbortSignal;
@@ -25,27 +23,18 @@ export const API_BASE_PATHS: Record<ScriptKind, string> = import.meta.env.DEV
     ? { restlet: '/api/restlet', suitelet: '/api/suitelet' }
     : { restlet: '/app/site/hosting/restlet.nl', suitelet: '/app/site/hosting/scriptlet.nl' };
 
-export function buildApiUrl(scriptRef: ScriptRef, query: ApiQuery = {}): string {
+export function buildApiUrl(scriptRef: ScriptRef): string {
     const parameters = new URLSearchParams({ script: scriptRef.scriptId, deploy: scriptRef.deployId });
-    for (const [key, value] of Object.entries(query)) {
-        if (value === undefined || value === null || value === '') continue;
-        parameters.set(key, String(value));
-    }
     return `${API_BASE_PATHS[scriptRef.kind]}?${parameters.toString()}`;
 }
 
-/**
- * Calls one endpoint of a controller. A GET request travels as query parameters (so it must be flat),
- * every other method as the JSON body; the endpoint name rides alongside either way.
- */
-export async function callEndpoint<TData>(scriptRef: ScriptRef, endpointName: string, method: HttpMethod, request: object = {}, options: ApiCallOptions = {}): Promise<TData> {
-    const isGet = method === 'GET';
-    const url = buildApiUrl(scriptRef, isGet ? { ...(request as ApiQuery), [ENDPOINT_PARAMETER]: endpointName } : {});
-    const response = await fetch(url, {
-        method,
+/** Calls one endpoint of a controller: a POST whose JSON body carries the request and the endpoint name. */
+export async function callEndpoint<TData>(scriptRef: ScriptRef, endpointName: string, request: object = {}, options: ApiCallOptions = {}): Promise<TData> {
+    const response = await fetch(buildApiUrl(scriptRef), {
+        method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: isGet ? undefined : JSON.stringify({ ...request, [ENDPOINT_PARAMETER]: endpointName }),
+        body: JSON.stringify({ ...request, [ENDPOINT_PARAMETER]: endpointName }),
         signal: options.signal,
     });
 
@@ -66,16 +55,24 @@ export async function callEndpoint<TData>(scriptRef: ScriptRef, endpointName: st
     return envelope.data as TData;
 }
 
-/** One function per endpoint in the contract, typed by it: `userApi.roles({})`. */
-export type ApiClient<TTypes extends EndpointTypes<TTypes>> = {
-    readonly [TName in keyof TTypes]: (request: TTypes[TName]['request'], options?: ApiCallOptions) => Promise<TTypes[TName]['response']>;
+/**
+ * One function per endpoint, typed by the controller's handlers: `userApi.roles()`,
+ * `ordersApi.byId({ id })`. The request comes first, the call options second.
+ */
+export type ApiClient<TEndpoints extends Endpoints> = {
+    readonly [TName in keyof TEndpoints]: (request: EndpointRequest<TEndpoints[TName]>, options?: ApiCallOptions) => Promise<EndpointResponse<TEndpoints[TName]>>;
 };
 
-/** Builds the typed client for a controller from its script entry and its contract. */
-export function createApiClient<TTypes extends EndpointTypes<TTypes>>(scriptRef: ScriptRef, contract: EndpointContract<TTypes>): ApiClient<TTypes> {
-    const client: Record<string, (request: unknown, options?: ApiCallOptions) => Promise<unknown>> = {};
-    for (const name of Object.keys(contract) as Array<keyof TTypes & string>) {
-        client[name] = (request, options) => callEndpoint(scriptRef, name, contract[name].method, (request ?? {}) as object, options);
-    }
-    return client as ApiClient<TTypes>;
+/**
+ * Builds the typed client for a controller from its scripts entry: `createApiClient<UserEndpoints>(scripts.user)`.
+ * The endpoint names come from the type alone (an `import type` from the controller's endpoints file);
+ * the property accessed is the endpoint named on the wire.
+ */
+export function createApiClient<TEndpoints extends Endpoints>(scriptRef: ScriptRef): ApiClient<TEndpoints> {
+    return new Proxy({} as ApiClient<TEndpoints>, {
+        get(_target, endpointName) {
+            if (typeof endpointName !== 'string') return undefined;
+            return (request: unknown, options?: ApiCallOptions) => callEndpoint(scriptRef, endpointName, (request ?? {}) as object, options);
+        },
+    });
 }

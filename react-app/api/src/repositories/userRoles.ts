@@ -1,6 +1,5 @@
-import type { RoleSummary } from 'common/dto/userRoles';
 import { scripts } from 'common/netsuite';
-import { userRolesContract } from 'common/types/userRoles';
+import type { RoleSummary, UserRolesEndpoints } from '../controllers/userRoles/endpoints';
 import { createSuiteletClient } from '../lib/suiteletClient';
 
 /**
@@ -9,7 +8,7 @@ import { createSuiteletClient } from '../lib/suiteletClient';
  * repository: the service does not know the answer came from another script.
  */
 
-const userRolesApi = createSuiteletClient(scripts.userRoles, userRolesContract);
+const userRolesApi = createSuiteletClient<UserRolesEndpoints>(scripts.userRoles);
 
 export function listRolesForEmployee(employeeId: number): RoleSummary[] {
     return userRolesApi.byEmployee({ employeeId }).roles;

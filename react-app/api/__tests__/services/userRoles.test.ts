@@ -36,8 +36,8 @@ describe('getRolesByEmployee', () => {
         ]);
     });
 
-    it('queries by the parsed id and answers the roles sorted by name', () => {
-        expect(getRolesByEmployee({ employeeId: '7' })).toEqual({
+    it('queries by the id and answers the roles sorted by name', () => {
+        expect(getRolesByEmployee({ employeeId: 7 })).toEqual({
             employeeId: 7,
             roles: [
                 { roleId: 3, roleName: 'Administrator' },
@@ -48,7 +48,7 @@ describe('getRolesByEmployee', () => {
     });
 
     it('rejects a bad id before querying', () => {
-        expect(() => getRolesByEmployee({ employeeId: 'seven' })).toThrow(expect.objectContaining({ status: 400 }));
+        expect(() => getRolesByEmployee({ employeeId: 0 })).toThrow(expect.objectContaining({ status: 400 }));
         expect(listEmployeeRolesByEmployee).not.toHaveBeenCalled();
     });
 });

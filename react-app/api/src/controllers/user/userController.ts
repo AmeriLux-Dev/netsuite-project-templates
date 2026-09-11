@@ -4,13 +4,12 @@
  * @NModuleScope SameAccount
  */
 
-// The only transport-specific file of this controller. Its one endpoint (roles) is GET, so only `get`
-// is exported; an endpoint with another method adds that export. To serve the same endpoints from a
-// Suitelet instead, see userRoles/userRolesController.ts and HOW-TO-USE.md ("Switching a controller").
+// The only transport-specific file of this controller. Every call is a POST naming the endpoint in
+// its body, so `post` is the one entry point. To serve the same endpoints from a Suitelet instead,
+// export `onRequest = defineSuitelet(...)` as userRoles/userRolesController.ts does, change the SDF
+// object to a <suitelet>, and set `kind` on the scripts entry; the endpoints do not change.
 
 import { defineRestlet } from '../../lib/defineRestlet';
 import { userEndpoints } from './endpoints';
 
-const restlet = defineRestlet('user', userEndpoints);
-
-export const get = restlet.get;
+export const post = defineRestlet('user', userEndpoints);
