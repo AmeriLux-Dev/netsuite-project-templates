@@ -56,6 +56,8 @@ Code both halves import. Never imports `N/*` modules, because the browser bundle
 
 The backend. Webpack bundles it into one JavaScript file per deployed script.
 
+`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
+
 Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller.
 
 - `src/controllers/` One file per deployed script, `<name>Controller.ts`: the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them.

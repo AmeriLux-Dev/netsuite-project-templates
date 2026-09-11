@@ -13,18 +13,14 @@
     "node": ">=22"
   },
   "scripts": {
-    "predev": "npm run generate",
-    "dev": "npm run dev -w client",
     "generate": "npm run generate -w api",
-    "prebuild": "npm run generate",
-    "build": "npm run build -w client && npm run build -w api",
+    "dev": "npm run generate && npm run dev -w client",
+    "typecheck": "npm run generate && npm run typecheck --workspaces",
+    "lint": "eslint . && node scripts/checkStructure.mjs",
+    "test": "npm run generate && npm test --workspaces --if-present",
+    "build": "npm run generate && npm run build -w client && npm run build -w api",
     "deploy": "node scripts/deploy.mjs",
-    "deploy:files": "node scripts/deploy.mjs --files-only",
-    "pretest": "npm run generate",
-    "test": "npm test --workspaces --if-present",
-    "pretypecheck": "npm run generate",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "eslint . && node scripts/checkStructure.mjs"
+    "deploy:files": "node scripts/deploy.mjs --files-only"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

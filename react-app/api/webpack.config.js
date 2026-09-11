@@ -5,7 +5,6 @@ const path = require('node:path');
 const { globSync } = require('glob');
 const webpack = require('webpack');
 const { applyNetSuiteWrapperWebpack } = require('@amerilux/netsuite-wrapper/webpack');
-const { netsuiteRepositoryPlugin } = require('@amerilux/netsuite-repository/plugin');
 const { readBuildInfo } = require('../scripts/buildInfo.cjs');
 
 const apiDir = __dirname;
@@ -45,26 +44,6 @@ function collectScriptEntries() {
     return entries;
 }
 
-/** Regenerates the repository context before every compilation (build and watch). */
-class NetSuiteRepositoryGeneratePlugin {
-    constructor() {
-        this.plugin = netsuiteRepositoryPlugin({ cwd: apiDir, log: (message) => console.log(`[netsuite-repository] ${message}`) });
-    }
-
-    apply(compiler) {
-        const generate = (_compiler, callback) => {
-            try {
-                this.plugin.buildStart();
-                callback();
-            } catch (error) {
-                callback(error);
-            }
-        };
-        compiler.hooks.beforeRun.tapAsync('NetSuiteRepositoryGeneratePlugin', generate);
-        compiler.hooks.watchRun.tapAsync('NetSuiteRepositoryGeneratePlugin', generate);
-    }
-}
-
 module.exports = (_env, argv) => {
     const mode = (argv && argv.mode) || 'production';
     const entries = collectScriptEntries();
@@ -100,7 +79,6 @@ module.exports = (_env, argv) => {
             ],
         },
         plugins: [
-            new NetSuiteRepositoryGeneratePlugin(),
             // Re-attach the entry file's leading JSDoc so NetSuite sees @NApiVersion / @NScriptType on line 1.
             new webpack.BannerPlugin({
                 banner: (data) => {

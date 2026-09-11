@@ -7,12 +7,14 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 | Command | Use it for |
 |---|---|
 | `npm run generate` | Regenerate `api/src/repositories/generated/` and `common/types/models.gen.ts` from the decorated models. Run after touching `common/model/`. |
-| `npm run typecheck` | `tsc --noEmit` in every workspace (runs generate first). |
+| `npm run typecheck` | `tsc --noEmit` in every workspace. |
 | `npm run lint` | ESLint over the repository, then `scripts/checkStructure.mjs`: every script's pieces agree (ids, SDF object, controller file and its exports, client module). |
-| `npm test` | Vitest in `api/` and `client/` (runs generate first). |
+| `npm test` | Vitest in `api/` and `client/`. |
 | `npm run build` | Client (Vite) then API (webpack) into `netsuite/FileCabinet/SuiteScripts/{{appName}}/`. |
 | `npm run dev` | Vite on port 3000 plus the local restlet proxy on port 4000. Needs `client/.env`. |
 | `npm run deploy` / `npm run deploy:files` | Deploy to the account in `project.json`. Only when the person asked for it. |
+
+Every root command runs `npm run generate` first, once; a workspace script run directly (`-w api`) assumes it has run.
 
 Before a commit: `npm run typecheck`, `npm run lint`, `npm test`.
 

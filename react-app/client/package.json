@@ -6,8 +6,6 @@
   "description": "React single-page app for {{appTitle}}, served by a Suitelet.",
   "scripts": {
     "dev": "concurrently -k -n vite,proxy \"vite\" \"tsx server.ts\"",
-    "dev:vite": "vite",
-    "dev:proxy": "tsx server.ts",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run"
