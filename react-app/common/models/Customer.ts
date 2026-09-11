@@ -12,6 +12,6 @@ export class Customer {
 
     @Field('companyname')
     companyName!: string;
-    
+
     email!: string | null;
 }

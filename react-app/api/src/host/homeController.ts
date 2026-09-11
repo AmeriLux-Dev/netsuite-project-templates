@@ -56,7 +56,7 @@ export const onRequest = (context: EntryPoints.Suitelet.onRequestContext): void 
             fileName: app.fileCabinet.clientBundle,
         });
         if (!bundleUrl) {
-            log.error('home: bundle not found', app.fileCabinet);
+            log.error('home: bundle not found', { folder: app.fileCabinet.folder, clientFolder: app.fileCabinet.clientFolder, clientBundle: app.fileCabinet.clientBundle });
             form.addField({
                 id: 'custpage_error',
                 type: serverWidget.FieldType.LABEL,
@@ -72,7 +72,7 @@ export const onRequest = (context: EntryPoints.Suitelet.onRequestContext): void 
             log.audit('home: serving bundle', { bundleUrl, version: __APP_VERSION__, buildId: __BUILD_ID__ });
         }
     } catch (error) {
-        log.error('home: failed to build the page', error instanceof Error ? error.message : String(error));
+        log.error('home: failed to build the page', { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
     }
 
     context.response.writePage(form);

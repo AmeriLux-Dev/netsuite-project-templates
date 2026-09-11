@@ -23,7 +23,7 @@ const isWindows = process.platform === 'win32';
 
 /** Files the scaffold marked as example code; they must be replaced or deleted before the first deploy. */
 const EXAMPLE_MARKER = '@netsuite-project:example';
-const EXAMPLE_SEARCH_ROOTS = ['api/src/controllers', 'netsuite/Objects', 'client/src'];
+const EXAMPLE_SEARCH_ROOTS = ['api/src', 'netsuite/Objects', 'client/src'];
 
 function run(command, args) {
     console.log(`\n> ${command} ${args.join(' ')}`);

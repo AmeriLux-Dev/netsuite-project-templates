@@ -61,7 +61,7 @@ api/                    SuiteScript, bundled by webpack into one AMD file per sc
   __tests__/            Vitest specs
 client/                 React 19, TanStack Router (file-based, hash history), TanStack Query, Tailwind 4
   src/routes/           One file per route; __root.tsx is the layout (routeTree.gen.ts is generated)
-  src/api/              callRestlet and one module per controller
+  src/api/              apiClient (createApiClient) and one typed module per controller
   src/pages/            One component per page; a page calls hooks, never the api modules
   src/hooks/            TanStack Query hooks, the only callers of src/api
   server.ts             Local dev proxy that signs OAuth 2.0 requests to the sandbox
@@ -87,7 +87,16 @@ Building the client empties only `client/`; building the API empties only `api/`
 
 ## Deploy
 
-The customers controller, its SDF object and the customers page are scaffold examples, marked with `@netsuite-project:example`. `npm run deploy` and `npm run deploy:files` refuse to run while any marked file is present, so the example never ends up in a File Cabinet. Replace it with `npm run add:controller -- <name>` or delete it (`api/src/controllers/customers/`, `api/src/services/customers.ts`, `api/src/repositories/customers.ts`, `api/src/specifications/customers.ts`, `netsuite/Objects/customscript_{{prefix}}_customers.xml`, `client/src/pages/CustomersPage.tsx`, `client/src/hooks/useCustomers.ts`, `client/src/api/customersApi.ts`, `common/types/customers.ts`, and the `customers` entry in `scripts`). `--allow-example` overrides the guard for a throwaway sandbox.
+The customers controller, its SDF object and the customers page are scaffold examples, marked with `@netsuite-project:example`. `npm run deploy` and `npm run deploy:files` refuse to run while any marked file is present, so the example never ends up in a File Cabinet. Replace it with `npm run add:controller -- <name>` or delete it. Deleting means every file of the example, its tests included, and then pointing the `/` route at your own page:
+
+- `api/src/controllers/customers/`, `api/src/services/customers.ts`, `api/src/repositories/customers.ts`, `api/src/specifications/customers.ts`
+- `api/__tests__/services/customers.test.ts`, `api/__tests__/repositories/customers.test.ts`
+- `netsuite/Objects/customscript_{{prefix}}_customers.xml` and the `customers` entry in `scripts` (`common/netsuite.ts`)
+- `common/types/customers.ts`, and `common/models/Customer.ts` unless your own code reads customers
+- `client/src/pages/CustomersPage.tsx`, `client/src/hooks/useCustomers.ts`, `client/src/api/customersApi.ts`, `client/__tests__/customersQuery.test.ts`
+- `client/src/routes/index.tsx` imports `CustomersPage`; give it your own component
+
+`--allow-example` overrides the guard for a throwaway sandbox.
 
 `npm run deploy` needs a `project.json` with the authentication id to use. `npx suitecloud account:setup` writes it. The Suitelet appears under Customization › Scripting › Scripts as **{{appTitle}} Home**.
 
@@ -141,7 +150,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 - `CLAUDE.md` is the project brief Claude Code reads on every session: commands, layout and the rules below.
 - `.claude/settings.json` pre-approves the read-only npm scripts (generate, typecheck, lint, build, test).
 {{#if probity}}
-- `probity.config.ts` turns the mechanical rules into guardrails through [Probity](https://github.com/nizos/probity): no destructive commands, tests and typecheck before a commit, no `N/*` in `common/`, no writes to generated output or secrets, tests only under `__tests__/`, no focused tests, and test-first for services, repositories, the restlet primitive, client API modules and hooks. `.claude/settings.json` wires it into Claude Code's `PreToolUse` hook; the same config works for Codex and Copilot CLI (see Probity's setup guide).
+- `probity.config.ts` turns the mechanical rules into guardrails through [Probity](https://github.com/nizos/probity): no destructive commands, tests and typecheck before a commit, no `N/*` in `common/`, no writes to generated output or secrets, tests only under `__tests__/`, no focused tests, and test-first for services, repositories, the transport wrappers in `api/src/lib/`, client API modules and hooks. `.claude/settings.json` wires it into Claude Code's `PreToolUse` hook; the same config works for Codex and Copilot CLI (see Probity's setup guide).
 - Remove the `enforceTdd` block from `probity.config.ts` if test-first enforcement is not wanted; the rest stays useful on its own.
 {{/if}}
 {{#unless probity}}

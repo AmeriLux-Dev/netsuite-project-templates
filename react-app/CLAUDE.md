@@ -53,5 +53,5 @@ Before a commit: `npm run typecheck`, `npm run lint`, `npm test`.
 
 ## Guardrails
 
-Probity (`probity.config.ts`, hooked into Claude Code through `.claude/settings.json`) enforces the rules of this repository mechanically and blocks: destructive commands, commits without tests and typecheck, deploys without tests, `N/*` imports in `common/`, NetSuite ids as string literals outside `common/netsuite.ts`, writes to generated output or secret files, colocated or focused tests. It also requires a failing test first for services, repositories, the restlet primitive, client API modules and hooks. When a block fires, fix the cause rather than working around it.
+Probity (`probity.config.ts`, hooked into Claude Code through `.claude/settings.json`) enforces the rules of this repository mechanically and blocks: destructive commands, commits without tests and typecheck, deploys without tests, `N/*` imports in `common/`, NetSuite ids as string literals outside `common/netsuite.ts`, writes to generated output or secret files, colocated or focused tests. It also requires a failing test first for services, repositories, the transport wrappers in `api/src/lib/`, client API modules and hooks. When a block fires, fix the cause rather than working around it.
 {{/if}}
