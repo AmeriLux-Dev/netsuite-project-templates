@@ -1,6 +1,6 @@
 # {{appTitle}}
 
-Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-project (`react-app` template). The README has the longer explanation.
+Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-project (`react-app` template). `HOW-TO-USE.md` has the longer explanation of commands and layout; `README.md` records the purpose, owners, dependencies, deployment, support and decisions of this application and is written by the people who own it.
 
 ## Commands
 
