@@ -1,6 +1,6 @@
 import { scripts } from 'common/netsuite';
 import type { RoleSummary, UserRolesEndpoints } from '../controllers/userRoles/endpoints';
-import { createSuiteletClient } from '../lib/suiteletClient';
+import { createSuiteletClient } from '../_lib/suiteletClient';
 
 /**
  * Role assignments, read through the userRoles Suitelet because the role a Restlet caller logged in

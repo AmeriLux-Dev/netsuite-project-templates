@@ -1,5 +1,5 @@
 import type { EmployeeRole } from 'common/types/models.gen';
-import { defineEndpoints } from '../../lib/endpoint';
+import { defineEndpoints } from '../../_lib/endpoint';
 import { getRolesByEmployee } from '../../services/userRoles';
 
 /**

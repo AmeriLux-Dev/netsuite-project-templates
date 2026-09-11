@@ -10,7 +10,7 @@
 // api/src/lib/suiteletClient.ts; the browser has no reason to. Keep it read-only and minimal: every
 // role can reach a Suitelet deployed to all roles.
 
-import { defineSuitelet } from '../../lib/defineSuitelet';
+import { defineSuitelet } from '../../_lib/defineSuitelet';
 import { userRolesEndpoints } from './endpoints';
 
 export const onRequest = defineSuitelet('userRoles', userRolesEndpoints);

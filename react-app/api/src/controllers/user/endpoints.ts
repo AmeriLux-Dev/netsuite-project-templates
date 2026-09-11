@@ -1,4 +1,4 @@
-import { defineEndpoints } from '../../lib/endpoint';
+import { defineEndpoints } from '../../_lib/endpoint';
 import { getActiveUserRoles } from '../../services/user';
 import type { RoleSummary } from '../userRoles/endpoints';
 

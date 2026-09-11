@@ -1,6 +1,6 @@
 import type { EmployeeRole } from 'common/types/models.gen';
 import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from '../controllers/userRoles/endpoints';
-import { ApiError } from '../lib/apiError';
+import { ApiError } from '../_lib/apiError';
 import { listEmployeeRolesByEmployee } from '../repositories/employeeRoles';
 
 /**

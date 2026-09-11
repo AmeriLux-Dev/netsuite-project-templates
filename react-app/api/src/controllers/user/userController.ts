@@ -9,7 +9,7 @@
 // export `onRequest = defineSuitelet(...)` as userRoles/userRolesController.ts does, change the SDF
 // object to a <suitelet>, and set `kind` on the scripts entry; the endpoints do not change.
 
-import { defineRestlet } from '../../lib/defineRestlet';
+import { defineRestlet } from '../../_lib/defineRestlet';
 import { userEndpoints } from './endpoints';
 
 export const post = defineRestlet('user', userEndpoints);
