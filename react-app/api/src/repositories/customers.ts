@@ -1,14 +1,14 @@
 import type { Specification } from '@amerilux/netsuite-repository';
 import type { Customer } from './generated/Customer.gen';
-import { createAppContext } from './generated/context.gen';
+import { dbContext } from './generated/context.gen';
 import { companyNameContains, firstPage, orderedByCompanyName } from '../specifications/customers';
 
 // @netsuite-project:example — scaffold example; see controllers/customers/customersController.ts.
 
 /**
- * Data access for customers: sentences built from the specifications. Each function creates the
- * context it needs and drops it on return. The only layer that touches records; it never decides
- * what a request means.
+ * Data access for customers: sentences built from the specifications over dbContext. Reads go
+ * through its sets; a write would go through dbContext.withTracking(). The only layer that touches
+ * records; it never decides what a request means.
  */
 
 export interface CustomerListQuery {
@@ -22,10 +22,10 @@ export function listCustomersByCompanyName(query: CustomerListQuery): Customer[]
     const specifications: Specification<Customer>[] = [];
     if (query.search) specifications.push(companyNameContains(query.search));
     specifications.push(orderedByCompanyName(), firstPage(query.limit));
-    return createAppContext({ tracking: false }).customers.list(...specifications);
+    return dbContext.customers.list(...specifications);
 }
 
 /** The customer with this internal id, or null when there is none. */
 export function findCustomerById(id: number): Customer | null {
-    return createAppContext({ tracking: false }).customers.find(id);
+    return dbContext.customers.find(id);
 }

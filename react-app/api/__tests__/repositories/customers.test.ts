@@ -1,13 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Customer } from '../../src/repositories/generated/Customer.gen';
 
-// The repository is tested against a fake context: the generated factory is mocked to return an
-// object with only the customers set, whose list() records the specifications applied to it.
-const { createAppContext, fakeCustomers } = vi.hoisted(() => {
-    const fakeCustomers = { list: vi.fn(), find: vi.fn() };
-    return { fakeCustomers, createAppContext: vi.fn(() => ({ customers: fakeCustomers })) };
-});
-vi.mock('../../src/repositories/generated/context.gen', () => ({ createAppContext }));
+// The repository is tested against a fake dbContext carrying only the customers set, whose list()
+// records the specifications applied to it.
+const { fakeCustomers } = vi.hoisted(() => ({ fakeCustomers: { list: vi.fn(), find: vi.fn() } }));
+vi.mock('../../src/repositories/generated/context.gen', () => ({ dbContext: { customers: fakeCustomers } }));
 
 import { findCustomerById, listCustomersByCompanyName } from '../../src/repositories/customers';
 
@@ -35,7 +32,6 @@ function listReturning(rows: Customer[]) {
 }
 
 beforeEach(() => {
-    createAppContext.mockClear();
     fakeCustomers.list.mockReset();
     fakeCustomers.find.mockReset();
 });
@@ -46,10 +42,9 @@ describe('listCustomersByCompanyName', () => {
         { id: 2, companyName: 'Beta', email: null },
     ];
 
-    it('creates a read-only context and returns the rows the set lists', () => {
+    it('returns the rows the set lists', () => {
         listReturning(rows);
         expect(listCustomersByCompanyName({ search: '', limit: 50 })).toBe(rows);
-        expect(createAppContext).toHaveBeenCalledWith({ tracking: false });
     });
 
     it('filters by company name, orders, and pages when a search term is given', () => {
@@ -72,11 +67,10 @@ describe('listCustomersByCompanyName', () => {
 describe('findCustomerById', () => {
     const customer: Customer = { id: 1, companyName: 'Acme', email: null };
 
-    it('asks the set for the id in a read-only context and passes its answer through', () => {
+    it('asks the set for the id and passes its answer through', () => {
         fakeCustomers.find.mockImplementation((id: number) => (id === 1 ? customer : null));
         expect(findCustomerById(1)).toBe(customer);
         expect(findCustomerById(2)).toBeNull();
         expect(fakeCustomers.find).toHaveBeenCalledWith(1);
-        expect(createAppContext).toHaveBeenCalledWith({ tracking: false });
     });
 });
