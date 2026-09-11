@@ -31,8 +31,11 @@ const logEntryShape = [
 const alertingImports = [{ group: ['N/email'], message: 'No script sends its own alert. Alert rules read the span stream.' }];
 // Dependency governance: the shared package is imported by the data-access layers only (models, specifications, repositories).
 const sharedPackageImports = [{ group: ['@amerilux/netsuite-repository', '@amerilux/netsuite-repository/*'], message: 'Only common/models, api/src/specifications and api/src/repositories import the shared repository package.' }];
-// An endpoint never queries, a service never loads a record.
-const recordAccessImports = [{ group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' }];
+// An endpoint never queries, a service never loads a record, and neither creates the context: a repository function does.
+const recordAccessImports = [
+    { group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' },
+    { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+];
 
 export default defineConfig([
     globalIgnores([
@@ -136,7 +139,7 @@ export default defineConfig([
         rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports] }] },
     },
     {
-        // The data-access layers inside api/: Specification in specifications, the unit of work in repositories.
+        // The data-access layers inside api/: Specification in specifications, the context in repositories.
         // Models live in common/models and import the package's decorators; common/ is not restricted from it.
         files: ['api/src/specifications/**/*.ts', 'api/src/repositories/**/*.ts'],
         rules: { 'no-restricted-imports': ['error', { patterns: [...alertingImports] }] },

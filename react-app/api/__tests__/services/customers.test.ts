@@ -1,18 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Customer } from '../../src/repositories/generated/Customer.gen';
 
-// The service is tested against a mocked repositories layer: the unit of work it opens and the
-// repository function it calls are both fakes, so the test sees only the service's decisions.
-const { fakeUnitOfWork, openUnitOfWork, listCustomersByCompanyName, findCustomerById } = vi.hoisted(() => {
-    const fakeUnitOfWork = { customers: {} };
-    return {
-        fakeUnitOfWork,
-        openUnitOfWork: vi.fn(() => fakeUnitOfWork),
-        listCustomersByCompanyName: vi.fn<(work: unknown, query: unknown) => Customer[]>(),
-        findCustomerById: vi.fn<(work: unknown, id: number) => Customer | null>(),
-    };
-});
-vi.mock('../../src/repositories/generated/context.gen', () => ({ openUnitOfWork }));
+// The service is tested against a mocked repositories layer: the repository functions it calls are
+// fakes, so the test sees only the service's decisions.
+const { listCustomersByCompanyName, findCustomerById } = vi.hoisted(() => ({
+    listCustomersByCompanyName: vi.fn<(query: unknown) => Customer[]>(),
+    findCustomerById: vi.fn<(id: number) => Customer | null>(),
+}));
 vi.mock('../../src/repositories/customers', () => ({ listCustomersByCompanyName, findCustomerById }));
 
 import { ApiError } from '../../src/lib/apiError';
@@ -40,15 +34,13 @@ describe('getCustomer', () => {
     const customer: Customer = { id: 12, companyName: 'Acme', email: null };
 
     beforeEach(() => {
-        openUnitOfWork.mockClear();
         findCustomerById.mockReset();
     });
 
-    it('looks the customer up in a read-only unit of work and returns its summary', () => {
+    it('looks the customer up by its parsed id and returns its summary', () => {
         findCustomerById.mockReturnValue(customer);
         expect(getCustomer({ id: '12' })).toEqual({ id: 12, companyName: 'Acme', email: null });
-        expect(openUnitOfWork).toHaveBeenCalledWith({ tracking: false });
-        expect(findCustomerById).toHaveBeenCalledWith(fakeUnitOfWork, 12);
+        expect(findCustomerById).toHaveBeenCalledWith(12);
     });
 
     it('answers 404 when there is no such customer', () => {
@@ -77,20 +69,18 @@ describe('listCustomers', () => {
     ];
 
     beforeEach(() => {
-        openUnitOfWork.mockClear();
         listCustomersByCompanyName.mockReset();
         listCustomersByCompanyName.mockReturnValue(rows);
     });
 
-    it('opens a read-only unit of work and hands it to the repository', () => {
+    it('asks the repository for the default page when the request is empty', () => {
         listCustomers({});
-        expect(openUnitOfWork).toHaveBeenCalledWith({ tracking: false });
-        expect(listCustomersByCompanyName).toHaveBeenCalledWith(fakeUnitOfWork, { search: '', limit: DEFAULT_CUSTOMER_LIMIT });
+        expect(listCustomersByCompanyName).toHaveBeenCalledWith({ search: '', limit: DEFAULT_CUSTOMER_LIMIT });
     });
 
     it('trims the search term and clamps the limit before querying', () => {
         listCustomers({ search: '  acme ', limit: '5' });
-        expect(listCustomersByCompanyName).toHaveBeenCalledWith(fakeUnitOfWork, { search: 'acme', limit: 5 });
+        expect(listCustomersByCompanyName).toHaveBeenCalledWith({ search: 'acme', limit: 5 });
     });
 
     it('maps rows to summaries and reports the applied limit', () => {

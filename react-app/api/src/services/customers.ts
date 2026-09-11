@@ -2,13 +2,12 @@ import type { CustomerByIdRequest, CustomerListRequest, CustomerListResponse, Cu
 import { ApiError } from '../lib/apiError';
 import { findCustomerById, listCustomersByCompanyName } from '../repositories/customers';
 import type { Customer } from '../repositories/generated/Customer.gen';
-import { openUnitOfWork } from '../repositories/generated/context.gen';
 
 // @netsuite-project:example — scaffold example; see controllers/customers/customersController.ts.
 
 /**
  * Decisions about customers: what the request means and what the caller gets back. The service
- * opens the unit of work and hands it to repository functions; it never queries on its own.
+ * calls repository functions by their domain names; it never sees the context or a record.
  */
 
 export const DEFAULT_CUSTOMER_LIMIT = 50;
@@ -35,15 +34,13 @@ export function toCustomerSummary(customer: Customer): CustomerSummary {
 export function listCustomers(request: CustomerListRequest): CustomerListResponse {
     const limit = clampCustomerLimit(request.limit);
     const search = (request.search ?? '').trim();
-    const work = openUnitOfWork({ tracking: false });
-    const customers = listCustomersByCompanyName(work, { search, limit }).map(toCustomerSummary);
+    const customers = listCustomersByCompanyName({ search, limit }).map(toCustomerSummary);
     return { customers, limit };
 }
 
 export function getCustomer(request: CustomerByIdRequest): CustomerSummary {
     const id = parseCustomerId(request.id);
-    const work = openUnitOfWork({ tracking: false });
-    const customer = findCustomerById(work, id);
+    const customer = findCustomerById(id);
     if (!customer) throw ApiError.notFound('Customer not found.', { id });
     return toCustomerSummary(customer);
 }

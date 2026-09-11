@@ -157,8 +157,8 @@ export default defineConfig({
 
 - Behaviour change (new or changed outputs, validation, side-effects, error handling): write or extend a test in the matching __tests__/ folder, see it fail, then implement the minimum.
 - Refactor with unchanged behaviour, configuration, documentation, generated files and .gitignore changes need no new test.
-- Test observable behaviour through the public surface: inputs to outputs, calls made to the unit of work or the typed api client, envelope status and error. Never assert on DOM structure, CSS classes or internal state.
-- Repository functions take the unit of work as an argument; tests pass a fake that records the specifications applied to it. Service tests mock the repository module.
+- Test observable behaviour through the public surface: inputs to outputs, calls made to the record sets or the typed api client, envelope status and error. Never assert on DOM structure, CSS classes or internal state.
+- Repository functions create their own context; tests mock the generated createAppContext with a fake that records the specifications applied to its sets. Service tests mock the repository module.
 - Prefer extending an existing test file over a duplicate; prefer the lowest level that proves the behaviour.`,
                 }),
             ],

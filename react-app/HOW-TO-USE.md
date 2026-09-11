@@ -48,8 +48,8 @@ common/                 Shared by api and client; compiles without NetSuite type
 api/                    SuiteScript, bundled by webpack into one AMD file per script
   src/controllers/      One folder per controller: <name>Controller.ts (Restlet or Suitelet) + endpoints/
   src/host/             The Suitelet that serves the SPA and its client script
-  src/services/         Decisions: open the unit of work, call repositories, shape the reply
-  src/repositories/     Query and write functions over the unit of work (generated/ is produced, gitignored)
+  src/services/         Decisions: interpret the request, call repositories, shape the reply
+  src/repositories/     Query and write functions, each creating its own context (generated/ is produced, gitignored)
   src/specifications/   Query predicates, one module per record type
   src/lib/              endpoint, defineRestlet, defineSuitelet, ApiError, File Cabinet helpers
   test/stubs/N/         vi.fn shells for N/* modules
@@ -122,7 +122,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 
 1. Add a decorated class under `common/models/` (see `Customer.ts`). Its record type and field ids are written on the decorators; nothing goes in `common/netsuite.ts`.
 2. `npm run generate` writes `api/src/repositories/generated/<Model>.gen.ts` and refreshes `context.gen.ts`.
-3. Add its query vocabulary under `api/src/specifications/`, the query functions under `api/src/repositories/` (they take the `UnitOfWork` first), and the decisions under `api/src/services/`, where `openUnitOfWork()` is called. Endpoints call services and stay thin.
+3. Add its query vocabulary under `api/src/specifications/`, the query functions under `api/src/repositories/` (each creates its context with `createAppContext()`), and the decisions under `api/src/services/`. Endpoints call services and stay thin.
 
 {{#if performanceTracker}}
 ## PerformanceTracker
@@ -138,7 +138,7 @@ Routes are files under `client/src/routes/`: `orders.tsx` serves `#/orders`, `or
 
 - `api/__tests__/` and `client/__tests__/` hold the Vitest specs; tests are never colocated with source.
 - `N/*` modules and the wrapper's module entry points resolve to `api/test/stubs/N/`.
-- Repository functions take the unit of work as an argument, so a test passes a fake with the record sets it needs. Service tests mock the repository module and the generated `openUnitOfWork`.
+- Repository functions create their own context, so a test mocks the generated `createAppContext` and returns a fake with the record sets it needs. Service tests mock the repository module.
 - UI markup is not unit-tested; hooks and API modules are.
 
 ## Working with an AI coding agent
