@@ -4,6 +4,6 @@
   "outFile": "client/src/api/index.gen.ts",
   "appOutFile": "client/src/app.gen.ts",
   "scriptsOutFile": "api/src/scripts.gen.ts",
-  "typeImports": { "../types/models.gen": "./models.gen" },
+  "typeImports": { "../types/models.gen": "./models.gen", "@amerilux/netsuite-api/server": "@amerilux/netsuite-api/client" },
   "copyFiles": { "api/src/types/models.gen.ts": "client/src/api/models.gen.ts" }
 }
