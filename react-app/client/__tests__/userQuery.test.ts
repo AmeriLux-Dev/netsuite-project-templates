@@ -7,16 +7,16 @@ const { rolesMock, createApiClient } = vi.hoisted(() => {
 });
 vi.mock('@amerilux/netsuite-api/client', () => ({ createApiClient }));
 
-import { userApi } from '@/api/index.gen';
+import { user } from '@/api/index.gen';
 import { activeUserRolesQueryKey, activeUserRolesQueryOptions } from '@/hooks/useActiveUserRoles';
 
 // The generated module builds the client when it loads, before any test runs, and mock state is cleared per test: keep the call.
 const clientConstructionArguments = createApiClient.mock.calls[0] as unknown[] | undefined;
 
-describe('userApi', () => {
+describe('user.api', () => {
     it('is the typed client for the script the user controller declares, as npm run generate wrote it', () => {
         expect(clientConstructionArguments).toEqual([{ kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' }]);
-        expect(userApi.roles).toBe(rolesMock);
+        expect(user.api.roles).toBe(rolesMock);
     });
 });
 

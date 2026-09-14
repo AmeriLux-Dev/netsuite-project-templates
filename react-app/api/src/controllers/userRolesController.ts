@@ -20,11 +20,11 @@ import { getRolesByEmployee } from '../services/userRolesService';
 /** A role as the wire carries it: picked from the generated entity type so it follows the model. */
 export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;
 
-export interface UserRolesByEmployeeRequest {
+export interface ByEmployeeRequest {
     employeeId: number;
 }
 
-export interface UserRolesByEmployeeResponse {
+export interface ByEmployeeResponse {
     employeeId: number;
     /** Every role assigned to the employee, by name. */
     roles: RoleSummary[];
@@ -32,7 +32,7 @@ export interface UserRolesByEmployeeResponse {
 
 export const userRolesEndpoints = defineEndpoints({
     /** Every role assigned to the employee; the service answers 400 for a bad id. */
-    byEmployee: (request: UserRolesByEmployeeRequest): UserRolesByEmployeeResponse => getRolesByEmployee(request),
+    byEmployee: (request: ByEmployeeRequest): ByEmployeeResponse => getRolesByEmployee(request),
 });
 
 /** What api/src/repositories/userRolesRepository.ts is built from: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)`. */

@@ -1,5 +1,5 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { userApi } from '@/api/index.gen';
+import { user } from '@/api/index.gen';
 
 export const activeUserRolesQueryKey = ['user', 'roles'] as const;
 
@@ -7,7 +7,7 @@ export function activeUserRolesQueryOptions() {
     return queryOptions({
         queryKey: activeUserRolesQueryKey,
         // The endpoint takes no request; the second argument carries the abort signal.
-        queryFn: ({ signal }) => userApi.roles(undefined, { signal }),
+        queryFn: ({ signal }) => user.api.roles(undefined, { signal }),
     });
 }
 

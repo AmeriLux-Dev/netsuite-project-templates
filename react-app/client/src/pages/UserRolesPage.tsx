@@ -1,6 +1,11 @@
 import { useActiveUserRoles } from '@/hooks/useActiveUserRoles';
 
-/** The starting page: who is signed in and which roles they hold. A page calls a hook; only a hook calls the api. */
+/**
+ * The starting page: who is signed in and which roles they hold. A page calls a hook; only a hook
+ * calls the api. A failed call needs nothing here: it is reported to the AppShell's banner before
+ * the query sees it (configureApiClient in main.tsx). A page that would rather show the failure in
+ * place reads the query's isError and error, and its hook passes { handleError: false } to the call.
+ */
 export function UserRolesPage() {
     const activeUserRoles = useActiveUserRoles();
 
@@ -9,12 +14,6 @@ export function UserRolesPage() {
             <h2 className="text-lg font-semibold text-slate-900">Your roles</h2>
 
             {activeUserRoles.isPending && <p className="text-sm text-slate-500">Loading your roles…</p>}
-
-            {activeUserRoles.isError && (
-                <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                    Could not load your roles: {activeUserRoles.error.message}
-                </p>
-            )}
 
             {activeUserRoles.isSuccess && (
                 <>

@@ -13,7 +13,9 @@ import type { RoleSummary } from './userRolesController';
  * serves them. The shapes are the wire, not the record: a DTO is an entity type from
  * api/src/types/models.gen.ts, a Pick of one, or a composition of several, and carries nothing the
  * caller does not need. `npm run generate` copies them, with the endpoint signatures and the script
- * declaration, into client/src/api/index.gen.ts; every type here is exported for that reason.
+ * declaration, into client/src/api/user.gen.ts, the controller's own module in the client (reached
+ * as `user` from @/api/index.gen); every type here is exported for that reason. A shape's name
+ * carries no controller prefix: the module is scoped by controller already.
  */
 
 /** The caller as the session knows them. */
@@ -23,7 +25,7 @@ export interface ActiveUserSummary {
     email: string;
 }
 
-export interface UserRolesResponse {
+export interface RolesResponse {
     user: ActiveUserSummary;
     /** The role the caller logged in with. */
     activeRoleId: number;
@@ -38,7 +40,7 @@ export interface UserRolesResponse {
  */
 export const userEndpoints = defineEndpoints({
     /** The caller and every role assigned to them. Takes no request; the session says who is calling. */
-    roles: (): UserRolesResponse => getActiveUserRoles(),
+    roles: (): RolesResponse => getActiveUserRoles(),
 });
 
 /** The endpoint signatures as a type, for server code that calls this controller through the Suitelet client. */

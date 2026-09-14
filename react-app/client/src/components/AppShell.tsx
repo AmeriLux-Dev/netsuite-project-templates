@@ -1,5 +1,6 @@
 import { Outlet } from '@tanstack/react-router';
 import { app } from '@/app.gen';
+import { ApiErrorBanner } from '@/components/ApiErrorBanner';
 
 export function AppShell() {
     return (
@@ -8,6 +9,7 @@ export function AppShell() {
                 <h1 className="text-xl font-semibold text-slate-900">{app.title}</h1>
                 <span className="text-xs text-slate-400" title={`build ${__BUILD_ID__}`}>v{__APP_VERSION__}</span>
             </header>
+            <ApiErrorBanner />
             <main className="min-h-0 flex-1 overflow-auto p-4">
                 <Outlet />
             </main>

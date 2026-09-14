@@ -44,8 +44,9 @@ const wireShapeImports = [
     { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>Controller.ts as types (import type); nothing below a controller imports its code.' },
 ];
 // The api package has one entry per side: api/ imports its server entry, client/ its client entry. The client never
-// imports from api/ or netsuite.ts: `npm run generate` writes every controller's types and clients, and a copy of
-// netsuite.ts, into client/src/api/index.gen.ts, and that module is what hooks import.
+// imports from api/ or netsuite.ts: `npm run generate` writes one module per controller (its types and its client)
+// under client/src/api/, re-exported by index.gen.ts, and a copy of netsuite.ts into client/src/app.gen.ts; a hook
+// imports @/api/index.gen.
 const apiPackageServerSide = [
     { group: ['@amerilux/netsuite-api/client', '@amerilux/netsuite-api/testing'], message: 'api/ imports @amerilux/netsuite-api/server. The client entry is for client/, the testing entry for vitest configs.' },
 ];
@@ -71,8 +72,7 @@ export default defineConfig([
         'api/src/repositories/generated/**',
         'api/src/types/models.gen.ts',
         'api/src/scripts.gen.ts',
-        'client/src/api/index.gen.ts',
-        'client/src/api/models.gen.ts',
+        'client/src/api/**',
         'client/src/app.gen.ts',
         'client/src/routeTree.gen.ts',
         '**/dist/**',

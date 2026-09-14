@@ -1,9 +1,9 @@
 {
   "controllers": "api/src/controllers",
   "appFile": "netsuite.ts",
-  "outFile": "client/src/api/index.gen.ts",
+  "outDir": "client/src/api",
   "appOutFile": "client/src/app.gen.ts",
   "scriptsOutFile": "api/src/scripts.gen.ts",
-  "typeImports": { "../types/models.gen": "./models.gen", "@amerilux/netsuite-api/server": "@amerilux/netsuite-api/client" },
-  "copyFiles": { "api/src/types/models.gen.ts": "client/src/api/models.gen.ts" }
+  "typeImports": { "@amerilux/netsuite-api/server": "@amerilux/netsuite-api/client" },
+  "inlineTypes": { "../types/models.gen": "api/src/types/models.gen.ts" }
 }

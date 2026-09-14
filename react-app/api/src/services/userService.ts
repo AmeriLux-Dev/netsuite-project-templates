@@ -1,4 +1,4 @@
-import type { UserRolesResponse } from '../controllers/userController';
+import type { RolesResponse } from '../controllers/userController';
 import { readActiveUser } from '../repositories/activeUserRepository';
 import { listRolesForEmployee } from '../repositories/userRolesRepository';
 
@@ -9,7 +9,7 @@ import { listRolesForEmployee } from '../repositories/userRolesRepository';
  */
 
 /** The caller and every role assigned to them, whichever role they logged in with. */
-export function getActiveUserRoles(): UserRolesResponse {
+export function getActiveUserRoles(): RolesResponse {
     const user = readActiveUser();
     const roles = listRolesForEmployee(user.id);
     return {

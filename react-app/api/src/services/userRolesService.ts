@@ -1,5 +1,5 @@
 import type { EmployeeRole } from '../types/models.gen';
-import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from '../controllers/userRolesController';
+import type { ByEmployeeRequest, ByEmployeeResponse, RoleSummary } from '../controllers/userRolesController';
 import { ApiError } from '@amerilux/netsuite-api/server';
 import { listEmployeeRolesByEmployee } from '../repositories/employeeRolesRepository';
 
@@ -21,7 +21,7 @@ export function toRoleSummary(role: EmployeeRole): RoleSummary {
     return { roleId: role.roleId, roleName: role.roleName };
 }
 
-export function getRolesByEmployee(request: UserRolesByEmployeeRequest): UserRolesByEmployeeResponse {
+export function getRolesByEmployee(request: ByEmployeeRequest): ByEmployeeResponse {
     const employeeId = parseEmployeeId(request.employeeId);
     const roles = listEmployeeRolesByEmployee(employeeId)
         .map(toRoleSummary)
