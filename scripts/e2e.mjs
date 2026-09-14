@@ -138,10 +138,10 @@ run('npm', ['run', 'build'], projectDir);
 
 const fileCabinet = path.join(projectDir, 'netsuite', 'FileCabinet', 'SuiteScripts', 'DemoApp');
 assertEqual(listFiles(fileCabinet), [
-    'api/controllers/user/userController.js',
-    'api/controllers/userRoles/userRolesController.js',
-    'api/host/homeController.js',
-    'api/host/host.js',
+    'api/_host/homeController.js',
+    'api/_host/host.js',
+    'api/controllers/userController.js',
+    'api/controllers/userRolesController.js',
     'client/app.js',
 ], 'File Cabinet output after first build');
 for (const apiFile of listFiles(path.join(fileCabinet, 'api'))) assertBanner(path.join(fileCabinet, 'api', apiFile));
@@ -150,9 +150,9 @@ for (const apiFile of listFiles(path.join(fileCabinet, 'api'))) assertBanner(pat
 const clientBundleBefore = statSync(path.join(fileCabinet, 'client', 'app.js')).mtimeMs;
 run('npm', ['run', 'build', '-w', 'api'], projectDir);
 assertEqual(statSync(path.join(fileCabinet, 'client', 'app.js')).mtimeMs, clientBundleBefore, 'api build leaves client/app.js untouched');
-const homeBefore = statSync(path.join(fileCabinet, 'api', 'host', 'homeController.js')).mtimeMs;
+const homeBefore = statSync(path.join(fileCabinet, 'api', '_host', 'homeController.js')).mtimeMs;
 run('npm', ['run', 'build', '-w', 'client'], projectDir);
-assertEqual(statSync(path.join(fileCabinet, 'api', 'host', 'homeController.js')).mtimeMs, homeBefore, 'client build leaves api/ untouched');
+assertEqual(statSync(path.join(fileCabinet, 'api', '_host', 'homeController.js')).mtimeMs, homeBefore, 'client build leaves api/ untouched');
 
 // The deploy script must stop before building or touching NetSuite when no account is selected.
 const deployAttempt = spawnSync('node', ['scripts/deploy.mjs'], { cwd: projectDir, encoding: 'utf8', shell: isWindows });

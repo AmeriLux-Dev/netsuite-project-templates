@@ -40,7 +40,9 @@ The check scaffolds `DemoApp` into the OS temp directory, installs, generates, t
 
 ## Releasing
 
-Tag `v<x.y.z>` and push the tag. Then set `templateSource.ref` in the CLI's `package.json` to that tag and release the CLI; a CLI release always scaffolds from the ref pinned in it, so a new tag here changes nothing for users until the CLI picks it up.
+Tag `v<x.y.z>` and push the tag. Then set `templateSource.ref` in the CLI's `package.json` to that tag and release the CLI; a CLI release always scaffolds from the ref pinned in it, so a new tag here changes nothing for users until the CLI picks it up. Tags here and CLI versions are independent; the pin is the only link between them.
+
+The `version` in `react-app/package.json` is the starting version of every scaffolded project (it feeds the bundle URL), not the version of this template. Leave it at 0.1.0.
 
 A template change that needs a CLI change lands in the CLI first: CI here scaffolds with the CLI's `main` branch. Set the `CREATE_NETSUITE_PROJECT_REF` repository variable to test against another branch or tag.
 
