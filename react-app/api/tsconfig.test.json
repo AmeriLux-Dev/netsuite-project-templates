@@ -4,5 +4,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "../common/**/*.ts", "__tests__/**/*.ts", "vitest.config.mts"]
+  "include": ["src/**/*.ts", "../netsuite.ts", "__tests__/**/*.ts", "vitest.config.mts"]
 }

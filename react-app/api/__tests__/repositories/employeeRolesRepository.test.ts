@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EmployeeRole } from 'common/types/models.gen';
+import type { EmployeeRole } from '../../src/types/models.gen';
 
 // The repository is tested against a fake dbContext carrying only the employeeRoles set, whose list()
 // records the specifications applied to it.

@@ -52,7 +52,7 @@ function resolveNetsuiteApiTarball(argv) {
 /** Points every workspace that depends on @amerilux/netsuite-api at the tarball, so npm install never asks the registry for it. */
 function useNetsuiteApiTarball(directory, tarballPath) {
     const specifier = `file:${tarballPath.split(path.sep).join('/')}`;
-    for (const workspace of ['api', 'client', 'common']) {
+    for (const workspace of ['api', 'client']) {
         const manifestPath = path.join(directory, workspace, 'package.json');
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
         if (manifest.dependencies?.['@amerilux/netsuite-api'] === undefined) continue;
@@ -164,11 +164,15 @@ rmSync(plainDir, { recursive: true, force: true });
 if (netsuiteApiTarball) useNetsuiteApiTarball(projectDir, netsuiteApiTarball);
 run('npm', ['install', '--no-audit', '--no-fund'], projectDir);
 run('npm', ['run', 'generate'], projectDir);
-assertEqual(existsSync(path.join(projectDir, 'common', 'types', 'models.gen.ts')), true, 'generate writes the shared entity types into common/types');
+assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'types', 'models.gen.ts')), true, 'generate writes the entity types into api/src/types');
 assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'repositories', 'generated', 'context.gen.ts')), true, 'generate writes the context into api');
 const clientModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'index.gen.ts'), 'utf8');
-assertEqual(/export const userApi = createApiClient<UserEndpoints>\(scripts\.user\);/.test(clientModule), true, 'generate writes the user client into client/src/api/index.gen.ts');
+assertEqual(/export const userApi = createApiClient<UserEndpoints>\(\{ kind: 'restlet', scriptId: 'customscript_demo_user', deployId: 'customdeploy_demo_user' \}\);/.test(clientModule), true, 'generate writes the user client from the controller\'s declaration');
 assertEqual(clientModule.includes('userRolesApi'), false, 'generate writes no client for the server-only userRoles Suitelet');
+assertEqual(readFileSync(path.join(projectDir, 'client', 'src', 'app.gen.ts'), 'utf8').includes('export const app = {'), true, 'generate copies netsuite.ts into client/src/app.gen.ts');
+assertEqual(existsSync(path.join(projectDir, 'client', 'src', 'api', 'models.gen.ts')), true, 'generate copies the entity types into the client');
+const scriptsModule = readFileSync(path.join(projectDir, 'api', 'src', 'scripts.gen.ts'), 'utf8');
+assertEqual(scriptsModule.includes("userRoles: { kind: 'suitelet', scriptId: 'customscript_demo_user_roles', deployId: 'customdeploy_demo_user_roles', browser: false },"), true, 'generate writes the scripts map into api/src');
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);
 run('npm', ['test'], projectDir);

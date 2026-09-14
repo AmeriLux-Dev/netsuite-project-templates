@@ -5,7 +5,6 @@
   "description": "{{description}}",
   "author": "{{author}}",
   "workspaces": [
-    "common",
     "api",
     "client"
   ],
@@ -13,7 +12,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "generate": "npm run generate -w api && npm run generate -w client",
+    "generate": "npm run generate -w api && netsuite-api generate",
     "dev": "npm run generate && npm run dev -w client",
     "typecheck": "npm run generate && npm run typecheck --workspaces",
     "lint": "eslint . && node scripts/checkStructure.mjs",

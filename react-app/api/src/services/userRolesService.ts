@@ -1,4 +1,4 @@
-import type { EmployeeRole } from 'common/types/models.gen';
+import type { EmployeeRole } from '../types/models.gen';
 import type { RoleSummary, UserRolesByEmployeeRequest, UserRolesByEmployeeResponse } from '../controllers/userRolesController';
 import { ApiError } from '@amerilux/netsuite-api/server';
 import { listEmployeeRolesByEmployee } from '../repositories/employeeRolesRepository';

@@ -107,8 +107,8 @@ export default defineConfig({
 
         /* Generated and account-specific files are never written by an agent */
         {
-            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'common/types/models.gen.ts', 'client/src/routeTree.gen.ts'],
-            rules: [forbidAnyWrite('Generated output. Change the source (models, routes, bundles) and run npm run generate or npm run build instead.')],
+            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'api/src/types/models.gen.ts', 'api/src/scripts.gen.ts', 'client/src/api/index.gen.ts', 'client/src/api/models.gen.ts', 'client/src/app.gen.ts', 'client/src/routeTree.gen.ts'],
+            rules: [forbidAnyWrite('Generated output. Change the source (models, controllers, netsuite.ts, routes, bundles) and run npm run generate or npm run build instead.')],
         },
         {
             files: ['project.json', 'client/.env', '**/*.pem', '**/*.p12', '**/*.key', '**/*.pfx'],
@@ -117,16 +117,16 @@ export default defineConfig({
 
         /* Source code */
         {
-            files: ['common/**'],
+            files: ['netsuite.ts'],
             rules: [
                 forbidContentPattern({
-                    match: /from\s+['"]N\//,
-                    reason: 'common/ is bundled into the client too; it must not import N/* modules.',
+                    match: /^\s*import\s/m,
+                    reason: 'netsuite.ts is copied into the client module verbatim; it holds exported constants and types only, with no imports.',
                 }),
             ],
         },
         {
-            files: ['api/src/**', 'client/src/**', 'common/**'],
+            files: ['api/src/**', 'client/src/**', 'netsuite.ts'],
             rules: [
                 forbidColocatedTests,
                 forbidContentPattern({
@@ -137,11 +137,12 @@ export default defineConfig({
             ],
         },
         {
-            files: ['api/src/**', 'client/src/**'],
+            // A model declares its record and field ids and a controller its script ids; nowhere else writes one.
+            files: ['api/src/services/**', 'api/src/repositories/**', 'api/src/specifications/**', 'api/src/_host/**', 'client/src/**'],
             rules: [
                 forbidContentPattern({
                     match: /['"`](customscript|customdeploy|customrecord|customlist|custentity|custbody|custitem|custrecord)_[a-z0-9_]+['"`]/,
-                    reason: 'NetSuite identifiers are declared on the model that owns them (common/model) or in common/netsuite.ts; import them from there.',
+                    reason: 'NetSuite identifiers are declared on the model that owns them (api/src/models), in the controller that declares the script, or in netsuite.ts; import them from there.',
                 }),
             ],
         },

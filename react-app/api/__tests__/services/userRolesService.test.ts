@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EmployeeRole } from 'common/types/models.gen';
+import type { EmployeeRole } from '../../src/types/models.gen';
 
 // The service is tested against a mocked repositories layer, so the test sees only the service's decisions.
 const { listEmployeeRolesByEmployee } = vi.hoisted(() => ({

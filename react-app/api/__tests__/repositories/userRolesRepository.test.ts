@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { scripts } from 'common/netsuite';
+import { scripts } from '../../src/scripts.gen';
 
 // The repository is tested against a fake Suitelet client: what it asks the userRoles script for, not how the wire looks.
 const { byEmployee, createSuiteletClient } = vi.hoisted(() => {

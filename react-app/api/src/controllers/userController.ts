@@ -11,9 +11,9 @@ import type { RoleSummary } from './userRolesController';
 /**
  * The user controller: what it sends and receives, the endpoints that do it, and the script that
  * serves them. The shapes are the wire, not the record: a DTO is an entity type from
- * common/types/models.gen.ts, a Pick of one, or a composition of several, and carries nothing the
- * caller does not need. `npm run generate` copies them, with the endpoint signatures, into
- * client/src/api/index.gen.ts; every type here is exported for that reason.
+ * api/src/types/models.gen.ts, a Pick of one, or a composition of several, and carries nothing the
+ * caller does not need. `npm run generate` copies them, with the endpoint signatures and the script
+ * declaration, into client/src/api/index.gen.ts; every type here is exported for that reason.
  */
 
 /** The caller as the session knows them. */
@@ -44,8 +44,14 @@ export const userEndpoints = defineEndpoints({
 /** The endpoint signatures as a type, for server code that calls this controller through the Suitelet client. */
 export type UserEndpoints = typeof userEndpoints;
 
-// The only transport-specific line. Every call is a POST naming the endpoint in its body, so `post`
-// is the one entry point. To serve the same endpoints from a Suitelet instead, export
-// `onRequest = defineSuitelet(...)` as userRolesController.ts does, change the SDF object to a
-// <suitelet>, and set `kind` on the scripts entry; the endpoints do not change.
-export const post = defineRestlet('user', userEndpoints);
+// The only transport-specific lines. Every call is a POST naming the endpoint in its body, so `post`
+// is the one entry point. The declaration names the script this controller is deployed as: nothing
+// here creates it, and the ids can be changed to whatever the record and deployment are called in
+// NetSuite (and in netsuite/Objects); the generated client follows. To serve the same endpoints from
+// a Suitelet instead, export `onRequest = defineSuitelet(...)` as userRolesController.ts does and
+// change the SDF object to a <suitelet>; the endpoints do not change.
+export const post = defineRestlet({
+    name: 'user',
+    scriptId: 'customscript_{{prefix}}_user',
+    deployId: 'customdeploy_{{prefix}}_user',
+}, userEndpoints);

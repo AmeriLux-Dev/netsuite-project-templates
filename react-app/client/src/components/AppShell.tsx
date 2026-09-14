@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router';
-import { app } from 'common/netsuite';
+import { app } from '@/app.gen';
 
 export function AppShell() {
     return (

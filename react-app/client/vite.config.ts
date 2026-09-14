@@ -37,7 +37,6 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(clientDir, 'src'),
-            common: path.resolve(clientDir, '../common'),
         },
     },
     build: {

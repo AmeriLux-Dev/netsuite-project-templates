@@ -1,8 +1,8 @@
 {
-  "models": ["../common/model/**/*.ts"],
+  "models": ["src/models/**/*.ts"],
   "outDir": "src/repositories/generated",
   "context": { "name": "App", "fileName": "context.gen.ts" },
-  "types": { "fileName": "models.gen.ts", "outDir": "../common/types" },
+  "types": { "fileName": "models.gen.ts", "outDir": "src/types" },
   "tsconfig": "tsconfig.json",
   "repositories": "none"
 }

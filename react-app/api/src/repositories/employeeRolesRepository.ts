@@ -1,4 +1,4 @@
-import type { EmployeeRole } from 'common/types/models.gen';
+import type { EmployeeRole } from '../types/models.gen';
 import { dbContext } from './generated/context.gen';
 import { forEmployee } from '../specifications/employeeRolesSpecifications';
 

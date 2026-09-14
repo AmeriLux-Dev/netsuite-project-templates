@@ -4,7 +4,7 @@
  * @NModuleScope SameAccount
  */
 
-import type { EmployeeRole } from 'common/types/models.gen';
+import type { EmployeeRole } from '../types/models.gen';
 import { defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
 import { getRolesByEmployee } from '../services/userRolesService';
 
@@ -12,7 +12,7 @@ import { getRolesByEmployee } from '../services/userRolesService';
  * The userRoles controller, and the reason it is a Suitelet: its deployment runs as Administrator
  * (<runasrole> in netsuite/Objects/customscript_{{prefix}}_user_roles.xml) so it can read role
  * assignments, which the role a Restlet caller logged in with cannot. The user restlet calls it
- * server-side through the Suitelet client; the browser has no reason to, so its scripts entry says
+ * server-side through the Suitelet client; the browser has no reason to, so its declaration says
  * `browser: false` and the generated client module carries its types only. Keep it read-only and
  * minimal: every role can reach a Suitelet deployed to all roles.
  */
@@ -38,4 +38,9 @@ export const userRolesEndpoints = defineEndpoints({
 /** What api/src/repositories/userRolesRepository.ts is built from: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)`. */
 export type UserRolesEndpoints = typeof userRolesEndpoints;
 
-export const onRequest = defineSuitelet('userRoles', userRolesEndpoints);
+export const onRequest = defineSuitelet({
+    name: 'userRoles',
+    scriptId: 'customscript_{{prefix}}_user_roles',
+    deployId: 'customdeploy_{{prefix}}_user_roles',
+    browser: false,
+}, userRolesEndpoints);

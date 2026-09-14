@@ -4,17 +4,16 @@
  * agree with each other, so a controller added by hand (or by an agent) is complete before it is
  * deployed. ESLint sees one file at a time; this script sees the set.
  *
- * For every entry of `scripts` in common/netsuite.ts:
- *   - the script id and deployment id share the prefix and the name, and fit NetSuite's 40-character cap
- *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching `kind`, declares the
- *     deployment, and points at a source file under api/src whose @NScriptType header matches `kind`
- *   - a controller (api/src/controllers/<name>Controller.ts) exports <name>Endpoints = defineEndpoints({ ... }),
- *     the type <Name>Endpoints, and the entry point of its kind (`post` for a Restlet, `onRequest` for a Suitelet)
- * (The browser client is generated: `npm run generate` writes client/src/api/index.gen.ts from the controllers and
- * fails on a controller it cannot read. TypeScript checks the rest: a client call that names an endpoint the
- * controller lacks does not compile.)
- * And the other way round: every controller file, every SDF script object and every server-side @NScriptType
- * file belongs to an entry of `scripts` (a ClientScript attached to a form has no script record).
+ * For every controller (api/src/controllers/<name>Controller.ts):
+ *   - it exports <name>Endpoints = defineEndpoints({ ... }), the type <Name>Endpoints, and the entry point of its
+ *     kind (`post = defineRestlet(...)` for a Restlet, `onRequest = defineSuitelet(...)` for a Suitelet) whose
+ *     declaration says name: '<name>' and ids that share the prefix and the name and fit NetSuite's 40-character cap
+ *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching the entry point, declares the
+ *     deployment, and points at api/controllers/<name>Controller.js
+ * And the other way round: every SDF script object points at an existing source whose @NScriptType matches, and
+ * every server-side @NScriptType file has an object (a ClientScript attached to a form has no script record).
+ * (`npm run generate` reads the same declarations to write the clients and fails on one it cannot read; TypeScript
+ * checks the rest: a client call that names an endpoint the controller lacks does not compile.)
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -54,33 +53,65 @@ function readScriptHeader(source) {
     return match ? match[1] : '';
 }
 
-/** `app.prefix`, `app.fileCabinet.folder` and every `scripts` entry, read from common/netsuite.ts as text. */
-function readScriptRegistry() {
-    const source = readProjectFile('common/netsuite.ts');
-    const prefix = source.match(/^\s*prefix:\s*'([^']*)'/m)?.[1];
-    const folder = source.match(/^\s*folder:\s*'([^']*)'/m)?.[1];
-    const scriptsBlock = source.match(/export const scripts = \{([\s\S]*?)\n\} as const/)?.[1];
-    if (!prefix || !folder || scriptsBlock === undefined) {
-        report('common/netsuite.ts: could not read app.prefix, app.fileCabinet.folder and the scripts object.');
-        return { prefix: prefix ?? '', folder: folder ?? '', entries: [] };
-    }
-    const entryPattern = /^\s*([A-Za-z][A-Za-z0-9]*):\s*\{\s*kind:\s*'([a-z]+)',\s*scriptId:\s*'([^']*)',\s*deployId:\s*'([^']*)'/gm;
-    const entries = [];
-    for (const match of scriptsBlock.matchAll(entryPattern)) {
-        entries.push({ name: match[1], kind: match[2], scriptId: match[3], deployId: match[4] });
-    }
-    return { prefix, folder, entries };
+function readDeclaredScriptType(source) {
+    return readScriptHeader(source).match(/@NScriptType\s+(\w+)/)?.[1];
 }
 
-function checkScriptIds(entry, prefix) {
-    const where = `scripts.${entry.name}`;
-    for (const [label, id] of [['scriptId', entry.scriptId], ['deployId', entry.deployId]]) {
+/** `app.prefix` and `app.fileCabinet.folder`, read from netsuite.ts as text. */
+function readAppNames() {
+    const source = readProjectFile('netsuite.ts');
+    const prefix = source.match(/^\s*prefix:\s*'([^']*)'/m)?.[1];
+    const folder = source.match(/^\s*folder:\s*'([^']*)'/m)?.[1];
+    if (!prefix || !folder) report('netsuite.ts: could not read app.prefix and app.fileCabinet.folder.');
+    return { prefix: prefix ?? '', folder: folder ?? '' };
+}
+
+const KIND_BY_DEFINE = { defineRestlet: 'restlet', defineSuitelet: 'suitelet' };
+const ENTRY_POINT_BY_KIND = { restlet: 'post', suitelet: 'onRequest' };
+const HEADER_BY_KIND = { restlet: 'Restlet', suitelet: 'Suitelet' };
+
+/** The script a controller declares in its defineRestlet or defineSuitelet call, read from the source as text. */
+function readController(controllerPath) {
+    const name = path.basename(controllerPath, '.ts').replace(/Controller$/, '');
+    const endpointsTypeName = `${name.charAt(0).toUpperCase()}${name.slice(1)}Endpoints`;
+    const source = readProjectFile(controllerPath);
+    if (!source.includes(`export const ${name}Endpoints = defineEndpoints(`)) {
+        report(`${controllerPath}: must export ${name}Endpoints = defineEndpoints({ ... }), as api/src/controllers/userController.ts does.`);
+    }
+    if (!source.includes(`export type ${endpointsTypeName} = typeof ${name}Endpoints;`)) {
+        report(`${controllerPath}: must export type ${endpointsTypeName} = typeof ${name}Endpoints; server code that calls the controller is built from it.`);
+    }
+    const entryPoint = source.match(/^export const (\w+) = (defineRestlet|defineSuitelet)\(\s*\{([\s\S]*?)\}\s*,\s*(\w+)\s*\)/m);
+    if (!entryPoint) {
+        report(`${controllerPath}: must end with \`export const post = defineRestlet({ name, scriptId, deployId }, ${name}Endpoints);\` or \`export const onRequest = defineSuitelet(...)\`.`);
+        return undefined;
+    }
+    const [, exportName, defineFunction, declaration, endpointsArgument] = entryPoint;
+    const kind = KIND_BY_DEFINE[defineFunction];
+    if (exportName !== ENTRY_POINT_BY_KIND[kind]) report(`${controllerPath}: a ${HEADER_BY_KIND[kind]} exports \`${ENTRY_POINT_BY_KIND[kind]}\`, not \`${exportName}\`.`);
+    if (endpointsArgument !== `${name}Endpoints`) report(`${controllerPath}: ${defineFunction} must be passed ${name}Endpoints.`);
+    const declaredType = readDeclaredScriptType(source);
+    if (declaredType !== HEADER_BY_KIND[kind]) report(`${controllerPath}: @NScriptType must be ${HEADER_BY_KIND[kind]} to match ${defineFunction} (found "${declaredType ?? 'none'}").`);
+    const declaredName = declaration.match(/\bname:\s*'([^']*)'/)?.[1];
+    const scriptId = declaration.match(/\bscriptId:\s*'([^']*)'/)?.[1];
+    const deployId = declaration.match(/\bdeployId:\s*'([^']*)'/)?.[1];
+    if (declaredName !== name) report(`${controllerPath}: the declaration must say name: '${name}' (the file name without Controller; found "${declaredName ?? ''}").`);
+    if (scriptId === undefined || deployId === undefined) {
+        report(`${controllerPath}: the declaration needs scriptId and deployId as string literals.`);
+        return undefined;
+    }
+    return { name, controllerPath, kind, scriptId, deployId };
+}
+
+function checkScriptIds(controller, prefix) {
+    const where = controller.controllerPath;
+    for (const [label, id] of [['scriptId', controller.scriptId], ['deployId', controller.deployId]]) {
         if (id.length > SCRIPT_ID_MAX_LENGTH) report(`${where}: ${label} "${id}" is ${id.length} characters; NetSuite caps script ids at ${SCRIPT_ID_MAX_LENGTH}.`);
     }
-    const scriptSuffix = entry.scriptId.startsWith(`customscript_${prefix}_`) ? entry.scriptId.slice(`customscript_${prefix}_`.length) : undefined;
-    const deploySuffix = entry.deployId.startsWith(`customdeploy_${prefix}_`) ? entry.deployId.slice(`customdeploy_${prefix}_`.length) : undefined;
-    if (scriptSuffix === undefined) report(`${where}: scriptId "${entry.scriptId}" must start with customscript_${prefix}_.`);
-    if (deploySuffix === undefined) report(`${where}: deployId "${entry.deployId}" must start with customdeploy_${prefix}_.`);
+    const scriptSuffix = controller.scriptId.startsWith(`customscript_${prefix}_`) ? controller.scriptId.slice(`customscript_${prefix}_`.length) : undefined;
+    const deploySuffix = controller.deployId.startsWith(`customdeploy_${prefix}_`) ? controller.deployId.slice(`customdeploy_${prefix}_`.length) : undefined;
+    if (scriptSuffix === undefined) report(`${where}: scriptId "${controller.scriptId}" must start with customscript_${prefix}_.`);
+    if (deploySuffix === undefined) report(`${where}: deployId "${controller.deployId}" must start with customdeploy_${prefix}_.`);
     if (scriptSuffix !== undefined && deploySuffix !== undefined && scriptSuffix !== deploySuffix) {
         report(`${where}: scriptId and deployId end differently ("${scriptSuffix}" vs "${deploySuffix}"); they name the same script.`);
     }
@@ -89,98 +120,81 @@ function checkScriptIds(entry, prefix) {
     }
 }
 
-/** Reads the SDF object of a scripts entry and returns the api/src path of its source file, or undefined. */
-function checkScriptObject(entry, folder) {
-    const objectPath = `netsuite/Objects/${entry.scriptId}.xml`;
-    if (!projectFileExists(objectPath)) {
-        report(`scripts.${entry.name}: ${objectPath} is missing; every script needs its SDF object.`);
-        return undefined;
-    }
+/** Reads an SDF script object and returns its kind, deployment ids and the api/src path of its source file. */
+function readScriptObject(objectPath) {
     const xml = readProjectFile(objectPath);
-    if (!['restlet', 'suitelet'].includes(entry.kind)) {
-        report(`scripts.${entry.name}: kind "${entry.kind}" is not restlet or suitelet.`);
-    } else if (!new RegExp(`^\\s*<${entry.kind}\\s+scriptid="${entry.scriptId}"`).test(xml)) {
-        report(`${objectPath}: must open with <${entry.kind} scriptid="${entry.scriptId}"> to match kind "${entry.kind}" on scripts.${entry.name}.`);
-    }
-    if (!xml.includes(`<scriptdeployment scriptid="${entry.deployId}">`)) {
-        report(`${objectPath}: declares no <scriptdeployment scriptid="${entry.deployId}">.`);
-    }
+    const opening = xml.match(/^\s*<(restlet|suitelet|\w+)\s+scriptid="([^"]*)"/);
+    const deployIds = Array.from(xml.matchAll(/<scriptdeployment scriptid="([^"]*)">/g), (match) => match[1]);
     const scriptFile = xml.match(/<scriptfile>\[([^\]]*)\]<\/scriptfile>/)?.[1];
+    return { objectPath, kind: opening?.[1], scriptId: opening?.[2], deployIds, scriptFile };
+}
+
+function checkControllerObject(controller, folder) {
+    const objectPath = `netsuite/Objects/${controller.scriptId}.xml`;
+    if (!projectFileExists(objectPath)) {
+        report(`${controller.controllerPath}: ${objectPath} is missing; every script needs its SDF object (copy the user or userRoles one).`);
+        return;
+    }
+    const object = readScriptObject(objectPath);
+    if (object.kind !== controller.kind || object.scriptId !== controller.scriptId) {
+        report(`${objectPath}: must open with <${controller.kind} scriptid="${controller.scriptId}"> to match ${controller.controllerPath}.`);
+    }
+    if (!object.deployIds.includes(controller.deployId)) report(`${objectPath}: declares no <scriptdeployment scriptid="${controller.deployId}">.`);
+    const expectedScriptFile = `/SuiteScripts/${folder}/api/controllers/${controller.name}Controller.js`;
+    if (object.scriptFile !== expectedScriptFile) report(`${objectPath}: <scriptfile> must be [${expectedScriptFile}] (found "${object.scriptFile ?? ''}").`);
+}
+
+/** Every object points at an existing source of the matching type, and every server-side script source has an object. */
+function checkObjectsAndSources(folder) {
     const expectedPrefix = `/SuiteScripts/${folder}/api/`;
-    if (!scriptFile || !scriptFile.startsWith(expectedPrefix) || !scriptFile.endsWith('.js')) {
-        report(`${objectPath}: <scriptfile> must be a bundle under ${expectedPrefix} (found "${scriptFile ?? ''}").`);
-        return undefined;
+    const referencedSources = new Set();
+    for (const objectPath of listFilesRecursively('netsuite/Objects')) {
+        if (!path.basename(objectPath).startsWith('customscript_')) continue;
+        const object = readScriptObject(objectPath);
+        if (!object.scriptFile || !object.scriptFile.startsWith(expectedPrefix) || !object.scriptFile.endsWith('.js')) {
+            report(`${objectPath}: <scriptfile> must be a bundle under ${expectedPrefix} (found "${object.scriptFile ?? ''}").`);
+            continue;
+        }
+        const sourcePath = `api/src/${object.scriptFile.slice(expectedPrefix.length, -'.js'.length)}.ts`;
+        referencedSources.add(sourcePath);
+        if (!projectFileExists(sourcePath)) {
+            report(`${objectPath}: points at ${sourcePath}, which does not exist.`);
+            continue;
+        }
+        const declaredType = readDeclaredScriptType(readProjectFile(sourcePath))?.toLowerCase();
+        if (object.kind && declaredType !== object.kind) report(`${sourcePath}: @NScriptType must be ${object.kind} to match <${object.kind}> in ${objectPath} (found "${declaredType ?? 'none'}").`);
     }
-    return `api/src/${scriptFile.slice(expectedPrefix.length, -'.js'.length)}.ts`;
-}
-
-function checkScriptSource(entry, sourcePath) {
-    if (!projectFileExists(sourcePath)) {
-        report(`scripts.${entry.name}: ${sourcePath} is missing, but netsuite/Objects/${entry.scriptId}.xml points at it.`);
-        return;
-    }
-    const header = readScriptHeader(readProjectFile(sourcePath));
-    const declaredKind = header.match(/@NScriptType\s+(\w+)/)?.[1]?.toLowerCase();
-    if (declaredKind !== entry.kind) {
-        report(`${sourcePath}: @NScriptType must be ${entry.kind === 'restlet' ? 'Restlet' : 'Suitelet'} to match kind "${entry.kind}" on scripts.${entry.name} (found "${declaredKind ?? 'none'}").`);
-    }
-}
-
-const ENTRY_POINT_BY_KIND = { restlet: 'export const post = defineRestlet(', suitelet: 'export const onRequest = defineSuitelet(' };
-
-function checkController(entry, sourcePath) {
-    const name = entry.name;
-    const controllerPath = `api/src/controllers/${name}Controller.ts`;
-    const endpointsTypeName = `${name.charAt(0).toUpperCase()}${name.slice(1)}Endpoints`;
-    if (sourcePath !== controllerPath) {
-        report(`scripts.${name}: a controller's script file is ${controllerPath} (the object points at ${sourcePath}).`);
-        return;
-    }
-    const controllerSource = readProjectFile(controllerPath);
-    if (!controllerSource.includes(`export const ${name}Endpoints = defineEndpoints(`)) {
-        report(`${controllerPath}: must export ${name}Endpoints = defineEndpoints({ ... }), as api/src/controllers/userController.ts does.`);
-    }
-    if (!controllerSource.includes(`export type ${endpointsTypeName} = typeof ${name}Endpoints;`)) {
-        report(`${controllerPath}: must export type ${endpointsTypeName} = typeof ${name}Endpoints; the clients are built from it.`);
-    }
-    const entryPoint = ENTRY_POINT_BY_KIND[entry.kind];
-    if (entryPoint && !controllerSource.includes(entryPoint)) {
-        report(`${controllerPath}: must end with \`${entryPoint}'${name}', ${name}Endpoints);\` to match kind "${entry.kind}" on scripts.${name}.`);
-    }
-}
-
-function checkNothingIsOrphaned(entries, sourcePathsByEntry) {
-    const entryNames = new Set(entries.map((entry) => entry.name));
-    for (const controllerFile of listFilesRecursively('api/src/controllers')) {
-        const name = path.basename(controllerFile, '.ts').replace(/Controller$/, '');
-        if (!controllerFile.endsWith('Controller.ts') || !entryNames.has(name)) report(`${controllerFile} has no scripts.${name} entry in common/netsuite.ts (a controller is named <name>Controller.ts after its entry).`);
-    }
-    const scriptIds = new Set(entries.map((entry) => entry.scriptId));
-    for (const objectFile of listFilesRecursively('netsuite/Objects')) {
-        const baseName = path.basename(objectFile, '.xml');
-        if (baseName.startsWith('customscript_') && !scriptIds.has(baseName)) report(`${objectFile} belongs to no scripts entry in common/netsuite.ts.`);
-    }
-    const referencedSources = new Set(sourcePathsByEntry.values());
     for (const sourceFile of listFilesRecursively('api/src')) {
-        if (!sourceFile.endsWith('.ts') || sourceFile.endsWith('.d.ts') || sourceFile.includes('/__tests__/') || sourceFile.includes('/repositories/generated/')) continue;
-        const declaredKind = readScriptHeader(readProjectFile(sourceFile)).match(/@NScriptType\s+(\w+)/)?.[1];
+        if (!sourceFile.endsWith('.ts') || sourceFile.endsWith('.d.ts') || sourceFile.includes('/repositories/generated/')) continue;
+        const declaredType = readDeclaredScriptType(readProjectFile(sourceFile));
         // A client script attached to a Suitelet form (api/src/_host/host.ts) has no script record of its own.
-        if (!declaredKind || declaredKind === 'ClientScript') continue;
-        if (!referencedSources.has(sourceFile)) report(`${sourceFile} carries @NScriptType but no SDF object under netsuite/Objects points at it; add a scripts entry and its object.`);
+        if (!declaredType || declaredType === 'ClientScript') continue;
+        if (!referencedSources.has(sourceFile)) report(`${sourceFile} carries @NScriptType but no SDF object under netsuite/Objects points at it; add the object.`);
     }
 }
 
-const registry = readScriptRegistry();
-const sourcePathsByEntry = new Map();
-for (const entry of registry.entries) {
-    checkScriptIds(entry, registry.prefix);
-    const sourcePath = checkScriptObject(entry, registry.folder);
-    if (!sourcePath) continue;
-    sourcePathsByEntry.set(entry.name, sourcePath);
-    checkScriptSource(entry, sourcePath);
-    if (sourcePath.startsWith('api/src/controllers/')) checkController(entry, sourcePath);
+const app = readAppNames();
+const controllers = [];
+for (const controllerFile of listFilesRecursively('api/src/controllers')) {
+    if (!/^[a-z][A-Za-z0-9]*Controller\.ts$/.test(path.basename(controllerFile))) {
+        report(`${controllerFile}: a controller file is named <name>Controller.ts, with <name> in camelCase; nothing else lives in api/src/controllers.`);
+        continue;
+    }
+    const controller = readController(controllerFile);
+    if (!controller) continue;
+    controllers.push(controller);
+    checkScriptIds(controller, app.prefix);
+    checkControllerObject(controller, app.folder);
 }
-checkNothingIsOrphaned(registry.entries, sourcePathsByEntry);
+for (const property of ['scriptId', 'deployId']) {
+    const seen = new Map();
+    for (const controller of controllers) {
+        const owner = seen.get(controller[property]);
+        if (owner) report(`${controller.controllerPath}: ${property} "${controller[property]}" is also declared by ${owner}.`);
+        else seen.set(controller[property], controller.controllerPath);
+    }
+}
+checkObjectsAndSources(app.folder);
 
 if (problems.length > 0) {
     console.error(`Structure check found ${problems.length} problem(s):`);
@@ -188,5 +202,4 @@ if (problems.length > 0) {
     console.error('\nHOW-TO-USE.md ("Adding a controller") lists every piece a script needs.');
     process.exit(1);
 }
-const controllerCount = [...sourcePathsByEntry.values()].filter((sourcePath) => sourcePath.startsWith('api/src/controllers/')).length;
-console.log(`Structure check passed: ${registry.entries.length} script(s), ${controllerCount} controller(s).`);
+console.log(`Structure check passed: ${controllers.length} controller(s).`);

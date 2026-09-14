@@ -8,10 +8,9 @@
     "types": [],
     "baseUrl": ".",
     "paths": {
-      "N/*": ["../node_modules/@hitc/netsuite-types/N/*", "node_modules/@hitc/netsuite-types/N/*"],
-      "common/*": ["../common/*"]
+      "N/*": ["../node_modules/@hitc/netsuite-types/N/*", "node_modules/@hitc/netsuite-types/N/*"]
     }
   },
-  "include": ["src/**/*.ts", "../common/**/*.ts"],
+  "include": ["src/**/*.ts", "../netsuite.ts"],
   "exclude": ["node_modules"]
 }

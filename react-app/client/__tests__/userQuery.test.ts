@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { scripts } from 'common/netsuite';
 
 // The hook is tested against a fake user client: what it asks for, not how the wire looks.
 const { rolesMock, createApiClient } = vi.hoisted(() => {
@@ -15,8 +14,8 @@ import { activeUserRolesQueryKey, activeUserRolesQueryOptions } from '@/hooks/us
 const clientConstructionArguments = createApiClient.mock.calls[0] as unknown[] | undefined;
 
 describe('userApi', () => {
-    it('is the typed client for the user script, as npm run generate wrote it', () => {
-        expect(clientConstructionArguments).toEqual([scripts.user]);
+    it('is the typed client for the script the user controller declares, as npm run generate wrote it', () => {
+        expect(clientConstructionArguments).toEqual([{ kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' }]);
         expect(userApi.roles).toBe(rolesMock);
     });
 });

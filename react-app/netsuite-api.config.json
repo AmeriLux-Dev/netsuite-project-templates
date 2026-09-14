@@ -1,0 +1,9 @@
+{
+  "controllers": "api/src/controllers",
+  "appFile": "netsuite.ts",
+  "outFile": "client/src/api/index.gen.ts",
+  "appOutFile": "client/src/app.gen.ts",
+  "scriptsOutFile": "api/src/scripts.gen.ts",
+  "typeImports": { "../types/models.gen": "./models.gen" },
+  "copyFiles": { "api/src/types/models.gen.ts": "client/src/api/models.gen.ts" }
+}

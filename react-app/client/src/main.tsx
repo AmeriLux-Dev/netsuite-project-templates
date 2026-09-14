@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { configureApiClient } from '@amerilux/netsuite-api/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
-import { app } from 'common/netsuite';
+import { app } from '@/app.gen';
 import { createAppRouter } from '@/router';
 import '@/styles/app.css';
 

@@ -7,7 +7,7 @@
 import type { EntryPoints } from 'N/types';
 import * as log from 'N/log';
 import * as serverWidget from 'N/ui/serverWidget';
-import { app } from 'common/netsuite';
+import { app } from '../../../netsuite';
 import { getFileUrlByName } from '@amerilux/netsuite-api/server';
 
 /**

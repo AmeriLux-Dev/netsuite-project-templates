@@ -66,7 +66,6 @@ module.exports = (_env, argv) => {
         resolve: {
             extensions: ['.ts', '.js', '.json'],
             alias: {
-                common: path.resolve(apiDir, '../common'),
             },
         },
         module: {
