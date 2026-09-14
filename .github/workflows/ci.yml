@@ -11,12 +11,14 @@ permissions:
 jobs:
   scaffold:
     # Renders react-app with a build of the CLI's main branch (or the CREATE_NETSUITE_PROJECT_REF
-    # repository variable), then installs, checks and builds the result on both platforms.
+    # repository variable), then installs, checks and builds the result.
+    # Pull requests run Ubuntu only for fast feedback; pushes to main add Windows, where the shell
+    # quoting, .cmd shims, path separators and CRLF checkouts the scripts handle are actually exercised.
     name: Scaffold with the CLI (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-latest", "windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
