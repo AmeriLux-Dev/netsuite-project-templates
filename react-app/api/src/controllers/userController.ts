@@ -4,8 +4,7 @@
  * @NModuleScope SameAccount
  */
 
-import { defineRestlet } from '../_lib/defineRestlet';
-import { defineEndpoints } from '../_lib/endpoint';
+import { defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
 import { getActiveUserRoles } from '../services/userService';
 import type { RoleSummary } from './userRolesController';
 
@@ -13,7 +12,8 @@ import type { RoleSummary } from './userRolesController';
  * The user controller: what it sends and receives, the endpoints that do it, and the script that
  * serves them. The shapes are the wire, not the record: a DTO is an entity type from
  * common/types/models.gen.ts, a Pick of one, or a composition of several, and carries nothing the
- * caller does not need. The client imports `UserEndpoints` from this file as a type only.
+ * caller does not need. `npm run generate` copies them, with the endpoint signatures, into
+ * client/src/api/index.gen.ts; every type here is exported for that reason.
  */
 
 /** The caller as the session knows them. */
@@ -33,14 +33,15 @@ export interface UserRolesResponse {
 
 /**
  * One function per endpoint: its parameter is the request, its return value the response, and it
- * stays thin: call a service, return the result.
+ * stays thin: call a service, return the result. Both types are written on the handler; the
+ * generator reads them from there.
  */
 export const userEndpoints = defineEndpoints({
     /** The caller and every role assigned to them. Takes no request; the session says who is calling. */
     roles: (): UserRolesResponse => getActiveUserRoles(),
 });
 
-/** What client/src/api/userApi.ts is built from: `createApiClient<UserEndpoints>(scripts.user)`. */
+/** The endpoint signatures as a type, for server code that calls this controller through the Suitelet client. */
 export type UserEndpoints = typeof userEndpoints;
 
 // The only transport-specific line. Every call is a POST naming the endpoint in its body, so `post`

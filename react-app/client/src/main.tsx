@@ -1,10 +1,17 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { configureApiClient } from '@amerilux/netsuite-api/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { app } from 'common/netsuite';
 import { createAppRouter } from '@/router';
 import '@/styles/app.css';
+
+// Deployed, API calls ride the NetSuite session on the same origin. In development the Vite server
+// proxies /api to server.ts, which signs each call to the sandbox.
+if (import.meta.env.DEV) {
+    configureApiClient({ basePaths: { restlet: '/api/restlet', suitelet: '/api/suitelet' } });
+}
 
 const queryClient = new QueryClient({
     defaultOptions: {

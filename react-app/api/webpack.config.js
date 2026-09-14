@@ -22,7 +22,7 @@ function readScriptHeader(filePath) {
 
 /**
  * One entry per SuiteScript entry point: a file under src/ whose leading JSDoc carries
- * @NScriptType. Helpers, services, repositories, models, stubs and tests never become File Cabinet files.
+ * @NScriptType. Helpers, services, repositories, models and tests never become File Cabinet files.
  * The entry name keeps the folder, so src/controllers/x.ts lands at api/controllers/x.js.
  */
 function collectScriptEntries() {

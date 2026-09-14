@@ -10,9 +10,12 @@
  *   node scripts/e2e.mjs --cli ../create-netsuite-project   # a CLI checkout (its dist/index.js must be built) or the entry file itself
  *   node scripts/e2e.mjs                                     # the published CLI, through npx create-netsuite-project@latest
  *   node scripts/e2e.mjs --keep                              # leave the scratch project in place for inspection
+ *   node scripts/e2e.mjs --netsuite-api ../netsuite-api/amerilux-netsuite-api-0.1.0.tgz
+ *                                                            # install @amerilux/netsuite-api from a packed tarball (npm pack in its checkout)
+ *                                                            # instead of the registry, to check the template against an unpublished version
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,8 +27,39 @@ const projectDir = path.join(e2eRoot, 'DemoApp');
 const keep = process.argv.includes('--keep');
 const isWindows = process.platform === 'win32';
 const cliCommand = resolveCliCommand(process.argv);
+const netsuiteApiTarball = resolveNetsuiteApiTarball(process.argv);
 console.log(`Scratch project: ${projectDir}`);
 console.log(`CLI: ${cliCommand.join(' ')}`);
+if (netsuiteApiTarball) console.log(`@amerilux/netsuite-api: ${netsuiteApiTarball}`);
+
+/** `--netsuite-api <path>` names a packed tarball of @amerilux/netsuite-api to install instead of the registry version. */
+function resolveNetsuiteApiTarball(argv) {
+    const flagIndex = argv.indexOf('--netsuite-api');
+    if (flagIndex === -1) return undefined;
+    const tarballPath = argv[flagIndex + 1];
+    if (!tarballPath || tarballPath.startsWith('--') || !tarballPath.endsWith('.tgz')) {
+        console.error('--netsuite-api needs the path of a .tgz from `npm pack` in the netsuite-api checkout.');
+        process.exit(1);
+    }
+    const resolvedPath = path.resolve(tarballPath);
+    if (!existsSync(resolvedPath)) {
+        console.error(`Tarball not found at ${resolvedPath}.`);
+        process.exit(1);
+    }
+    return resolvedPath;
+}
+
+/** Points every workspace that depends on @amerilux/netsuite-api at the tarball, so npm install never asks the registry for it. */
+function useNetsuiteApiTarball(directory, tarballPath) {
+    const specifier = `file:${tarballPath.split(path.sep).join('/')}`;
+    for (const workspace of ['api', 'client', 'common']) {
+        const manifestPath = path.join(directory, workspace, 'package.json');
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+        if (manifest.dependencies?.['@amerilux/netsuite-api'] === undefined) continue;
+        manifest.dependencies['@amerilux/netsuite-api'] = specifier;
+        writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    }
+}
 
 /** `--cli <path>` names a CLI checkout (dist/index.js must be built) or the entry file itself; without it the published CLI runs through npx. */
 function resolveCliCommand(argv) {
@@ -127,10 +161,14 @@ assertEqual(JSON.parse(readFileSync(path.join(plainDir, '.netsuite-project.json'
 assertEqual(existsSync(path.join(plainDir, 'template.json')), false, 'template manifest is not copied');
 rmSync(plainDir, { recursive: true, force: true });
 
+if (netsuiteApiTarball) useNetsuiteApiTarball(projectDir, netsuiteApiTarball);
 run('npm', ['install', '--no-audit', '--no-fund'], projectDir);
 run('npm', ['run', 'generate'], projectDir);
 assertEqual(existsSync(path.join(projectDir, 'common', 'types', 'models.gen.ts')), true, 'generate writes the shared entity types into common/types');
 assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'repositories', 'generated', 'context.gen.ts')), true, 'generate writes the context into api');
+const clientModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'index.gen.ts'), 'utf8');
+assertEqual(/export const userApi = createApiClient<UserEndpoints>\(scripts\.user\);/.test(clientModule), true, 'generate writes the user client into client/src/api/index.gen.ts');
+assertEqual(clientModule.includes('userRolesApi'), false, 'generate writes no client for the server-only userRoles Suitelet');
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);
 run('npm', ['test'], projectDir);

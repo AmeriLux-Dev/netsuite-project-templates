@@ -42,10 +42,15 @@ const wireShapeImports = [
     { group: ['**/controllers/**', '!**/controllers/*Controller'], message: 'Below a controller, only controllers/<name>Controller.ts is visible, and only its types.' },
     { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>Controller.ts as types (import type); nothing below a controller imports its code.' },
 ];
-// The client takes the endpoint types from the api (`import type { UserEndpoints }`); the code stays server-side.
-const clientApiImports = [
-    { group: ['api/**', '!api/controllers/*Controller'], message: 'The client reaches the api through controllers/<name>Controller.ts only, and only as a type.' },
-    { group: ['api/controllers/*Controller'], allowTypeImports: true, message: 'The client imports the endpoint types only (import type); the code behind them runs in NetSuite.' },
+// The api package has one entry per side: api/ imports its server entry, client/ its client entry, common/ the wire
+// types at its root. The client never imports from api/: `npm run generate` writes every controller's types and
+// clients into client/src/api/index.gen.ts, and that module is what hooks import.
+const apiPackageServerSide = [
+    { group: ['@amerilux/netsuite-api/client', '@amerilux/netsuite-api/testing'], message: 'api/ imports @amerilux/netsuite-api/server. The client entry is for client/, the testing entry for vitest configs.' },
+];
+const apiPackageClientSide = [
+    { group: ['@amerilux/netsuite-api/server', '@amerilux/netsuite-api/testing'], message: 'client/ imports @amerilux/netsuite-api/client. The server entry runs in NetSuite.' },
+    { group: ['api/**'], message: 'The client never imports from api/. Its types and clients are in the generated @/api/index.gen.' },
 ];
 // Dependency guard: npm workspaces hoist every package into the root node_modules, so an import of a package this
 // workspace never declared still resolves. The rule checks each import (type imports included) against the workspace's
@@ -57,6 +62,7 @@ const onlyDeclaredDependencies = (workspaceDir) => ({
 const commonSideImports = [
     { group: ['N/*'], message: 'NetSuite modules belong in api/.' },
     { group: ['react', 'react-dom', 'react-dom/*'], message: 'React belongs in client/.' },
+    { group: ['@amerilux/netsuite-api/*'], message: 'common/ imports the wire types from @amerilux/netsuite-api (the root) only; the server and client entries belong to api/ and client/.' },
 ];
 
 export default defineConfig([
@@ -65,6 +71,7 @@ export default defineConfig([
         'netsuite/FileCabinet/**',
         'api/src/repositories/generated/**',
         'common/types/models.gen.ts',
+        'client/src/api/index.gen.ts',
         'client/src/routeTree.gen.ts',
         '**/dist/**',
         '**/coverage/**',
@@ -75,15 +82,15 @@ export default defineConfig([
     importX.flatConfigs.typescript,
     {
         settings: {
-            // Path aliases (common/*, @/*, N/*) live in the workspace tsconfigs, not at the root.
+            // Path aliases (common/*, @/*, and N/* in api/) live in the workspace tsconfigs, not at the root.
             'import-x/resolver': {
                 typescript: {
                     project: ['api/tsconfig.json', 'api/tsconfig.test.json', 'client/tsconfig.json', 'client/tsconfig.node.json', 'common/tsconfig.json'],
                     noWarnOnMultipleProjects: true,
                 },
             },
-            // common/*, api/* and @/* point into this repository, not into node_modules, so the dependency guard skips them.
-            'import-x/internal-regex': '^(common|api|@)/',
+            // common/* and @/* point into this repository, not into node_modules, so the dependency guard skips them.
+            'import-x/internal-regex': '^(common|@)/',
         },
         rules: {
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
@@ -112,7 +119,7 @@ export default defineConfig([
     },
     {
         // Layers. Endpoint calls service, service calls repository, repository composes specifications over the generated
-        // sets. Client pages and routes call hooks, hooks call client/src/api. Client and api share code through common/ only.
+        // sets. Client pages and routes call hooks, hooks call the generated client module. Client and api share code through common/ only.
         files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}', 'common/**/*.ts'],
         rules: {
             'import-x/no-restricted-paths': ['error', {
@@ -122,14 +129,11 @@ export default defineConfig([
                     { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
-                    { target: './api/src/_lib', from: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './common/model'], message: '_lib/ is transport plumbing; it depends on nothing above it.' },
-                    { target: './client', from: './common/model', message: 'Models are server-side. The client uses the endpoint types and the generated types in common/types/models.gen.ts.' },
+                    { target: './client', from: './common/model', message: 'Models are server-side. The client uses the generated types in client/src/api/index.gen.ts and common/types/models.gen.ts.' },
                     { target: './common/model', from: './common/types', message: 'A model declares a record; it knows nothing about the wire.' },
                     { target: ['./client/src/pages', './client/src/routes', './client/src/components'], from: './client/src/api', message: 'A component never fetches. Use a hook.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
-                    { target: './client/src/api', from: ['./client/src/hooks', './client/src/pages', './client/src/routes', './client/src/components'], message: 'client/src/api only talks to endpoints.' },
-                    // The client may import a controller file, as a type only (clientApiImports below).
-                    { target: './client', from: './api', except: ['./src/controllers'], message: 'Client and API share code through common/ and the endpoint types only.' },
+                    { target: './client', from: './api', message: 'Client and API share code through common/ and the generated client module only.' },
                     { target: './api', from: './client', message: 'Client and API share code through common/ only.' },
                     { target: './common', from: ['./api', './client'], message: 'common/ depends on nothing project-specific.' },
                 ],
@@ -148,13 +152,9 @@ export default defineConfig([
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'warn',
             'no-console': ['warn', { allow: ['warn', 'error'] }],
-            'no-restricted-globals': ['error', { name: 'fetch', message: 'fetch lives in client/src/api. Call a typed api function.' }],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...clientApiImports] }],
+            'no-restricted-globals': ['error', { name: 'fetch', message: 'fetch lives in @amerilux/netsuite-api/client. Call a function of the generated @/api/index.gen.' }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageClientSide] }],
         },
-    },
-    {
-        files: ['client/src/api/**/*.{ts,tsx}'],
-        rules: { 'no-restricted-globals': 'off' },
     },
     {
         files: ['api/src/**/*.ts'],
@@ -163,23 +163,23 @@ export default defineConfig([
         rules: {
             'no-console': 'error', // invisible in NetSuite; the wrapper's log is the only signal path
             'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide] }],
         },
     },
     {
         // An endpoint speaks the shapes declared next to it (an entity type, a Pick of one, or a composition) and calls a service.
         files: ['api/src/controllers/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports] }] },
     },
     {
         files: ['api/src/services/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...recordAccessImports, ...wireShapeImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...wireShapeImports] }] },
     },
     {
         // The data-access layers inside api/: Specification in specifications, the context in repositories.
         // Models live in common/model and import the package's decorators; common/ is not restricted from it.
         files: ['api/src/specifications/**/*.ts', 'api/src/repositories/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...wireShapeImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...apiPackageServerSide, ...wireShapeImports] }] },
     },
     {
         files: ['common/**/*.ts'],

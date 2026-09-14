@@ -2,6 +2,7 @@
 // A record's type and field ids are declared on its model in common/model/; this file is for the
 // rest: script ids for the client, and anything reached without a model (script parameters, saved
 // searches, list values).
+import type { ScriptRef } from '@amerilux/netsuite-api';
 
 export const app = {
     name: '{{appName}}',
@@ -18,20 +19,15 @@ export const app = {
     rootElementId: 'react-root',
 } as const;
 
-/** How a script is reached over HTTP; the client builds the URL from it. */
-export type ScriptKind = 'restlet' | 'suitelet';
-
-export interface ScriptRef {
-    kind: ScriptKind;
-    scriptId: string;
-    deployId: string;
-}
-
-/** Every script this application deploys. `kind` must match the controller's @NScriptType and its SDF object. */
+/**
+ * Every script this application deploys. `kind` must match the controller's @NScriptType and its SDF
+ * object. `browser: false` marks a script only server code calls: `npm run generate` then writes its
+ * types into client/src/api/index.gen.ts but no client for it.
+ */
 export const scripts = {
     home: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_home', deployId: 'customdeploy_{{prefix}}_home' },
     user: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' },
-    /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/_lib/suiteletClient.ts, not by the browser. */
-    userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles' },
+    /** Runs as Administrator so it can read role assignments; the user restlet calls it through the Suitelet client, the browser never does. */
+    userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles', browser: false },
     // @netsuite-project:scripts
 } as const satisfies Record<string, ScriptRef>;

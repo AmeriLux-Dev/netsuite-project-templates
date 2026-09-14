@@ -7,7 +7,7 @@ const { listEmployeeRolesByEmployee } = vi.hoisted(() => ({
 }));
 vi.mock('../../src/repositories/employeeRolesRepository', () => ({ listEmployeeRolesByEmployee }));
 
-import { ApiError } from '../../src/_lib/apiError';
+import { ApiError } from '@amerilux/netsuite-api/server';
 import { getRolesByEmployee, parseEmployeeId, toRoleSummary } from '../../src/services/userRolesService';
 
 describe('parseEmployeeId', () => {

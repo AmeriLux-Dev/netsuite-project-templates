@@ -6,7 +6,7 @@ const { byEmployee, createSuiteletClient } = vi.hoisted(() => {
     const byEmployee = vi.fn();
     return { byEmployee, createSuiteletClient: vi.fn(() => ({ byEmployee })) };
 });
-vi.mock('../../src/_lib/suiteletClient', () => ({ createSuiteletClient }));
+vi.mock('@amerilux/netsuite-api/server', () => ({ createSuiteletClient }));
 
 import { listRolesForEmployee } from '../../src/repositories/userRolesRepository';
 

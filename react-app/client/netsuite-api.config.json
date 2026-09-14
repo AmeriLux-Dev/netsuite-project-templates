@@ -1,0 +1,7 @@
+{
+  "controllers": "../api/src/controllers",
+  "scriptsFile": "../common/netsuite.ts",
+  "scriptsModule": "common/netsuite",
+  "outFile": "src/api/index.gen.ts",
+  "carriedTypeImports": ["common/"]
+}

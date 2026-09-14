@@ -6,16 +6,16 @@ const { rolesMock, createApiClient } = vi.hoisted(() => {
     const rolesMock = vi.fn(async () => ({ user: { id: 7, name: 'Ada', email: '' }, activeRoleId: 3, roles: [] }));
     return { rolesMock, createApiClient: vi.fn(() => ({ roles: rolesMock })) };
 });
-vi.mock('@/api/apiClient', () => ({ createApiClient }));
+vi.mock('@amerilux/netsuite-api/client', () => ({ createApiClient }));
 
-import { userApi } from '@/api/userApi';
+import { userApi } from '@/api/index.gen';
 import { activeUserRolesQueryKey, activeUserRolesQueryOptions } from '@/hooks/useActiveUserRoles';
 
-// The client is built when its module loads, before any test runs, and mock state is cleared per test: keep the call.
+// The generated module builds the client when it loads, before any test runs, and mock state is cleared per test: keep the call.
 const clientConstructionArguments = createApiClient.mock.calls[0] as unknown[] | undefined;
 
 describe('userApi', () => {
-    it('is the typed client for the user script', () => {
+    it('is the typed client for the user script, as npm run generate wrote it', () => {
         expect(clientConstructionArguments).toEqual([scripts.user]);
         expect(userApi.roles).toBe(rolesMock);
     });

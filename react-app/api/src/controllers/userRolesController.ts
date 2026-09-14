@@ -5,16 +5,16 @@
  */
 
 import type { EmployeeRole } from 'common/types/models.gen';
-import { defineSuitelet } from '../_lib/defineSuitelet';
-import { defineEndpoints } from '../_lib/endpoint';
+import { defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
 import { getRolesByEmployee } from '../services/userRolesService';
 
 /**
  * The userRoles controller, and the reason it is a Suitelet: its deployment runs as Administrator
  * (<runasrole> in netsuite/Objects/customscript_{{prefix}}_user_roles.xml) so it can read role
  * assignments, which the role a Restlet caller logged in with cannot. The user restlet calls it
- * server-side through api/src/_lib/suiteletClient.ts; the browser has no reason to. Keep it read-only
- * and minimal: every role can reach a Suitelet deployed to all roles.
+ * server-side through the Suitelet client; the browser has no reason to, so its scripts entry says
+ * `browser: false` and the generated client module carries its types only. Keep it read-only and
+ * minimal: every role can reach a Suitelet deployed to all roles.
  */
 
 /** A role as the wire carries it: picked from the generated entity type so it follows the model. */

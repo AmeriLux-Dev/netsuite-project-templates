@@ -7,6 +7,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@amerilux/netsuite-api": "^0.1.0",
     "@amerilux/netsuite-repository": "^1.1.0"
   }
 }

@@ -17,13 +17,12 @@ The application has two halves: a frontend (React, runs in the browser) in `clie
   src/repositories/
   src/specifications/
   src/_host/
-  src/_lib/
   __tests__/
 <a href="#client">client/</a>
   src/routes/
   src/pages/
   src/hooks/
-  src/api/
+  src/api/index.gen.ts
   src/components/
   src/styles/
   __tests__/
@@ -49,24 +48,25 @@ The application has two halves: a frontend (React, runs in the browser) in `clie
 Code both halves import. Never imports `N/*` modules, because the browser bundles it too.
 
 - `model/` One class per NetSuite record type: its record type id and the field ids the app uses. Written once, here.
-- `types/` `api.ts` (the response envelope and the endpoint types both sides share) and `models.gen.ts` (generated from `model/`: one entity type per model).
-- `netsuite.ts` The app's names, every script and deployment id, and any other id no model owns.
+- `types/` `models.gen.ts`, generated from `model/`: one entity type per model.
+- `netsuite.ts` The app's names, every script and deployment id (`browser: false` on a script only server code calls), and any other id no model owns.
+
+The wire itself (the response envelope, the endpoint types, `ScriptRef`) comes from the `@amerilux/netsuite-api` package, which also supplies the server plumbing under `@amerilux/netsuite-api/server`, the browser client under `@amerilux/netsuite-api/client`, and the `netsuite-api generate` command that writes the client module.
 
 ## api/
 
 The backend. Webpack bundles it into one JavaScript file per deployed script.
 
-`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
+`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. It writes `src/repositories/generated/` and `common/types/models.gen.ts` from the models, then `client/src/api/index.gen.ts` from the controllers. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
 
 Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller.
 
-- `src/controllers/` One file per deployed script, `<name>Controller.ts`: the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them.
+- `src/controllers/` One file per deployed script, `<name>Controller.ts`: the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them (`defineEndpoints`, `defineRestlet`, `defineSuitelet` from `@amerilux/netsuite-api/server`).
 - `src/services/` The decisions: read the request, call repository functions, shape the reply. `<subject>Service.ts`.
 - `src/repositories/` The only code that touches NetSuite: records, queries, the session, other scripts. `<subject>Repository.ts`; `generated/` is written by `npm run generate`.
 - `src/specifications/` Reusable query filters, one file per record type, `<record>Specifications.ts`, used by repositories.
-- `src/_host/` The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folders you do not add to.
-- `src/_lib/` Plumbing: `defineEndpoints`, `defineRestlet`, `defineSuitelet`, the endpoint envelope, `ApiError`, File Cabinet helpers, the Suitelet client. Boilerplate too.
-- `__tests__/` Unit tests for the backend. `test/stubs/N/` stands in for the `N/*` modules.
+- `src/_host/` The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folder you do not add to.
+- `__tests__/` Unit tests for the backend. The `N/*` modules resolve to the stubs `@amerilux/netsuite-api/testing` ships (see `vitest.config.mts`).
 
 ## client/
 
@@ -74,11 +74,11 @@ The frontend: React 19, TanStack Router, TanStack Query, Tailwind 4. Vite builds
 
 - `src/routes/` One file per URL (`#/orders`); `__root.tsx` is the layout around every page. `routeTree.gen.ts` is generated.
 - `src/pages/` One component per route: what is on screen. A page calls hooks, never the API directly.
-- `src/hooks/` Fetching and caching, one hook per endpoint. The only code that calls `src/api/`.
-- `src/api/` One typed module per backend controller the browser calls, built from the type of its endpoints.
+- `src/hooks/` Fetching and caching, one hook per endpoint. The only code that calls `src/api/index.gen.ts`.
+- `src/api/index.gen.ts` Written by `npm run generate` from the controllers: every request and response type, every endpoint interface, and one typed client per controller the browser calls (`userApi.roles()`). Never edited; nothing else lives in `src/api/`.
 - `src/components/` Shared UI pieces, such as the AppShell header and outlet.
 - `src/styles/` Tailwind entry point and global CSS.
-- `__tests__/` Unit tests for hooks and API modules.
+- `__tests__/` Unit tests for hooks.
 - `server.ts` Local development proxy: signs requests to your sandbox so `npm run dev` works without a NetSuite session.
 - `.env.example` The values `server.ts` needs; copy to `.env` (gitignored).
 
@@ -106,13 +106,13 @@ The SDF project that suitecloud deploys.
 
 A controller is one deployed script (a Restlet or a Suitelet) with named endpoints. Every call is a POST whose JSON body carries the request plus an `endpoint` property naming the endpoint. The shipped `user` controller is the reference; copy it and rename. Create these in order:
 
-1. `common/netsuite.ts`: a line in `scripts` with the kind, script id and deployment id.
+1. `common/netsuite.ts`: a line in `scripts` with the kind, script id and deployment id, and `browser: false` when only server code calls the script.
     ```typescript
     export const scripts = {
         home: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_home', deployId: 'customdeploy_{{prefix}}_home' },
         user: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' },
-        /** Runs as Administrator so it can read role assignments; called by the user restlet through api/src/_lib/suiteletClient.ts, not by the browser. */
-        userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles' },
+        /** Runs as Administrator so it can read role assignments; the user restlet calls it through the Suitelet client, the browser never does. */
+        userRoles: { kind: 'suitelet', scriptId: 'customscript_{{prefix}}_user_roles', deployId: 'customdeploy_{{prefix}}_user_roles', browser: false },
         // @netsuite-project:scripts
     } as const satisfies Record<string, ScriptRef>;
     ```
@@ -124,8 +124,7 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
      * @NModuleScope SameAccount
      */
     import type { EmployeeRole } from 'common/types/models.gen';
-    import { defineSuitelet } from '../_lib/defineSuitelet';
-    import { defineEndpoints } from '../_lib/endpoint';
+    import { defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
     import { getRolesByEmployee } from '../services/userRolesService';
 
     export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;
@@ -148,19 +147,22 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     export const onRequest = defineSuitelet('userRoles', userRolesEndpoints);
     ```
     A Restlet ends with `export const post = defineRestlet('user', userEndpoints);` instead, and its header says `@NScriptType Restlet`. That last line, the header and the SDF object are the only transport-specific pieces. An endpoint stays thin: it calls a service and returns the result. The three exports (`<name>Endpoints`, `<Name>Endpoints`, `post` or `onRequest`) are what the rest of the project looks for.
+
+    `npm run generate` reads this file as source to write the client module, so four things are rules: every handler is written inline with both types annotated; every type in the file is exported; a type is imported only from `common/` or from another controller (never a service's type by reference); type names are unique across controllers. The generator names what it cannot read.
 3. `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: the script record and its deployment. Copy the `user` (Restlet) or `userRoles` (Suitelet) object and change the ids, names and the script file path (`api/controllers/<name>Controller.js`).
-4. `client/src/api/<name>Api.ts`: the typed client, only when the browser calls the controller. It imports the endpoint type from the controller file, as a type only, so none of the server code reaches the bundle.
+4. `npm run generate`: rewrites `client/src/api/index.gen.ts`. For every controller it carries the request and response types and writes the endpoint interface; for every controller without `browser: false` it also builds the client:
     ```typescript
-    import type { UserEndpoints } from 'api/controllers/userController';
-    import { scripts } from 'common/netsuite';
-    import { createApiClient } from './apiClient';
+    export type UserEndpoints = {
+        /** The caller and every role assigned to them. Takes no request; the session says who is calling. */
+        roles: () => UserRolesResponse;
+    };
 
     export const userApi = createApiClient<UserEndpoints>(scripts.user);
     ```
-    Then a hook under `client/src/hooks/` calls it: `userApi.roles()` for an endpoint without a request, `ordersApi.byId({ id })` for one with. The second argument carries the abort signal: `userApi.roles(undefined, { signal })`.
+    Then a hook under `client/src/hooks/` imports `@/api/index.gen` and calls it: `userApi.roles()` for an endpoint without a request, `ordersApi.byId({ id })` for one with. The second argument carries the abort signal: `userApi.roles(undefined, { signal })`. The client never imports from `api/`; the generated module is its whole view of the backend.
 
 Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`) that decides and shapes the reply, repository functions under `api/src/repositories/` (`<subject>Repository.ts`) that read and write, and for a new record type a model under `common/model/` (then `npm run generate`) with its `<record>Specifications.ts`. The service takes the request and response types from the controller file with `import type`. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `common/model/EmployeeRole.ts`) is the reference.
 
-A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `api/src/_lib/suiteletClient.ts`, with the type imported from the controller file.
+A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `@amerilux/netsuite-api/server`, with the type imported from the controller file.
 
-`npm run lint` names any piece that is missing or disagrees with the others; `npm run typecheck` catches a client call that names an endpoint the controller lacks.
+`npm run lint` names any piece that is missing or disagrees with the others; `npm run generate` names a controller it cannot turn into a client; `npm run typecheck` catches a client call that names an endpoint the controller lacks.

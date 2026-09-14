@@ -9,9 +9,10 @@
  *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching `kind`, declares the
  *     deployment, and points at a source file under api/src whose @NScriptType header matches `kind`
  *   - a controller (api/src/controllers/<name>Controller.ts) exports <name>Endpoints = defineEndpoints({ ... }),
- *     the type <Name>Endpoints, and the entry point of its kind (`post` for a Restlet, `onRequest` for a Suitelet);
- *     client/src/api/<name>Api.ts, when the browser calls it, is createApiClient<<Name>Endpoints>(scripts.<name>)
- * (TypeScript checks the rest: a client call that names an endpoint the controller lacks does not compile.)
+ *     the type <Name>Endpoints, and the entry point of its kind (`post` for a Restlet, `onRequest` for a Suitelet)
+ * (The browser client is generated: `npm run generate` writes client/src/api/index.gen.ts from the controllers and
+ * fails on a controller it cannot read. TypeScript checks the rest: a client call that names an endpoint the
+ * controller lacks does not compile.)
  * And the other way round: every controller file, every SDF script object and every server-side @NScriptType
  * file belongs to an entry of `scripts` (a ClientScript attached to a form has no script record).
  */
@@ -145,14 +146,6 @@ function checkController(entry, sourcePath) {
     const entryPoint = ENTRY_POINT_BY_KIND[entry.kind];
     if (entryPoint && !controllerSource.includes(entryPoint)) {
         report(`${controllerPath}: must end with \`${entryPoint}'${name}', ${name}Endpoints);\` to match kind "${entry.kind}" on scripts.${name}.`);
-    }
-    // The browser's client module exists only for controllers the browser calls (a helper Suitelet called by another script has none).
-    const clientModulePath = `client/src/api/${name}Api.ts`;
-    if (projectFileExists(clientModulePath)) {
-        const clientSource = readProjectFile(clientModulePath);
-        if (!clientSource.includes(`createApiClient<${endpointsTypeName}>(scripts.${name})`)) {
-            report(`${clientModulePath}: must be createApiClient<${endpointsTypeName}>(scripts.${name}), with ${endpointsTypeName} imported as a type from api/controllers/${name}Controller.`);
-        }
     }
 }
 
