@@ -6,7 +6,7 @@ The project templates that [create-netsuite-project](https://github.com/AmeriLux
 npm create netsuite-project@latest MyApp
 ```
 
-The CLI downloads one template folder from this repository at a pinned git ref, substitutes tokens, and writes the result. Nothing here runs on its own: the files under `react-app/` contain `{{tokens}}` and are not a valid project until rendered.
+The CLI downloads one template folder from this repository at a git ref (`main` by default), substitutes tokens, and writes the result. Nothing here runs on its own: the files under `react-app/` contain `{{tokens}}` and are not a valid project until rendered.
 
 ## Layout
 
@@ -40,7 +40,7 @@ The check scaffolds `DemoApp` into the OS temp directory, installs, generates, t
 
 ## Releasing
 
-Tag `v<x.y.z>` and push the tag. Then set `templateSource.ref` in the CLI's `package.json` to that tag and release the CLI; a CLI release always scaffolds from the ref pinned in it, so a new tag here changes nothing for users until the CLI picks it up. Tags here and CLI versions are independent; the pin is the only link between them.
+There is no release step. The CLI scaffolds from `main` by default, so a merge here reaches the next scaffold immediately. Keep `main` green: the scaffold check below is the gate, and branch protection should require it. Tags are optional bookmarks that users can freeze to with `--ref <tag>`.
 
 The `version` in `react-app/package.json` is the starting version of every scaffolded project (it feeds the bundle URL), not the version of this template. Leave it at 0.1.0.
 
