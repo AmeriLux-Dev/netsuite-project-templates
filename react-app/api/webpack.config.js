@@ -12,6 +12,8 @@ const sourceDir = path.join(apiDir, 'src');
 const outputDir = path.resolve(apiDir, '../netsuite/FileCabinet/SuiteScripts/{{appName}}/api');
 const wrapperConfigPath = path.join(apiDir, 'netsuite-wrapper.config.js');
 const wrapperConfig = require(wrapperConfigPath);
+const hostClientScriptPath = path.join(sourceDir, '_host', 'host.ts');
+const hostClientScriptEntryName = '_host/host';
 
 /** The leading JSDoc block, which NetSuite reads for @NApiVersion and @NScriptType. */
 function readScriptHeader(filePath) {
@@ -71,9 +73,14 @@ module.exports = (_env, argv) => {
         module: {
             rules: [
                 {
+                    // The client script runs in the browser: the one file compiled with the DOM library.
+                    test: hostClientScriptPath,
+                    use: [{ loader: 'ts-loader', options: { transpileOnly: false, instance: 'host', configFile: path.join(apiDir, 'tsconfig.host.json') } }],
+                },
+                {
                     test: /\.ts$/i,
-                    exclude: [/node_modules/, /\.d\.ts$/i],
-                    use: [{ loader: 'ts-loader', options: { transpileOnly: false, configFile: path.join(apiDir, 'tsconfig.json') } }],
+                    exclude: [/node_modules/, /\.d\.ts$/i, hostClientScriptPath],
+                    use: [{ loader: 'ts-loader', options: { transpileOnly: false, instance: 'server', configFile: path.join(apiDir, 'tsconfig.json') } }],
                 },
             ],
         },
@@ -102,8 +109,19 @@ module.exports = (_env, argv) => {
     // The wrapper adds the N/* externals function, the N/* -> wrapper module rewrite, the optional
     // Babel instrumentation pass and the telemetry bootstrap entry. Do not add another N/* externals
     // function here; it would short-circuit the rewrite. Instrumentation is only read from options.
-    return applyNetSuiteWrapperWebpack(config, {
+    //
+    // The client script is left out: it runs in the browser and calls no N/* module, and the
+    // telemetry bootstrap would make NetSuite load N/record, N/search and N/cache into the page
+    // before pageInit runs. Its entry is added back after the wrapper has done its work.
+    const { [hostClientScriptEntryName]: hostClientScriptEntry, ...wrappedEntries } = entries;
+    const wrappedConfig = applyNetSuiteWrapperWebpack({ ...config, entry: wrappedEntries }, {
         configPath: wrapperConfigPath,
-        instrumentation: wrapperConfig.instrumentation === true,
+        instrumentation: wrapperConfig.instrumentation === true
+            ? { exclude: [/node_modules/, /\.d\.ts$/i, hostClientScriptPath] }
+            : false,
     });
+    if (hostClientScriptEntry) {
+        wrappedConfig.entry = { ...wrappedConfig.entry, [hostClientScriptEntryName]: hostClientScriptEntry };
+    }
+    return wrappedConfig;
 };

@@ -85,7 +85,7 @@ export default defineConfig([
             // Path aliases (@/* in client/, N/* in api/) live in the workspace tsconfigs, not at the root.
             'import-x/resolver': {
                 typescript: {
-                    project: ['api/tsconfig.json', 'api/tsconfig.test.json', 'client/tsconfig.json', 'client/tsconfig.node.json'],
+                    project: ['api/tsconfig.json', 'api/tsconfig.host.json', 'api/tsconfig.test.json', 'client/tsconfig.json', 'client/tsconfig.node.json'],
                     noWarnOnMultipleProjects: true,
                 },
             },

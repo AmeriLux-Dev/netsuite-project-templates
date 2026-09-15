@@ -28,7 +28,8 @@ _What business process this serves, and for whom. Name the roles that use it and
 - **Environments:** _which sandbox and production accounts this deploys to, by name, and how to get access. Account ids, authentication ids and `project.json` stay out of the repository._
 - `npx suitecloud account:setup` once per account, then `npm run deploy` (full SDF deploy) or `npm run deploy:files` (File Cabinet only).
 - Everything else about the scripts, the build output and the SDF project is in [HOW-TO-USE.md](./HOW-TO-USE.md#deploy).
-- _Anything not covered by the scripts: manual steps, script parameters to set, roles to grant, records to seed._
+- **Roles:** the `home` Suitelet and the `user` Restlet are deployed to the Administrator role only (`audslctrole` in `netsuite/Objects/`); widen the audience there when other roles use the application. The `userRoles` Suitelet is already deployed to all roles and runs as Administrator, and answers for any employee id: before widening the audience, give it an `authorize` option that rejects an employee id other than the caller's.
+- _Anything not covered by the scripts: manual steps, script parameters to set, records to seed._
 
 ## Support
 

@@ -121,7 +121,7 @@ export default defineConfig({
             rules: [
                 forbidContentPattern({
                     match: /^\s*import\s/m,
-                    reason: 'netsuite.ts is copied into the client module verbatim; it holds exported constants and types only, with no imports.',
+                    reason: 'netsuite.ts is bundled by both api/ and client/; it holds exported constants and types only, with no imports.',
                 }),
             ],
         },

@@ -6,97 +6,239 @@ The application has two halves: a frontend (React, runs in the browser) in `clie
 
 ## Layout
 
+Every entry links to its section.
+
 <pre>
 <a href="#api">api/</a>
-  src/controllers/
-  src/services/
-  src/repositories/
-  src/specifications/
-  src/models/
-  src/types/
-  src/_host/
-  __tests__/
+  <a href="#srccontrollers">src/controllers/</a>
+  <a href="#srcservices">src/services/</a>
+  <a href="#srcrepositories">src/repositories/</a>
+  <a href="#srcspecifications">src/specifications/</a>
+  <a href="#srcmodels">src/models/</a>
+  <a href="#srctypes">src/types/</a>
+  <a href="#srcscriptsgents">src/scripts.gen.ts</a>
+  <a href="#src_host">src/_host/</a>
+  <a href="#__tests__">__tests__/</a>
+  <a href="#netsuite-wrapperconfigjs">netsuite-wrapper.config.js</a>
 <a href="#client">client/</a>
-  src/routes/
-  src/pages/
-  src/hooks/
-  src/api/
-  src/components/
-  src/styles/
-  __tests__/
-  server.ts
-  .env.example
+  <a href="#srcroutes">src/routes/</a>
+  <a href="#srcpages">src/pages/</a>
+  <a href="#srchooks">src/hooks/</a>
+  <a href="#srcapi">src/api/</a>
+  <a href="#srccomponents">src/components/</a>
+  <a href="#srcstyles">src/styles/</a>
+  <a href="#__tests__-1">__tests__/</a>
+  <a href="#serverts">server.ts</a>
+  <a href="#envexample">.env.example</a>
 <a href="#netsuite">netsuite/</a>
-  Objects/
-  FileCabinet/
-  manifest.xml
-  deploy.xml
-<a href="#root-files">netsuite.ts</a>
-<a href="#root-files">netsuite-api.config.json</a>
-<a href="#root-files">scripts/</a>
-<a href="#root-files">.claude/</a>
-<a href="#root-files">README.md</a>
-<a href="#root-files">CLAUDE.md</a>
+  <a href="#objects">Objects/</a>
+  <a href="#filecabinet">FileCabinet/</a>
+  <a href="#manifestxml-and-deployxml">manifest.xml</a>
+  <a href="#manifestxml-and-deployxml">deploy.xml</a>
+<a href="#netsuitets">netsuite.ts</a>
+<a href="#netsuite-apiconfigjson">netsuite-api.config.json</a>
+<a href="#scripts">scripts/</a>
+<a href="#claude">.claude/</a>
+<a href="#readmemd">README.md</a>
+<a href="#claudemd">CLAUDE.md</a>
 {{#if probity}}
-<a href="#root-files">probity.config.ts</a>
+<a href="#probityconfigts">probity.config.ts</a>
 {{/if}}
-<a href="#root-files">package.json</a>
+<a href="#packagejson">package.json</a>
+<a href="#node_modules">node_modules/</a>
 </pre>
 
 ## api/
 
 The backend. Webpack bundles it into one JavaScript file per deployed script.
 
-`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. It writes `src/repositories/generated/` and `src/types/models.gen.ts` from the models, then reads the controllers and `netsuite.ts` and writes `src/scripts.gen.ts` and the client's generated files. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
+`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. It writes `src/repositories/generated/` and `src/types/models.gen.ts` from the models, then reads the controllers and writes `src/scripts.gen.ts` and the client's generated files. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
 
 Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller.
 
-- `src/controllers/` One file per deployed script, `<name>Controller.ts`: the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them and declares the script's id and deployment id (`defineEndpoints`, `defineRestlet`, `defineSuitelet` from `@amerilux/netsuite-api/server`).
-- `src/services/` The decisions: read the request, call repository functions, shape the reply. `<subject>Service.ts`.
-- `src/repositories/` The only code that touches NetSuite: records, queries, the session, other scripts. `<subject>Repository.ts`; `generated/` is written by `npm run generate`.
-- `src/specifications/` Reusable query filters, one file per record type, `<record>Specifications.ts`, used by repositories.
-- `src/models/` One class per NetSuite record type: its record type id and the field ids the app uses. Written once, here; `npm run generate` reads them.
-- `src/types/` `models.gen.ts`, generated from the models: one entity type per model, what the controllers' shapes pick from. `build.d.ts` declares the build-time constants.
-- `src/scripts.gen.ts` Generated from the controllers' declarations: every script by controller name, what a repository passes to `createSuiteletClient`.
-- `src/_host/` The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folder you do not add to.
-- `__tests__/` Unit tests for the backend. The `N/*` modules resolve to the stubs `@amerilux/netsuite-api/testing` ships (see `vitest.config.mts`).
-- `netsuite-wrapper.config.js` Telemetry for the backend, read by `webpack.config.js`: the PerformanceTracker scope key every script runs under, where each run's spans and log lines go (the PerformanceTracker records, and optionally an external log system over HTTPS), and whether functions are instrumented. With telemetry on, every log line carries the run id, the function, its arguments and the call chain without any change to the call; put `@ptrk-ignore-arguments` above a function whose arguments must not be captured. The scope's mode (off, boundary, diagnostic) is set in the PerformanceTracker app, not here.
+### src/controllers/
+
+One file per deployed script, `<name>Controller.ts`.
+
+The file holds the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them. The entry point declares the script's id and deployment id (`defineEndpoints`, `defineRestlet`, `defineSuitelet` from `@amerilux/netsuite-api/server`).
+
+See [Adding a controller](#adding-a-controller) for the full shape of the file.
+
+### src/services/
+
+One file per subject, `<subject>Service.ts`.
+
+The decisions: read the request, call repository functions, shape the reply.
+
+### src/repositories/
+
+One file per subject, `<subject>Repository.ts`.
+
+The only code that touches NetSuite: records, queries, the session, other scripts.
+
+`generated/` is written by `npm run generate`.
+
+### src/specifications/
+
+One file per record type, `<record>Specifications.ts`.
+
+Reusable query filters, used by repositories.
+
+### src/models/
+
+One class per NetSuite record type: its record type id and the field ids the app uses.
+
+Written once, here; `npm run generate` reads them.
+
+### src/types/
+
+`models.gen.ts` is generated from the models: one entity type per model, what the controllers' shapes pick from.
+
+`build.d.ts` declares the build-time constants.
+
+### src/scripts.gen.ts
+
+Generated from the controllers' declarations: every script by controller name.
+
+This is what a repository passes to `createSuiteletClient`.
+
+### src/_host/
+
+The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folder you do not add to.
+
+The client script (`host.ts`) runs in the browser, so it is the one file compiled with the DOM library (`tsconfig.host.json`) and the one script built without the wrapper's telemetry bootstrap and instrumentation (`webpack.config.js`). The rest of `src/` has no `window` or `document`.
+
+### __tests__/
+
+Unit tests for the backend.
+
+The `N/*` modules resolve to the stubs `@amerilux/netsuite-api/testing` ships (see `vitest.config.mts`).
+
+### netsuite-wrapper.config.js
+
+Telemetry for the backend, read by `webpack.config.js`. It sets:
+
+- the PerformanceTracker scope key every script runs under
+- where each run's spans and log lines go: the PerformanceTracker records, and optionally an external log system over HTTPS
+- whether functions are instrumented
+
+With telemetry on, every log line carries the run id, the function, its arguments and the call chain without any change to the call. Put `@ptrk-ignore-arguments` above a function whose arguments must not be captured.
+
+The scope's mode (off, boundary, diagnostic) is set in the PerformanceTracker app, not here.
 
 ## client/
 
 The frontend: React 19, TanStack Router, TanStack Query, Tailwind 4. Vite builds it into one file.
 
-- `src/routes/` One file per URL (`#/orders`); `__root.tsx` is the layout around every page. `routeTree.gen.ts` is generated.
-- `src/pages/` One component per route: what is on screen. A page calls hooks, never the API directly.
-- `src/hooks/` Fetching and caching, one hook per endpoint. The only code that calls `src/api/index.gen.ts`. `useApiErrors.ts` keeps the failures the generated clients report (`main.tsx` hands its `reportApiError` to `configureApiClient`), for the banner.
-- `src/api/` Generated by `npm run generate`, never edited, nothing else lives here: one `<name>.gen.ts` per controller (its request and response types, the entity types it names, its `Endpoints` type and, for a controller the browser calls, its client `api`) and `index.gen.ts`, which re-exports each under the controller's name: `user.api.roles()`, `user.RolesResponse`.
-- `src/components/` Shared UI pieces: the AppShell header and outlet, and the `ApiErrorBanner` that shows every reported API failure until it is dismissed.
-- `src/styles/` Tailwind entry point and global CSS.
-- `__tests__/` Unit tests for hooks.
-- `server.ts` Local development proxy: signs requests to your sandbox so `npm run dev` works without a NetSuite session.
-- `.env.example` The values `server.ts` needs; copy to `.env` (gitignored).
+### src/routes/
+
+One file per URL (`#/orders`); `__root.tsx` is the layout around every page.
+
+`routeTree.gen.ts` is generated.
+
+### src/pages/
+
+One component per route: what is on screen.
+
+A page calls hooks, never the API directly.
+
+### src/hooks/
+
+Fetching and caching, one hook per endpoint. The only code that calls `src/api/index.gen.ts`.
+
+`useApiErrors.ts` keeps the failures the generated clients report (`main.tsx` hands its `reportApiError` to `configureApiClient`), for the banner.
+
+### src/api/
+
+Generated by `npm run generate`, never edited, nothing else lives here.
+
+One `<name>.gen.ts` per controller: its request and response types, the entity types it names, its `Endpoints` type and, for a controller the browser calls, its client `api`.
+
+`index.gen.ts` re-exports each under the controller's name: `user.api.roles()`, `user.RolesResponse`.
+
+### src/components/
+
+Shared UI pieces: the AppShell header and outlet, and the `ApiErrorBanner` that shows every reported API failure until it is dismissed.
+
+### src/styles/
+
+Tailwind entry point and global CSS.
+
+### __tests__/
+
+Unit tests for hooks.
+
+### server.ts
+
+Local development proxy: signs requests to your sandbox so `npm run dev` works without a NetSuite session.
+
+Limitation: it can only reach Restlets. NetSuite accepts an OAuth 2.0 token for Restlets and REST web services, not for Suitelets, so a Suitelet controller the browser calls (`browser` not `false`) works deployed but not under `npm run dev`. Test it in the account.
+
+### .env.example
+
+The values `server.ts` needs; copy to `.env` (gitignored).
 
 ## netsuite/
 
 The SDF project that suitecloud deploys.
 
-- `Objects/` One XML file per script record and its deployment.
-- `FileCabinet/` Build output: the bundled frontend and backend files. Never edited.
-- `manifest.xml`, `deploy.xml` The SDF manifest and what to deploy.
+### Objects/
+
+One XML file per script record and its deployment.
+
+### FileCabinet/
+
+Build output: the bundled frontend and backend files. Never edited.
+
+### manifest.xml and deploy.xml
+
+The SDF manifest and what to deploy.
 
 ## Root files
 
-- `netsuite.ts` The application's names (`app`) and any id no controller or model owns: script parameters, saved searches, list values. Imported by both `api/` and `client/` (a page or component imports it by relative path), so it holds exported constants and types only, no imports.
-- `netsuite-api.config.json` Where `netsuite-api generate` reads the controllers and writes the generated files. The values are the defaults; the file is there to document them.
-- `scripts/` Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (run by `npm run lint`).
-- `.claude/` Claude Code settings and the add-controller skill.
-- `README.md` Purpose, owners, dependencies, deployment, support and decisions of this application.
-- `CLAUDE.md` Project brief for Claude Code.
+### netsuite.ts
+
+The application's names (`app`) and any id no controller or model owns: script parameters, saved searches, list values.
+
+Imported by both `api/` and `client/` (a page or component imports it by relative path), so it holds exported constants and types only, no imports.
+
+### netsuite-api.config.json
+
+Where `netsuite-api generate` reads the controllers and writes the generated files.
+
+The values are the defaults; the file is there to document them.
+
+### scripts/
+
+Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (run by `npm run lint`).
+
+### .claude/
+
+Claude Code settings and the add-controller skill.
+
+### README.md
+
+Purpose, owners, dependencies, deployment, support and decisions of this application.
+
+### CLAUDE.md
+
+Project brief for Claude Code.
+
 {{#if probity}}
-- `probity.config.ts` Agent guardrails, hooked up in `.claude/settings.json`.
+### probity.config.ts
+
+Agent guardrails, hooked up in `.claude/settings.json`.
+
 {{/if}}
-- `package.json` Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, generate, typecheck, lint, test, build, deploy).
-- `node_modules/` The only install. npm workspaces hoist every workspace's packages here, so one `npm install` at the root installs everything. Add a package to the workspace that uses it: `npm install -w api <package>`. `npm run lint` fails when a workspace imports a package its own `package.json` does not declare.
+### package.json
+
+Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, generate, typecheck, lint, test, build, deploy).
+
+### node_modules/
+
+The only install. npm workspaces hoist every workspace's packages here, so one `npm install` at the root installs everything.
+
+Add a package to the workspace that uses it: `npm install -w api <package>`. `npm run lint` fails when a workspace imports a package its own `package.json` does not declare.
 
 ## Adding a controller
 

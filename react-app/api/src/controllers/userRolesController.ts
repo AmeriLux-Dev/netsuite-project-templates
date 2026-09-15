@@ -14,7 +14,10 @@ import { getRolesByEmployee } from '../services/userRolesService';
  * assignments, which the role a Restlet caller logged in with cannot. The user restlet calls it
  * server-side through the Suitelet client; the browser has no reason to, so its declaration says
  * `browser: false` and the generated client module carries its types only. Keep it read-only and
- * minimal: every role can reach a Suitelet deployed to all roles.
+ * minimal: every role can reach a Suitelet deployed to all roles, and this one answers for any
+ * employee id. While the application is Administrator-only that is moot; before other roles are
+ * granted the `user` Restlet, add an `authorize` option here that rejects an employee id other than
+ * the caller's (read the session through a repository function).
  */
 
 /** A role as the wire carries it: picked from the generated entity type so it follows the model. */

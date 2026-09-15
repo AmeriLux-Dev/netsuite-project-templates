@@ -39,7 +39,12 @@ if (missing.length > 0) {
 /** `1234567_SB1` becomes the `1234567-sb1` host label NetSuite uses. */
 const accountDomainLabel = accountId.toLowerCase().replace(/_/g, '-');
 const tokenEndpoint = `https://${accountDomainLabel}.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token`;
-/** Restlets answer on the restlet domain; Suitelets on the application domain. Both take the same bearer token. */
+/**
+ * Restlets answer on the restlet domain; Suitelets on the application domain. Limitation: NetSuite
+ * accepts the OAuth 2.0 bearer token for Restlets (and REST web services) only, so the suitelet route
+ * below gets a login page back, not JSON. A Suitelet controller the browser calls works deployed, not
+ * under npm run dev; the route stays so the failure is visible in the proxy log rather than silent.
+ */
 const upstreamEndpoints = {
     restlet: `https://${accountDomainLabel}.restlets.api.netsuite.com/app/site/hosting/restlet.nl`,
     suitelet: `https://${accountDomainLabel}.app.netsuite.com/app/site/hosting/scriptlet.nl`,

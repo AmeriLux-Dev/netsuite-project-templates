@@ -25,7 +25,7 @@ Use the `add-controller` skill (`.claude/skills/add-controller/SKILL.md`): the c
 ## Where things live
 
 - The two halves share one file, `netsuite.ts` at the root. `api/` is SuiteScript, `client/` is React, and the client's whole view of the backend is generated (`client/src/api/`) from the controllers.
-- `netsuite.ts` at the root holds `app` (the application's names and File Cabinet files) and any id no controller or model owns (script parameters, saved searches, list values). Exported constants and types only, no imports: `npm run generate` copies it into the client verbatim.
+- `netsuite.ts` at the root holds `app` (the application's names and File Cabinet files) and any id no controller or model owns (script parameters, saved searches, list values). Exported constants and types only, no imports: both the SuiteScript bundle and the browser bundle include it directly.
 - The wire (the response envelope, the endpoint types, `ScriptDeclaration`, `ScriptRef`) comes from `@amerilux/netsuite-api`; `api/` imports its `/server` entry, `client/` its `/client` entry.
 - The `user` controller (one endpoint, `roles`: the caller and every role assigned to them) with its `UserRolesPage` is the starting point, and the `userRoles` Suitelet it calls is the pattern for a script that must run as another role (its deployment has `<runasrole>ADMINISTRATOR`, its declaration `browser: false`). Build on them or replace them; `HOW-TO-USE.md` walks through every multi-file addition step by step.
 - `api/src/` is flat per layer and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`, `models/EmployeeRole.ts`. Services, repositories and specifications are named after what they handle (a subject, a data source, a record type), not after a controller. The underscore folder `_host/` is boilerplate; nothing is added to it.
@@ -54,7 +54,7 @@ Use the `add-controller` skill (`.claude/skills/add-controller/SKILL.md`): the c
 ## Rules
 
 - Tests go under a `__tests__/` folder, never next to source, and are never focused or skipped.
-- `netsuite.ts` imports nothing; it is copied into the client.
+- `netsuite.ts` imports nothing; both `api/` and `client/` bundle it directly.
 - NetSuite identifiers are declared on the model that owns them (`api/src/models/`), in the controller that declares the script, or in `netsuite.ts`, never written as string literals anywhere else in `api/src/` or `client/src/`.
 - Never edit generated output: `api/src/repositories/generated/`, `api/src/types/models.gen.ts`, `api/src/scripts.gen.ts`, `client/src/api/`, `client/src/routeTree.gen.ts`, `netsuite/FileCabinet/`.
 - Never write secrets or account selection: no `project.json`, `client/.env`, keys or certificates, and nothing account-specific under the Vite client prefix (Vite inlines it into the uploaded bundle). Update `.env.example` instead.
