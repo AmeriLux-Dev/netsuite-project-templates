@@ -20,7 +20,7 @@ Before a commit: `npm run typecheck`, `npm run lint`, `npm test`.
 
 ## Adding a controller
 
-Follow the step-by-step recipe in `HOW-TO-USE.md`, "Adding a controller": the controller file, its SDF object, `npm run generate`, then a hook. The VS Code snippets in `.vscode/netsuite-project.code-snippets` (`controller-restlet`, `controller-suitelet`, `endpoint`, `repository`, `specifications`, `specification`) emit each file in the shape the rules below expect. The `user` controller is the live reference. A script's ids are written once, in its controller's declaration; a record's ids once, on its model. `npm run lint` fails until all the pieces are present and agree.
+Follow the step-by-step recipe in `HOW-TO-USE.md`, "Adding a controller": the controller file, its SDF object, `npm run generate`, then a hook. The VS Code snippets in `.vscode/netsuite-project.code-snippets` (`nspControllerRestlet`, `nspControllerSuitelet`, `nspEndpoint`, `nspRepo`, `nspSpec`) emit each file in the shape the rules below expect. The `user` controller is the live reference. A script's ids are written once, in its controller's declaration; a record's ids once, on its model. `npm run lint` fails until all the pieces are present and agree.
 
 ## Where things live
 

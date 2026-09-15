@@ -1,8 +1,8 @@
 {
-    "Restlet controller": {
+    "nspControllerRestlet": {
         "scope": "typescript",
-        "prefix": "controller-restlet",
-        "description": "A controller file served by a Restlet: header, shapes, endpoints, the Endpoints type and the script declaration. The name and ids are derived from the file name (ordersController.ts gives orders and customscript_{{prefix}}_orders).",
+        "prefix": "nspControllerRestlet",
+        "description": "Restlet controller; name and script ids come from the file name.",
         "body": [
             "/**",
             " * @NApiVersion 2.1",
@@ -13,18 +13,15 @@
             "import { defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';",
             "import { ${2:serviceFunction} } from '../services/${3:${TM_FILENAME_BASE/(.*)Controller$/$1/}}Service';",
             "",
-            "/** ${4:What the caller sends.} */",
             "export interface ${1/^(.)/${1:/upcase}/}Request {",
+            "    ${4:id: number;}",
+            "}",
+            "",
+            "export interface ${1/^(.)/${1:/upcase}/}Response {",
             "    ${5:id: number;}",
             "}",
             "",
-            "/** ${6:What the caller gets back.} */",
-            "export interface ${1/^(.)/${1:/upcase}/}Response {",
-            "    ${7:id: number;}",
-            "}",
-            "",
             "export const ${TM_FILENAME_BASE/(.*)Controller$/$1/}Endpoints = defineEndpoints({",
-            "    /** ${8:What this endpoint does.} */",
             "    ${1:list}: (request: ${1/^(.)/${1:/upcase}/}Request): ${1/^(.)/${1:/upcase}/}Response => ${2}(request),",
             "});",
             "",
@@ -38,10 +35,10 @@
             ""
         ]
     },
-    "Suitelet controller": {
+    "nspControllerSuitelet": {
         "scope": "typescript",
-        "prefix": "controller-suitelet",
-        "description": "A controller file served by a Suitelet: the same pieces as a Restlet with onRequest as the entry point. Keep `browser: false` when only server code calls it; drop the line when the browser does.",
+        "prefix": "nspControllerSuitelet",
+        "description": "Suitelet controller; name and script ids come from the file name. Drop `browser: false` when the browser calls it.",
         "body": [
             "/**",
             " * @NApiVersion 2.1",
@@ -52,87 +49,63 @@
             "import { defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';",
             "import { ${2:serviceFunction} } from '../services/${3:${TM_FILENAME_BASE/(.*)Controller$/$1/}}Service';",
             "",
-            "/** ${4:What the caller sends.} */",
             "export interface ${1/^(.)/${1:/upcase}/}Request {",
+            "    ${4:id: number;}",
+            "}",
+            "",
+            "export interface ${1/^(.)/${1:/upcase}/}Response {",
             "    ${5:id: number;}",
             "}",
             "",
-            "/** ${6:What the caller gets back.} */",
-            "export interface ${1/^(.)/${1:/upcase}/}Response {",
-            "    ${7:id: number;}",
-            "}",
-            "",
             "export const ${TM_FILENAME_BASE/(.*)Controller$/$1/}Endpoints = defineEndpoints({",
-            "    /** ${8:What this endpoint does.} */",
             "    ${1:list}: (request: ${1/^(.)/${1:/upcase}/}Request): ${1/^(.)/${1:/upcase}/}Response => ${2}(request),",
             "});",
             "",
-            "/** For server code that calls this controller: `createSuiteletClient<${TM_FILENAME_BASE/^(.)(.*)Controller$/${1:/upcase}$2/}Endpoints>(scripts.${TM_FILENAME_BASE/(.*)Controller$/$1/})`. */",
             "export type ${TM_FILENAME_BASE/^(.)(.*)Controller$/${1:/upcase}$2/}Endpoints = typeof ${TM_FILENAME_BASE/(.*)Controller$/$1/}Endpoints;",
             "",
             "export const onRequest = defineSuitelet({",
             "    name: '${TM_FILENAME_BASE/(.*)Controller$/$1/}',",
             "    scriptId: 'customscript_{{prefix}}_${TM_FILENAME_BASE/(?:Controller$)|([A-Z])/${1:+_}${1:/downcase}/g}',",
             "    deployId: 'customdeploy_{{prefix}}_${TM_FILENAME_BASE/(?:Controller$)|([A-Z])/${1:+_}${1:/downcase}/g}',",
-            "    ${9:browser: false,}",
+            "    ${6:browser: false,}",
             "}, ${TM_FILENAME_BASE/(.*)Controller$/$1/}Endpoints);",
             ""
         ]
     },
-    "Endpoint": {
+    "nspEndpoint": {
         "scope": "typescript",
-        "prefix": "endpoint",
-        "description": "One more endpoint inside defineEndpoints: its parameter is the request, its return value the response, and it calls a service.",
+        "prefix": "nspEndpoint",
+        "description": "One more endpoint inside defineEndpoints.",
         "body": [
-            "/** ${4:What this endpoint does.} */",
-            "${1:byId}: (request: ${2:${1/^(.)/${1:/upcase}/}Request}): ${3:${1/^(.)/${1:/upcase}/}Response} => ${5:serviceFunction}(request),"
+            "${1:byId}: (request: ${2:${1/^(.)/${1:/upcase}/}Request}): ${3:${1/^(.)/${1:/upcase}/}Response} => ${4:serviceFunction}(request),"
         ]
     },
-    "Repository": {
+    "nspRepo": {
         "scope": "typescript",
-        "prefix": "repository",
-        "description": "A repository file: data access for one subject, reading through dbContext with specifications. The subject is derived from the file name (employeeRolesRepository.ts gives employeeRoles).",
+        "prefix": "nspRepo",
+        "description": "Repository reading through dbContext with a specification; the set name comes from the file name.",
         "body": [
             "import type { ${1:Model} } from '../types/models.gen';",
             "import { dbContext } from './generated/context.gen';",
             "import { ${3:forX} } from '../specifications/${2:${TM_FILENAME_BASE/(.*)Repository$/$1/}}Specifications';",
             "",
-            "/**",
-            " * Data access for ${4:the subject}: sentences built from the specifications over dbContext.",
-            " */",
-            "",
-            "/** ${5:Every row matching the specification, in no particular order.} */",
-            "export function ${6:list${1}By}(${7:value}: ${8:number}): ${1}[] {",
-            "    return dbContext.${2}.list(${3}(${7}));",
+            "export function ${4:list${1}By}(${5:value}: ${6:number}): ${1}[] {",
+            "    return dbContext.${2}.list(${3}(${5}));",
             "}",
             ""
         ]
     },
-    "Specifications": {
+    "nspSpec": {
         "scope": "typescript",
-        "prefix": "specifications",
-        "description": "A specifications file: the query vocabulary for one record type, one predicate per builder.",
+        "prefix": "nspSpec",
+        "description": "Specifications file for one record type: one predicate per builder.",
         "body": [
             "import type { Specification } from '@amerilux/netsuite-repository';",
             "import { ${1:Model}Fields, type ${1} } from '../repositories/generated/${1}.gen';",
             "",
-            "/**",
-            " * The query vocabulary for ${2:the record type}: one predicate per builder, no decisions. A repository",
-            " * function composes them; a test can render any of them against a recording query and no context.",
-            " */",
-            "",
-            "export const ${3:forX} = (${4:value}: ${5:number}): Specification<${1}> =>",
-            "    (query) => query.where(${1}Fields.${6:field}, '=', ${4});",
+            "export const ${2:forX} = (${3:value}: ${4:number}): Specification<${1}> =>",
+            "    (query) => query.where(${1}Fields.${5:field}, '=', ${3});",
             ""
-        ]
-    },
-    "Specification": {
-        "scope": "typescript",
-        "prefix": "specification",
-        "description": "One more specification builder in an existing specifications file.",
-        "body": [
-            "export const ${2:forX} = (${3:value}: ${4:number}): Specification<${1:Model}> =>",
-            "    (query) => query.where(${1}Fields.${5:field}, '=', ${3});"
         ]
     }
 }
