@@ -60,6 +60,7 @@ Every folder is flat, and the file name carries the layer: `userController.ts`, 
 - `src/scripts.gen.ts` Generated from the controllers' declarations: every script by controller name, what a repository passes to `createSuiteletClient`.
 - `src/_host/` The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folder you do not add to.
 - `__tests__/` Unit tests for the backend. The `N/*` modules resolve to the stubs `@amerilux/netsuite-api/testing` ships (see `vitest.config.mts`).
+- `netsuite-wrapper.config.js` Telemetry for the backend, read by `webpack.config.js`: the PerformanceTracker scope key every script runs under, where each run's spans and log lines go (the PerformanceTracker records, and optionally an external log system over HTTPS), and whether functions are instrumented. With telemetry on, every log line carries the run id, the function, its arguments and the call chain without any change to the call; put `@ptrk-ignore-arguments` above a function whose arguments must not be captured. The scope's mode (off, boundary, diagnostic) is set in the PerformanceTracker app, not here.
 
 ## client/
 

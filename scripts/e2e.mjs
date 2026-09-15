@@ -13,6 +13,11 @@
  *   node scripts/e2e.mjs --netsuite-api ../netsuite-api/amerilux-netsuite-api-0.1.0.tgz
  *                                                            # install @amerilux/netsuite-api from a packed tarball (npm pack in its checkout)
  *                                                            # instead of the registry, to check the template against an unpublished version
+ *   node scripts/e2e.mjs --netsuite-wrapper ../netsuite-wrapper/amerilux-netsuite-wrapper-0.4.0.tgz
+ *                                                            # the same for @amerilux/netsuite-wrapper
+ *
+ * The main scaffold is built with --performance-tracker so the wrapper's instrumentation, telemetry
+ * bootstrap and entry wrapping run through a real webpack build; the plain variant checks the flag off.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -27,18 +32,23 @@ const projectDir = path.join(e2eRoot, 'DemoApp');
 const keep = process.argv.includes('--keep');
 const isWindows = process.platform === 'win32';
 const cliCommand = resolveCliCommand(process.argv);
-const netsuiteApiTarball = resolveNetsuiteApiTarball(process.argv);
+const packageTarballs = {
+    '@amerilux/netsuite-api': resolvePackageTarball(process.argv, '--netsuite-api', 'netsuite-api'),
+    '@amerilux/netsuite-wrapper': resolvePackageTarball(process.argv, '--netsuite-wrapper', 'netsuite-wrapper'),
+};
 console.log(`Scratch project: ${projectDir}`);
 console.log(`CLI: ${cliCommand.join(' ')}`);
-if (netsuiteApiTarball) console.log(`@amerilux/netsuite-api: ${netsuiteApiTarball}`);
+for (const [packageName, tarballPath] of Object.entries(packageTarballs)) {
+    if (tarballPath) console.log(`${packageName}: ${tarballPath}`);
+}
 
-/** `--netsuite-api <path>` names a packed tarball of @amerilux/netsuite-api to install instead of the registry version. */
-function resolveNetsuiteApiTarball(argv) {
-    const flagIndex = argv.indexOf('--netsuite-api');
+/** `<flag> <path>` names a packed tarball of a package to install instead of the registry version. */
+function resolvePackageTarball(argv, flag, checkoutName) {
+    const flagIndex = argv.indexOf(flag);
     if (flagIndex === -1) return undefined;
     const tarballPath = argv[flagIndex + 1];
     if (!tarballPath || tarballPath.startsWith('--') || !tarballPath.endsWith('.tgz')) {
-        console.error('--netsuite-api needs the path of a .tgz from `npm pack` in the netsuite-api checkout.');
+        console.error(`${flag} needs the path of a .tgz from \`npm pack\` in the ${checkoutName} checkout.`);
         process.exit(1);
     }
     const resolvedPath = path.resolve(tarballPath);
@@ -49,14 +59,14 @@ function resolveNetsuiteApiTarball(argv) {
     return resolvedPath;
 }
 
-/** Points every workspace that depends on @amerilux/netsuite-api at the tarball, so npm install never asks the registry for it. */
-function useNetsuiteApiTarball(directory, tarballPath) {
+/** Points every workspace that depends on the package at the tarball, so npm install never asks the registry for it. */
+function usePackageTarball(directory, packageName, tarballPath) {
     const specifier = `file:${tarballPath.split(path.sep).join('/')}`;
     for (const workspace of ['api', 'client']) {
         const manifestPath = path.join(directory, workspace, 'package.json');
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-        if (manifest.dependencies?.['@amerilux/netsuite-api'] === undefined) continue;
-        manifest.dependencies['@amerilux/netsuite-api'] = specifier;
+        if (manifest.dependencies?.[packageName] === undefined) continue;
+        manifest.dependencies[packageName] = specifier;
         writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     }
 }
@@ -140,10 +150,14 @@ runCli([
     projectDir,
     '--local-template', templateDir,
     '--prefix', 'demo', '--author', 'ci', '--description', 'End-to-end scaffold check',
-    '--probity', '--yes', '--no-install', '--no-git',
+    '--probity', '--performance-tracker', '--yes', '--no-install', '--no-git',
 ], templatesRoot);
 assertEqual(existsSync(path.join(projectDir, 'probity.config.ts')), true, '--probity emits probity.config.ts');
 assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.claude', 'settings.json'), 'utf8')).hooks !== undefined, true, '--probity wires the Claude Code hook');
+assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: true, probity: true }, 'features recorded with both flags on');
+const wrapperConfigSource = readFileSync(path.join(projectDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
+assertEqual(wrapperConfigSource.includes("integration: 'performance-tracker'") && wrapperConfigSource.includes("scopeKey: 'app:demo-app'") && wrapperConfigSource.includes('instrumentation: true'), true, '--performance-tracker renders the wrapper config with the app scope key');
+assertEqual(wrapperConfigSource.includes('telemetryBootstrap: false'), false, '--performance-tracker drops the telemetry-off branch');
 
 // The default (no Probity) variant must render cleanly too; it is checked without an install.
 const plainDir = path.join(e2eRoot, 'PlainApp');
@@ -158,10 +172,14 @@ const plainSettings = JSON.parse(readFileSync(path.join(plainDir, '.claude', 'se
 assertEqual(plainSettings.hooks, undefined, 'default scaffold has no hook');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'package.json'), 'utf8')).devDependencies['@nizos/probity'], undefined, 'default scaffold does not depend on probity');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: false, probity: false }, 'features recorded');
+const plainWrapperConfigSource = readFileSync(path.join(plainDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
+assertEqual(plainWrapperConfigSource.includes('telemetryBootstrap: false') && !plainWrapperConfigSource.includes("scopeKey: 'app:"), true, 'default scaffold renders the wrapper config with telemetry off');
 assertEqual(existsSync(path.join(plainDir, 'template.json')), false, 'template manifest is not copied');
 rmSync(plainDir, { recursive: true, force: true });
 
-if (netsuiteApiTarball) useNetsuiteApiTarball(projectDir, netsuiteApiTarball);
+for (const [packageName, tarballPath] of Object.entries(packageTarballs)) {
+    if (tarballPath) usePackageTarball(projectDir, packageName, tarballPath);
+}
 run('npm', ['install', '--no-audit', '--no-fund'], projectDir);
 run('npm', ['run', 'generate'], projectDir);
 assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'types', 'models.gen.ts')), true, 'generate writes the entity types into api/src/types');
@@ -192,6 +210,15 @@ assertEqual(listFiles(fileCabinet), [
     'client/app.js',
 ], 'File Cabinet output after first build');
 for (const apiFile of listFiles(path.join(fileCabinet, 'api'))) assertBanner(path.join(fileCabinet, 'api', apiFile));
+
+// With the tracker on, the built Restlet must be a tracked entry (its defineRestlet result wrapped),
+// carry the app scope key, register the record exporter from the bootstrap, and capture arguments.
+const builtUserController = readFileSync(path.join(fileCabinet, 'api', 'controllers', 'userController.js'), 'utf8');
+assertEqual(builtUserController.includes('wrapTrackedScriptEntryFunction'), true, 'built controller wraps its defineRestlet entry as a tracked entry');
+assertEqual(builtUserController.includes('scopeKey: "app:demo-app"'), true, 'built controller carries the scope key from netsuite-wrapper.config.js');
+assertEqual(builtUserController.includes('createNetSuiteRecordExporter'), true, 'built controller registers the record exporter');
+assertEqual(builtUserController.includes('createHttpsExporter('), false, 'built controller registers no HTTPS exporter until one is configured');
+assertEqual(builtUserController.includes('parameterNames:'), true, 'built controller captures function parameter names');
 
 // Each side's build must leave the other's output alone.
 const clientBundleBefore = statSync(path.join(fileCabinet, 'client', 'app.js')).mtimeMs;

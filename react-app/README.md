@@ -33,6 +33,7 @@ _What business process this serves, and for whom. Name the roles that use it and
 ## Support
 
 - **Logs:** every deployed script writes to its own NetSuite script log (Customization › Scripting › Script Deployments). Log titles are constant phrases (`endpoint completed`, `endpoint rejected`, `endpoint failed`); the controller, endpoint, method, status and ids are in the details.
+- **Telemetry:** {{#if performanceTracker}}on. Every script run writes a root span to the PerformanceTracker app under the scope `app:{{appNameKebab}}`; that app must be installed in the account. Its Scopes screen turns the scope off, to boundary (root span and log lines) or to diagnostic (every wrapped `N/*` call) without a redeploy. To also ship each run's spans and log lines to an external log system, set `httpsExport` in `api/netsuite-wrapper.config.js` and create the API secret it names.{{/if}}{{#unless performanceTracker}}off. `api/netsuite-wrapper.config.js` turns it on: set `telemetryBootstrap` to the PerformanceTracker integration with this app's scope key, and `instrumentation` to true.{{/unless}}
 - **Known issues:** _what breaks, how it shows up, and the workaround._
 - **Escalation:** _who to contact first, and where the vendor or NetSuite support case goes._
 
