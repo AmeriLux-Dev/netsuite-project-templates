@@ -80,6 +80,20 @@
             "${1:byId}: (request: ${2:${1/^(.)/${1:/upcase}/}Request}): ${3:${1/^(.)/${1:/upcase}/}Response} => ${4:serviceFunction}(request),"
         ]
     },
+    "nspService": {
+        "scope": "typescript",
+        "prefix": "nspService",
+        "description": "Service function: takes the controller's request type, calls a repository, shapes the response.",
+        "body": [
+            "import type { ${2:List}Request, ${2}Response } from '../controllers/${1:${TM_FILENAME_BASE/(.*)Service$/$1/}}Controller';",
+            "import { ${3:repositoryFunction} } from '../repositories/${4:${TM_FILENAME_BASE/(.*)Service$/$1/}}Repository';",
+            "",
+            "export function ${5:serviceFunction}(request: ${2}Request): ${2}Response {",
+            "    return ${3}(request.${6:id});",
+            "}",
+            ""
+        ]
+    },
     "nspRepo": {
         "scope": "typescript",
         "prefix": "nspRepo",
@@ -105,6 +119,115 @@
             "",
             "export const ${2:forX} = (${3:value}: ${4:number}): Specification<${1}> =>",
             "    (query) => query.where(${1}Fields.${5:field}, '=', ${3});",
+            ""
+        ]
+    },
+    "nspModel": {
+        "scope": "typescript",
+        "prefix": "nspModel",
+        "description": "Model class under api/src/models/; the class name comes from the file name. `id` is the internal id. Run npm run generate after editing.",
+        "body": [
+            "import { Field, RecordType } from '@amerilux/netsuite-repository';",
+            "",
+            "@RecordType('${1:customrecord_x}')",
+            "export class ${TM_FILENAME_BASE} {",
+            "    id!: number;",
+            "    @Field('${2:name}') ${3:name}!: ${4:string};",
+            "}",
+            ""
+        ]
+    },
+    "nspField": {
+        "scope": "typescript",
+        "prefix": "nspField",
+        "description": "One more field on a model.",
+        "body": [
+            "@Field('${1:fieldid}') ${2:property}!: ${3:string};"
+        ]
+    },
+    "nspHook": {
+        "scope": "typescript",
+        "prefix": "nspHook",
+        "description": "Query hook under client/src/hooks/ calling one generated endpoint; names come from the file name (useX.ts).",
+        "body": [
+            "import { queryOptions, useQuery } from '@tanstack/react-query';",
+            "import { ${1:controller} } from '@/api/index.gen';",
+            "",
+            "export const ${TM_FILENAME_BASE/^use(.)(.*)$/${1:/downcase}$2/}QueryKey = ['${1}', '${2:endpoint}'] as const;",
+            "",
+            "export function ${TM_FILENAME_BASE/^use(.)(.*)$/${1:/downcase}$2/}QueryOptions() {",
+            "    return queryOptions({",
+            "        queryKey: ${TM_FILENAME_BASE/^use(.)(.*)$/${1:/downcase}$2/}QueryKey,",
+            "        queryFn: ({ signal }) => ${1}.api.${2}(${3:undefined}, { signal }),",
+            "    });",
+            "}",
+            "",
+            "export function ${TM_FILENAME_BASE}() {",
+            "    return useQuery(${TM_FILENAME_BASE/^use(.)(.*)$/${1:/downcase}$2/}QueryOptions());",
+            "}",
+            ""
+        ]
+    },
+    "nspSdfRestlet": {
+        "scope": "xml",
+        "prefix": "nspSdfRestlet",
+        "description": "SDF object for a Restlet controller; ids come from the file name (customscript_{{prefix}}_<snake_name>.xml).",
+        "body": [
+            "<restlet scriptid=\"${TM_FILENAME_BASE}\">",
+            "  <description>${2:What it serves}, for {{appTitle}}.</description>",
+            "  <isinactive>F</isinactive>",
+            "  <name>{{appTitle}} ${1:Name}</name>",
+            "  <notifyadmins>F</notifyadmins>",
+            "  <notifyemails></notifyemails>",
+            "  <notifyowner>T</notifyowner>",
+            "  <notifyuser>F</notifyuser>",
+            "  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_([a-z])/${1:/upcase}/g}Controller.js]</scriptfile>",
+            "  <scriptdeployments>",
+            "    <scriptdeployment scriptid=\"${TM_FILENAME_BASE/^customscript_/customdeploy_/}\">",
+            "      <allemployees>F</allemployees>",
+            "      <allpartners>F</allpartners>",
+            "      <allroles>F</allroles>",
+            "      <audslctrole>${3:ADMINISTRATOR}</audslctrole>",
+            "      <isdeployed>T</isdeployed>",
+            "      <loglevel>DEBUG</loglevel>",
+            "      <status>RELEASED</status>",
+            "      <title>{{appTitle}} ${1}</title>",
+            "    </scriptdeployment>",
+            "  </scriptdeployments>",
+            "</restlet>",
+            ""
+        ]
+    },
+    "nspSdfSuitelet": {
+        "scope": "xml",
+        "prefix": "nspSdfSuitelet",
+        "description": "SDF object for a Suitelet controller; ids come from the file name. Remove <runasrole> unless the script must run as another role.",
+        "body": [
+            "<suitelet scriptid=\"${TM_FILENAME_BASE}\">",
+            "  <description>${2:What it serves}, for {{appTitle}}.</description>",
+            "  <isinactive>F</isinactive>",
+            "  <name>{{appTitle}} ${1:Name}</name>",
+            "  <notifyadmins>F</notifyadmins>",
+            "  <notifyemails></notifyemails>",
+            "  <notifyowner>T</notifyowner>",
+            "  <notifyuser>F</notifyuser>",
+            "  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_([a-z])/${1:/upcase}/g}Controller.js]</scriptfile>",
+            "  <scriptdeployments>",
+            "    <scriptdeployment scriptid=\"${TM_FILENAME_BASE/^customscript_/customdeploy_/}\">",
+            "      <allemployees>F</allemployees>",
+            "      <allpartners>F</allpartners>",
+            "      <allroles>T</allroles>",
+            "      <audslctrole></audslctrole>",
+            "      <eventtype></eventtype>",
+            "      <isdeployed>T</isdeployed>",
+            "      <isonline>F</isonline>",
+            "      <loglevel>DEBUG</loglevel>",
+            "      ${3:<runasrole>ADMINISTRATOR</runasrole>}",
+            "      <status>RELEASED</status>",
+            "      <title>{{appTitle}} ${1}</title>",
+            "    </scriptdeployment>",
+            "  </scriptdeployments>",
+            "</suitelet>",
             ""
         ]
     }

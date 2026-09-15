@@ -215,7 +215,18 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 
 ### .vscode/
 
-`netsuite-project.code-snippets`: VS Code snippets that emit each layer's file in the shape this project expects. In a new `.ts` file type the prefix and accept the completion: `nspControllerRestlet` or `nspControllerSuitelet` (the whole controller file, name and ids derived from the file name), `nspEndpoint` (one more endpoint inside `defineEndpoints`), `nspRepo` (a repository) and `nspSpec` (a specifications file). Tab through the placeholders.
+`netsuite-project.code-snippets`: VS Code snippets that emit each layer's file in the shape this project expects. In a new file type the prefix and accept the completion, then tab through the placeholders. Names and ids are derived from the file name wherever the layout fixes them.
+
+| Prefix | File |
+|---|---|
+| `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts` |
+| `nspEndpoint` | one more endpoint inside `defineEndpoints` |
+| `nspService` | `api/src/services/<subject>Service.ts` |
+| `nspRepo` | `api/src/repositories/<subject>Repository.ts` |
+| `nspSpec` | `api/src/specifications/<record>Specifications.ts` |
+| `nspModel`, `nspField` | `api/src/models/<Record>.ts`, one more field |
+| `nspHook` | `client/src/hooks/use<Name>.ts` |
+| `nspSdfRestlet`, `nspSdfSuitelet` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` |
 
 ### .claude/
 
@@ -291,7 +302,7 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     Two options ride on the define call after the endpoints. `authorize: ({ endpoint, request }) => void` runs before every handler; throw `ApiError.forbidden()` to reject a call (read the session through a repository function). And a Suitelet handler may return `rawResponse({ contentType, body, fileName })` or `rawResponse({ file, inline })` with `RawResponse` (from `@amerilux/netsuite-api/server`) as its return type: the answer is written as a document instead of the envelope, and the generated client resolves that endpoint to a `Blob`. A Restlet cannot answer that way.
 
     `npm run generate` reads this file as source to write the client, so these are rules, each an error with a message when broken: every handler is written inline with both types annotated; every type in the file is exported; a type is imported only from `../types/models.gen` or from another controller (never a service's type by reference); the declaration is an object literal with literal ids whose `name` is the file name without `Controller`; script ids are unique across controllers; no wire shape is named `Endpoints`. A shape's name carries no controller prefix (`ByEmployeeRequest`, not `UserRolesByEmployeeRequest`): the generated module is scoped by controller already.
-2. `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: the script record and its deployment. Copy the `user` (Restlet) or `userRoles` (Suitelet) object and change the ids (to the ones the declaration says), names and the script file path (`api/controllers/<name>Controller.js`).
+2. `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`: the script record and its deployment. The `nspSdfRestlet` or `nspSdfSuitelet` snippet fills it from the file name; or copy the `user` (Restlet) or `userRoles` (Suitelet) object and change the ids (to the ones the declaration says), names and the script file path (`api/controllers/<name>Controller.js`).
 3. `npm run generate`: rewrites the generated files. `client/src/api/<name>.gen.ts` gets the controller's types, the entity types they name, its `Endpoints` type and, unless `browser: false`, its client `api`; `client/src/api/index.gen.ts` re-exports the module as `<name>`; `api/src/scripts.gen.ts` gets its script:
     ```typescript
     // client/src/api/user.gen.ts
@@ -305,9 +316,9 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     // client/src/api/index.gen.ts
     export * as user from './user.gen';
     ```
-    Then a hook under `client/src/hooks/` imports `{ user }` from `@/api/index.gen` and calls it: `user.api.roles()` for an endpoint without a request, `orders.api.byId({ id })` for one with. The second argument carries the abort signal: `user.api.roles(undefined, { signal })`. A shape is named through the same namespace: `user.RolesResponse`. A failed call needs no handling in the hook or the page: `main.tsx` gives `configureApiClient` the `reportApiError` handler, and the AppShell's banner shows what it reports. A page that shows the failure in place instead reads the query's `isError`, and its hook passes `{ handleError: false }` as the call's second argument. The client never imports from `api/`; the generated modules are its whole view of the backend.
+    Then a hook under `client/src/hooks/` (the `nspHook` snippet) imports `{ user }` from `@/api/index.gen` and calls it: `user.api.roles()` for an endpoint without a request, `orders.api.byId({ id })` for one with. The second argument carries the abort signal: `user.api.roles(undefined, { signal })`. A shape is named through the same namespace: `user.RolesResponse`. A failed call needs no handling in the hook or the page: `main.tsx` gives `configureApiClient` the `reportApiError` handler, and the AppShell's banner shows what it reports. A page that shows the failure in place instead reads the query's `isError`, and its hook passes `{ handleError: false }` as the call's second argument. The client never imports from `api/`; the generated modules are its whole view of the backend.
 
-Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`) that decides and shapes the reply, repository functions under `api/src/repositories/` (`<subject>Repository.ts`, the `nspRepo` snippet) that read and write, and for a new record type a model under `api/src/models/` (then `npm run generate`) with its `<record>Specifications.ts` (the `nspSpec` snippet). The service takes the request and response types from the controller file with `import type`. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `api/src/models/EmployeeRole.ts`) is the reference.
+Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`, the `nspService` snippet) that decides and shapes the reply, repository functions under `api/src/repositories/` (`<subject>Repository.ts`, the `nspRepo` snippet) that read and write, and for a new record type a model under `api/src/models/` (the `nspModel` snippet, then `npm run generate`) with its `<record>Specifications.ts` (the `nspSpec` snippet). The service takes the request and response types from the controller file with `import type`. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `api/src/models/EmployeeRole.ts`) is the reference.
 
 A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `@amerilux/netsuite-api/server`, with `scripts` from `api/src/scripts.gen.ts` and the type imported from the controller file.
 
