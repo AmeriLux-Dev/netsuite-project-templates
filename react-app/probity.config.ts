@@ -107,8 +107,8 @@ export default defineConfig({
 
         /* Generated and account-specific files are never written by an agent */
         {
-            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'api/src/types/models.gen.ts', 'api/src/scripts.gen.ts', 'client/src/api/**', 'client/src/app.gen.ts', 'client/src/routeTree.gen.ts'],
-            rules: [forbidAnyWrite('Generated output. Change the source (models, controllers, netsuite.ts, routes, bundles) and run npm run generate or npm run build instead.')],
+            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'api/src/types/models.gen.ts', 'api/src/scripts.gen.ts', 'client/src/api/**', 'client/src/routeTree.gen.ts'],
+            rules: [forbidAnyWrite('Generated output. Change the source (models, controllers, routes, bundles) and run npm run generate or npm run build instead.')],
         },
         {
             files: ['project.json', 'client/.env', '**/*.pem', '**/*.p12', '**/*.key', '**/*.pfx'],

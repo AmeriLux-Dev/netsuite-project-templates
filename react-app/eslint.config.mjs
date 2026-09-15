@@ -44,9 +44,8 @@ const wireShapeImports = [
     { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>Controller.ts as types (import type); nothing below a controller imports its code.' },
 ];
 // The api package has one entry per side: api/ imports its server entry, client/ its client entry. The client never
-// imports from api/ or netsuite.ts: `npm run generate` writes one module per controller (its types and its client)
-// under client/src/api/, re-exported by index.gen.ts, and a copy of netsuite.ts into client/src/app.gen.ts; a hook
-// imports @/api/index.gen.
+// imports from api/: `npm run generate` writes one module per controller (its types and its client) under
+// client/src/api/, re-exported by index.gen.ts; a hook imports @/api/index.gen. Both sides import netsuite.ts directly.
 const apiPackageServerSide = [
     { group: ['@amerilux/netsuite-api/client', '@amerilux/netsuite-api/testing'], message: 'api/ imports @amerilux/netsuite-api/server. The client entry is for client/, the testing entry for vitest configs.' },
 ];
@@ -54,9 +53,9 @@ const apiPackageClientSide = [
     { group: ['@amerilux/netsuite-api/server', '@amerilux/netsuite-api/testing'], message: 'client/ imports @amerilux/netsuite-api/client. The server entry runs in NetSuite.' },
     { group: ['api/**'], message: 'The client never imports from api/. Its types and clients are in the generated @/api/index.gen.' },
 ];
-// netsuite.ts is copied into the client module verbatim, so it is exported constants and types only.
+// netsuite.ts is the one file both api/ and client/ import, so it holds only what SuiteScript and the browser bundle alike: exported constants and types.
 const appFileShape = [
-    { selector: 'ImportDeclaration', message: 'netsuite.ts imports nothing; it is copied into the client module verbatim.' },
+    { selector: 'ImportDeclaration', message: 'netsuite.ts imports nothing; both api/ and client/ import it, so it holds only what either side can bundle.' },
     { selector: 'Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ObjectExpression.init', message: 'Every export in netsuite.ts ends with `as const`, so ids are literal types.' },
 ];
 // Dependency guard: npm workspaces hoist every package into the root node_modules, so an import of a package this
@@ -73,7 +72,6 @@ export default defineConfig([
         'api/src/types/models.gen.ts',
         'api/src/scripts.gen.ts',
         'client/src/api/**',
-        'client/src/app.gen.ts',
         'client/src/routeTree.gen.ts',
         '**/dist/**',
         '**/coverage/**',
@@ -186,7 +184,7 @@ export default defineConfig([
         rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...apiPackageServerSide, ...wireShapeImports] }] },
     },
     {
-        // The app file: names and ids, copied into the client module verbatim by `npm run generate`.
+        // The app file: names and ids, imported by both api/ and client/.
         files: ['netsuite.ts'],
         rules: {
             'no-restricted-syntax': ['error', ...appFileShape],

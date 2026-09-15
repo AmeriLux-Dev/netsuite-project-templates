@@ -3,8 +3,8 @@
 // and field ids. What is left, the names, the File Cabinet paths, and anything reached without a
 // controller or a model (script parameters, saved searches, list values), lives here.
 //
-// `npm run generate` copies this file into client/src/api/index.gen.ts verbatim, so it holds exported
-// constants and types only: no imports, nothing that runs.
+// Both api/ and client/ import this file, so it holds exported constants and types only: no imports,
+// nothing that runs.
 
 /** The application's names and File Cabinet layout; the host Suitelet and the client both read it. */
 export const app = {

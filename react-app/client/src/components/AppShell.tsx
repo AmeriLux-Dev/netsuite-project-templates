@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router';
-import { app } from '@/app.gen';
+import { app } from '../../../netsuite';
 import { ApiErrorBanner } from '@/components/ApiErrorBanner';
 
 export function AppShell() {

@@ -18,7 +18,7 @@ Ask for, or infer from the request: the controller name (camelCase, no `Controll
 - Services and repositories take the shapes from the controller file with `import type`. The client never imports from `api/`: it imports the generated `@/api/index.gen`, which re-exports one module per controller under the controller's name (`user.api.roles()`, `user.RolesResponse`).
 - Files are named after their layer: `<subject>Service.ts`, `<subject>Repository.ts`, `<record>Specifications.ts`, with tests of the same name under `api/__tests__/<layer>/`. A service or repository is named after what it handles, not after the controller that calls it. Nothing is added under `api/src/_host/` or `client/src/api/`.
 - A service never imports `N/*`; reading the session, a script parameter or another script is a repository function.
-- Nothing generated is edited: `api/src/repositories/generated/`, `api/src/types/models.gen.ts`, `api/src/scripts.gen.ts`, `client/src/api/`, `client/src/app.gen.ts`, `netsuite/FileCabinet/`.
+- Nothing generated is edited: `api/src/repositories/generated/`, `api/src/types/models.gen.ts`, `api/src/scripts.gen.ts`, `client/src/api/`, `netsuite/FileCabinet/`.
 
 ## Checklist
 

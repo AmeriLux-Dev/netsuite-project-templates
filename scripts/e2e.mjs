@@ -174,7 +174,7 @@ assertEqual(userModule.includes("import type { RoleSummary } from './userRoles.g
 const userRolesModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'userRoles.gen.ts'), 'utf8');
 assertEqual(userRolesModule.includes('createApiClient'), false, 'generate writes no client for the server-only userRoles Suitelet');
 assertEqual(userRolesModule.includes('export interface EmployeeRole {'), true, 'generate copies the entity type the controller names into its module');
-assertEqual(readFileSync(path.join(projectDir, 'client', 'src', 'app.gen.ts'), 'utf8').includes('export const app = {'), true, 'generate copies netsuite.ts into client/src/app.gen.ts');
+assertEqual(existsSync(path.join(projectDir, 'client', 'src', 'app.gen.ts')), false, 'generate writes no copy of netsuite.ts; the client imports the root file directly');
 assertEqual(readdirSync(path.join(projectDir, 'client', 'src', 'api')).sort(), ['index.gen.ts', 'user.gen.ts', 'userRoles.gen.ts'], 'the client api directory holds the controller modules and the index only');
 const scriptsModule = readFileSync(path.join(projectDir, 'api', 'src', 'scripts.gen.ts'), 'utf8');
 assertEqual(scriptsModule.includes("userRoles: { kind: 'suitelet', scriptId: 'customscript_demo_user_roles', deployId: 'customdeploy_demo_user_roles', browser: false },"), true, 'generate writes the scripts map into api/src');
