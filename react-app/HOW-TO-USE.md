@@ -164,3 +164,12 @@ Behind the controller: a service under `api/src/services/` (`<subject>Service.ts
 A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `@amerilux/netsuite-api/server`, with `scripts` from `api/src/scripts.gen.ts` and the type imported from the controller file.
 
 `npm run lint` names any piece that is missing or disagrees with the others; `npm run generate` names a controller it cannot turn into a client; `npm run typecheck` catches a client call that names an endpoint the controller lacks.
+
+## Removing a rule you have outgrown
+
+`npm run lint` checks two kinds of rule. ESLint's recommended rules are about the language. Everything else is a convention of this template: the structure check in `scripts/checkStructure.mjs` (a controller's declaration, exports and SDF object agree) and each commented block of `eslint.config.mjs` (the layers, the id and log rules, the dependency guard, the entry each side imports). A convention is there so that the shipped pieces, the generated code and the `add-controller` skill keep fitting together. When this project moves past one, delete the rule rather than working around it; nothing else depends on it.
+
+- The structure check: delete `scripts/checkStructure.mjs` and drop `&& node scripts/checkStructure.mjs` from the `lint` script in `package.json`. The ESLint override that names the file then matches nothing, which is fine. Update the "Adding a controller" steps in `.claude/skills/add-controller/SKILL.md` and `CLAUDE.md` to whatever the new layout is.
+- An ESLint convention: delete its block in `eslint.config.mjs` (the comment above each block says what it enforces) and the constants at the top of the file that only that block used.
+
+The check and the ESLint blocks are run only by `npm run lint`; `npm run build` and `npm run deploy` do not depend on them.
