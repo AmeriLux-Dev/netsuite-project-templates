@@ -20,7 +20,7 @@ Before a commit: `npm run typecheck`, `npm run lint`, `npm test`.
 
 ## Adding a controller
 
-Use the `add-controller` skill (`.claude/skills/add-controller/SKILL.md`): the checklist of pieces and the rules, pointing at the step-by-step recipe in `HOW-TO-USE.md` for the shape of each file. The `user` controller is the live reference. A script's ids are written once, in its controller's declaration; a record's ids once, on its model. `npm run lint` fails until all the pieces are present and agree.
+Follow the step-by-step recipe in `HOW-TO-USE.md`, "Adding a controller": the controller file, its SDF object, `npm run generate`, then a hook. The VS Code snippets in `.vscode/netsuite-project.code-snippets` (`controller-restlet`, `controller-suitelet`, `endpoint`, `repository`, `specifications`, `specification`) emit each file in the shape the rules below expect. The `user` controller is the live reference. A script's ids are written once, in its controller's declaration; a record's ids once, on its model. `npm run lint` fails until all the pieces are present and agree.
 
 ## Where things live
 
@@ -48,7 +48,7 @@ Use the `add-controller` skill (`.claude/skills/add-controller/SKILL.md`): the c
 - **Layers.** Endpoint calls service, service calls repository, repository composes specifications. `npm run lint` enforces the imports each layer may make (endpoints never query; services and repositories see a controller file as types only; the client never imports from `api/`; models know nothing about the wire); a violation names the layer that should do the work instead.
 - **Dependencies.** One `node_modules` at the root (npm workspaces). A workspace imports only what its own `package.json` declares; `npm run lint` fails on anything else. Add a package to the workspace that uses it, `npm install -w api <package>` (or `-w client`), never a bare `npm install <package>` at the root.
 - **Logging.** A log title is the same short phrase every time (`endpoint completed`); the controller, method and record ids go in the details object. Never glue ids into a title or a details string, and never `console.log` in `api/`. With telemetry on, the wrapper adds the run id, the function, its arguments and the call chain to every line; put `@ptrk-ignore-arguments` above a function whose arguments must not be captured.
-- **Outgrown rules.** The structure check and the commented blocks of `eslint.config.mjs` are this template's conventions, not the language's. A project that has moved past one deletes it (`HOW-TO-USE.md`, "Removing a rule you have outgrown") rather than working around it, and updates the docs and skill that describe it.
+- **Outgrown rules.** The structure check and the commented blocks of `eslint.config.mjs` are this template's conventions, not the language's. A project that has moved past one deletes it (`HOW-TO-USE.md`, "Removing a rule you have outgrown") rather than working around it, and updates the docs and snippets that describe it.
 {{#unless probity}}
 
 ## Rules

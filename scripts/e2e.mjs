@@ -235,7 +235,7 @@ assertEqual(/No project.json/.test(deployAttempt.stderr), true, 'deploy names th
 
 const leftoverTokens = listFiles(projectDir)
     .filter((file) => !file.startsWith('node_modules/') && !file.startsWith('netsuite/FileCabinet/'))
-    .filter((file) => /\.(ts|tsx|js|cjs|mjs|json|md|xml|css|html|example)$/.test(file) || file === '.gitignore' || file === '.npmrc')
+    .filter((file) => /\.(ts|tsx|js|cjs|mjs|json|md|xml|css|html|example|code-snippets)$/.test(file) || file === '.gitignore' || file === '.npmrc')
     .filter((file) => readFileSync(path.join(projectDir, file), 'utf8').includes('{{'));
 assertEqual(leftoverTokens, [], 'no template tokens left behind');
 

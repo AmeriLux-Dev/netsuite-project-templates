@@ -38,6 +38,7 @@ Every entry links to its section.
 <a href="#netsuitets">netsuite.ts</a>
 <a href="#netsuite-apiconfigjson">netsuite-api.config.json</a>
 <a href="#scripts">scripts/</a>
+<a href="#vscode">.vscode/</a>
 <a href="#claude">.claude/</a>
 <a href="#readmemd">README.md</a>
 <a href="#claudemd">CLAUDE.md</a>
@@ -212,9 +213,13 @@ The values are the defaults; the file is there to document them.
 
 Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (run by `npm run lint`).
 
+### .vscode/
+
+`netsuite-project.code-snippets`: VS Code snippets that emit each layer's file in the shape this project expects. In a new `.ts` file type the prefix and accept the completion: `controller-restlet` or `controller-suitelet` (the whole controller file, name and ids derived from the file name), `endpoint` (one more endpoint inside `defineEndpoints`), `repository`, `specifications` and `specification` (one more builder). Tab through the placeholders.
+
 ### .claude/
 
-Claude Code settings and the add-controller skill.
+Claude Code settings.
 
 ### README.md
 
@@ -242,7 +247,7 @@ Add a package to the workspace that uses it: `npm install -w api <package>`. `np
 
 ## Adding a controller
 
-A controller is one deployed script (a Restlet or a Suitelet) with named endpoints. Every call is a POST whose JSON body carries the request plus an `endpoint` property naming the endpoint; the operation is the endpoint's name (`list`, `byId`, `create`, `update`, `remove`). The shipped `user` controller is the reference; copy it and rename. Create these in order:
+A controller is one deployed script (a Restlet or a Suitelet) with named endpoints. Every call is a POST whose JSON body carries the request plus an `endpoint` property naming the endpoint; the operation is the endpoint's name (`list`, `byId`, `create`, `update`, `remove`). The shipped `user` controller is the reference; the `controller-restlet` and `controller-suitelet` snippets (`.vscode/`) emit the same shape from the file name. Create these in order:
 
 1. `api/src/controllers/<name>Controller.ts`: the whole controller in one file. The NetSuite header first, then the request and response shapes, then one function per endpoint, then the entry point with the script declaration. A handler's parameter is its request and its return value its response; a handler with no parameter takes no request. Shapes are the wire, not the record: an entity type from `api/src/types/models.gen.ts`, a `Pick` of one, or a composition of several.
     ```typescript
@@ -302,7 +307,7 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     ```
     Then a hook under `client/src/hooks/` imports `{ user }` from `@/api/index.gen` and calls it: `user.api.roles()` for an endpoint without a request, `orders.api.byId({ id })` for one with. The second argument carries the abort signal: `user.api.roles(undefined, { signal })`. A shape is named through the same namespace: `user.RolesResponse`. A failed call needs no handling in the hook or the page: `main.tsx` gives `configureApiClient` the `reportApiError` handler, and the AppShell's banner shows what it reports. A page that shows the failure in place instead reads the query's `isError`, and its hook passes `{ handleError: false }` as the call's second argument. The client never imports from `api/`; the generated modules are its whole view of the backend.
 
-Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`) that decides and shapes the reply, repository functions under `api/src/repositories/` (`<subject>Repository.ts`) that read and write, and for a new record type a model under `api/src/models/` (then `npm run generate`) with its `<record>Specifications.ts`. The service takes the request and response types from the controller file with `import type`. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `api/src/models/EmployeeRole.ts`) is the reference.
+Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`) that decides and shapes the reply, repository functions under `api/src/repositories/` (`<subject>Repository.ts`, the `repository` snippet) that read and write, and for a new record type a model under `api/src/models/` (then `npm run generate`) with its `<record>Specifications.ts` (the `specifications` snippet). The service takes the request and response types from the controller file with `import type`. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `api/src/models/EmployeeRole.ts`) is the reference.
 
 A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `@amerilux/netsuite-api/server`, with `scripts` from `api/src/scripts.gen.ts` and the type imported from the controller file.
 
@@ -310,9 +315,9 @@ A script that calls another controller of this application from the server (the 
 
 ## Removing a rule you have outgrown
 
-`npm run lint` checks two kinds of rule. ESLint's recommended rules are about the language. Everything else is a convention of this template: the structure check in `scripts/checkStructure.mjs` (a controller's declaration, exports and SDF object agree) and each commented block of `eslint.config.mjs` (the layers, the id and log rules, the dependency guard, the entry each side imports). A convention is there so that the shipped pieces, the generated code and the `add-controller` skill keep fitting together. When this project moves past one, delete the rule rather than working around it; nothing else depends on it.
+`npm run lint` checks two kinds of rule. ESLint's recommended rules are about the language. Everything else is a convention of this template: the structure check in `scripts/checkStructure.mjs` (a controller's declaration, exports and SDF object agree) and each commented block of `eslint.config.mjs` (the layers, the id and log rules, the dependency guard, the entry each side imports). A convention is there so that the shipped pieces, the generated code and the snippets keep fitting together. When this project moves past one, delete the rule rather than working around it; nothing else depends on it.
 
-- The structure check: delete `scripts/checkStructure.mjs` and drop `&& node scripts/checkStructure.mjs` from the `lint` script in `package.json`. The ESLint override that names the file then matches nothing, which is fine. Update the "Adding a controller" steps in `.claude/skills/add-controller/SKILL.md` and `CLAUDE.md` to whatever the new layout is.
+- The structure check: delete `scripts/checkStructure.mjs` and drop `&& node scripts/checkStructure.mjs` from the `lint` script in `package.json`. The ESLint override that names the file then matches nothing, which is fine. Update the "Adding a controller" steps above, `CLAUDE.md` and the snippets in `.vscode/` to whatever the new layout is.
 - An ESLint convention: delete its block in `eslint.config.mjs` (the comment above each block says what it enforces) and the constants at the top of the file that only that block used.
 
 The check and the ESLint blocks are run only by `npm run lint`; `npm run build` and `npm run deploy` do not depend on them.
