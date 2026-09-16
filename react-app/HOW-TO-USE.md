@@ -222,13 +222,23 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | Prefix | File |
 |---|---|
 | `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts` |
-| `nspEndpoint` | one more endpoint inside `defineEndpoints` |
-| `nspService` | `api/src/services/<subject>Service.ts` |
-| `nspRepo` | `api/src/repositories/<subject>Repository.ts` |
-| `nspSpec` | `api/src/specifications/<record>Specifications.ts` |
+| `nspShapes`, `nspEndpoint` | one more endpoint: its request and response shapes above `defineEndpoints`, the handler inside it |
+| `nspParse`, `nspAuthorize` | a guard for an id that comes off the wire; the `authorize` option after the endpoints |
+| `nspService` | `api/src/services/<subject>Service.ts`, with its `build<Model>Summary` function |
+| `nspRepo`, `nspRepoCreate`, `nspRepoUpdate` | `api/src/repositories/<set>Repository.ts` over `dbContext`; one more create or update through `withTracking()` |
+| `nspRepoSuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
+| `nspRepoModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
+| `nspSpec` | `api/src/specifications/<set>Specifications.ts` |
 | `nspModel`, `nspField` | `api/src/models/<Record>.ts` (a native record type through `NetsuiteRecordType`, a custom record by its id string); one more field |
-| `nspHook` | `client/src/hooks/use<Name>.ts` |
+| `nspLog` | a log line in the shape the lint rule accepts (repositories and `_host`) |
+| `nspAppIds` | one more `as const` export in `netsuite.ts` |
+| `nspTestController`, `nspTestService`, `nspTestRepo`, `nspTestRepoSuitelet` | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below |
+| `nspTestHook` | `client/__tests__/<controller>Query.test.ts` |
+| `nspHook`, `nspHookWith`, `nspMutation` | `client/src/hooks/use<Name>.ts`: a query for an endpoint without a request, one with a request, a mutation |
+| `nspPage`, `nspRoute` (TSX) | `client/src/pages/<Name>Page.tsx`, `client/src/routes/<segment>.tsx` |
 | `nspSdfRestlet`, `nspSdfSuitelet` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` |
+
+A file snippet's description ends with the snippet that comes next in the recipe, so a chain can be followed from the suggest list. The template repository checks every snippet before a release: expanded together into a fresh scaffold, the set must generate, typecheck and pass the structure check.
 
 ### .claude/
 
@@ -327,13 +337,38 @@ A controller is one deployed script (a Restlet or a Suitelet) with named endpoin
     // client/src/api/index.gen.ts
     export * as user from './user.gen';
     ```
-    Then a hook under `client/src/hooks/` (the `nspHook` snippet) imports `{ user }` from `@/api/index.gen` and calls it: `user.api.roles()` for an endpoint without a request, `orders.api.byId({ id })` for one with. The second argument carries the abort signal: `user.api.roles(undefined, { signal })`. A shape is named through the same namespace: `user.RolesResponse`. A failed call needs no handling in the hook or the page: `main.tsx` gives `configureApiClient` the `reportApiError` handler, and the AppShell's banner shows what it reports. A page that shows the failure in place instead reads the query's `isError`, and its hook passes `{ handleError: false }` as the call's second argument. The client never imports from `api/`; the generated modules are its whole view of the backend.
+    Then a hook under `client/src/hooks/` (the `nspHookWith` snippet; `nspHook` for an endpoint without a request, `nspMutation` for a write) imports `{ user }` from `@/api/index.gen` and calls it: `user.api.roles()` for an endpoint without a request, `orders.api.byId({ id })` for one with. The second argument carries the abort signal: `user.api.roles(undefined, { signal })`. A shape is named through the same namespace: `user.RolesResponse`. A failed call needs no handling in the hook or the page: `main.tsx` gives `configureApiClient` the `reportApiError` handler, and the AppShell's banner shows what it reports. A page that shows the failure in place instead reads the query's `isError`, and its hook passes `{ handleError: false }` as the call's second argument. The client never imports from `api/`; the generated modules are its whole view of the backend.
 
-Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`, the `nspService` snippet) that decides, repository functions under `api/src/repositories/` (`<subject>Repository.ts`, the `nspRepo` snippet) that read and write, and for a new record type a model under `api/src/models/` (the `nspModel` snippet, then `npm run generate`) with its `<record>Specifications.ts` (the `nspSpec` snippet). The service takes plain arguments and returns a type it declares (`RoleSummary`); the controller imports that type to build its response shape, and nothing in a service imports from a controller, so a second controller can call the same service and shape its own reply. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `api/src/models/EmployeeRole.ts`) is the reference.
+Behind the controller: a service under `api/src/services/` (`<subject>Service.ts`, the `nspService` snippet) that decides, repository functions under `api/src/repositories/` (`<subject>Repository.ts`, the `nspRepo` snippet) that read and write, and for a new record type a model under `api/src/models/` (the `nspModel` snippet, then `npm run generate`) with its `<record>Specifications.ts` (the `nspSpec` snippet). The service takes plain arguments and returns a type it declares (`RoleSummary`, produced by `buildRoleSummary`); the controller imports that type to build its response shape, and nothing in a service imports from a controller, so a second controller can call the same service and shape its own reply. The shipped `userRoles` chain (`userRolesController.ts`, `userRolesService.ts`, `employeeRolesRepository.ts`, `employeeRolesSpecifications.ts`, `api/src/models/EmployeeRole.ts`) is the reference. Each layer has a test snippet (`nspTestController`, `nspTestService`, `nspTestRepo`, `nspTestRepoSuitelet`, `nspTestHook`): the file name picks the names, and the mocks are already in the shape the shipped tests use.
 
 A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `@amerilux/netsuite-api/server`, with `scripts` from `api/src/scripts.gen.ts` and the type imported from the controller file.
 
 `npm run lint` names any piece that is missing or disagrees with the others; `npm run generate` names a controller it cannot turn into a client; `npm run typecheck` catches a client call that names an endpoint the controller lacks.
+
+## Naming
+
+Two rules from `CLAUDE.md`, applied to this layout: a function name gets more specific as its responsibility narrows, a variable name gets more specific as its visibility widens, and nothing is abbreviated. The snippets emit these names from the file name wherever the layout fixes them.
+
+**A type is named for what it is, by layer.**
+
+| Layer | Type | Example |
+|---|---|---|
+| Model | the record, singular; its set on `dbContext` is the plural in camelCase | `EmployeeRole`, `dbContext.employeeRoles` |
+| Generated | the entity type and its create and patch shapes | `EmployeeRole`, `EmployeeRoleCreate`, `EmployeeRolePatch` |
+| Repository | a type of its own only for what no model declares | `ActiveUser` |
+| Service | what it hands up: a `Pick` of an entity type is `<Model>Summary`; a composition is named for what it composes | `RoleSummary`, `ActiveUserRoles` |
+| Controller | the wire, one pair per endpoint, no controller prefix | `ByEmployeeRequest`, `ByEmployeeResponse` |
+
+**A function is named for what it does, with a verb.** A function that produces a value of a type is `build<Type>`: `buildRoleSummary(role)` says what comes out, its parameter says what goes in, and it sits next to the type it builds. When a second source for the same type appears, the source joins the name (`buildRoleSummaryFromRole`). `to<Type>` is not used: that name belongs to the type, and a function's name is a verb.
+
+| Layer | Verb | Example |
+|---|---|---|
+| Repository | `list`, `find`, `read`, `create`, `update`, `remove`, then the set and the filter | `listEmployeeRolesByEmployee`, `readActiveUser`, `createSalesOrder` |
+| Service | the decision, in the domain's words | `getRolesByEmployee`, `approveOldestPendingSalesOrder` |
+| Endpoint | the operation, short; the controller scopes it | `list`, `byId`, `byEmployee`, `create` |
+| Specification | the condition, as a predicate | `forEmployee`, `pendingFulfillment` |
+| Guard | `parse<Field>` | `parseEmployeeId` |
+| Hook | `use<What>`, with `<what>QueryKey` and `<what>QueryOptions` beside it; a mutation is `use<Verb><What>` | `useActiveUserRoles`, `useCreateOrder` |
 
 ## Removing a rule you have outgrown
 

@@ -10,6 +10,7 @@
  *   node scripts/e2e.mjs --cli ../create-netsuite-project   # a CLI checkout (its dist/index.js must be built) or the entry file itself
  *   node scripts/e2e.mjs                                     # the published CLI, through npx create-netsuite-project@latest
  *   node scripts/e2e.mjs --keep                              # leave the scratch project in place for inspection
+ *                                                            # (then: node scripts/checkSnippets.mjs --project <it> --keep to look at the expanded snippets)
  *   node scripts/e2e.mjs --netsuite-api ../netsuite-api/amerilux-netsuite-api-0.1.0.tgz
  *                                                            # install @amerilux/netsuite-api from a packed tarball (npm pack in its checkout)
  *                                                            # instead of the registry, to check the template against an unpublished version
@@ -238,6 +239,10 @@ const leftoverTokens = listFiles(projectDir)
     .filter((file) => /\.(ts|tsx|js|cjs|mjs|json|md|xml|css|html|example|code-snippets)$/.test(file) || file === '.gitignore' || file === '.npmrc')
     .filter((file) => readFileSync(path.join(projectDir, file), 'utf8').includes('{{'));
 assertEqual(leftoverTokens, [], 'no template tokens left behind');
+
+// Every VS Code snippet, expanded into this scaffold as one coherent addition, must generate, typecheck and pass
+// the structure check (scripts/checkSnippets.mjs); the check restores the scaffold afterwards.
+run('node', [path.join(templatesRoot, 'scripts', 'checkSnippets.mjs'), '--project', projectDir], templatesRoot);
 
 if (!keep) rmSync(projectDir, { recursive: true, force: true });
 console.log('\nEnd-to-end scaffold check passed.');

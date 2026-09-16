@@ -81,9 +81,10 @@ function readController(controllerPath) {
     if (!source.includes(`export type ${endpointsTypeName} = typeof ${name}Endpoints;`)) {
         report(`${controllerPath}: must export type ${endpointsTypeName} = typeof ${name}Endpoints; server code that calls the controller is built from it.`);
     }
-    const entryPoint = source.match(/^export const (\w+) = (defineRestlet|defineSuitelet)\(\s*\{([\s\S]*?)\}\s*,\s*(\w+)\s*\)/m);
+    // The declaration, the endpoints and, optionally, the options object (authorize) after them.
+    const entryPoint = source.match(/^export const (\w+) = (defineRestlet|defineSuitelet)\(\s*\{([\s\S]*?)\}\s*,\s*(\w+)\s*(?:,\s*\{[\s\S]*?\}\s*)?\)/m);
     if (!entryPoint) {
-        report(`${controllerPath}: must end with \`export const post = defineRestlet({ name, scriptId, deployId }, ${name}Endpoints);\` or \`export const onRequest = defineSuitelet(...)\`.`);
+        report(`${controllerPath}: must end with \`export const post = defineRestlet({ name, scriptId, deployId }, ${name}Endpoints);\` or \`export const onRequest = defineSuitelet(...)\`; options such as authorize may follow the endpoints.`);
         return undefined;
     }
     const [, exportName, defineFunction, declaration, endpointsArgument] = entryPoint;

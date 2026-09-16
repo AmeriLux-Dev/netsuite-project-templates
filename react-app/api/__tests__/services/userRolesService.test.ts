@@ -7,11 +7,11 @@ const { listEmployeeRolesByEmployee } = vi.hoisted(() => ({
 }));
 vi.mock('../../src/repositories/employeeRolesRepository', () => ({ listEmployeeRolesByEmployee }));
 
-import { getRolesByEmployee, toRoleSummary } from '../../src/services/userRolesService';
+import { getRolesByEmployee, buildRoleSummary } from '../../src/services/userRolesService';
 
-describe('toRoleSummary', () => {
+describe('buildRoleSummary', () => {
     it('keeps the role id and name only', () => {
-        expect(toRoleSummary({ roleId: 3, employeeId: 7, roleName: 'Administrator' })).toEqual({ roleId: 3, roleName: 'Administrator' });
+        expect(buildRoleSummary({ roleId: 3, employeeId: 7, roleName: 'Administrator' })).toEqual({ roleId: 3, roleName: 'Administrator' });
     });
 });
 

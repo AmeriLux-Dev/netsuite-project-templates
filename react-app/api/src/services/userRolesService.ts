@@ -10,13 +10,13 @@ import { listEmployeeRolesByEmployee } from '../repositories/employeeRolesReposi
 /** A role as the service hands it up: id and name, nothing else. */
 export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;
 
-export function toRoleSummary(role: EmployeeRole): RoleSummary {
+export function buildRoleSummary(role: EmployeeRole): RoleSummary {
     return { roleId: role.roleId, roleName: role.roleName };
 }
 
 /** Every role assigned to the employee, sorted by name. */
 export function getRolesByEmployee(employeeId: number): RoleSummary[] {
     return listEmployeeRolesByEmployee(employeeId)
-        .map(toRoleSummary)
+        .map(buildRoleSummary)
         .sort((left, right) => left.roleName.localeCompare(right.roleName));
 }
