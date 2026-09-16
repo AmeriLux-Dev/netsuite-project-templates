@@ -299,7 +299,8 @@ function expandSnippet(body, { fileNameBase, values = {} }) {
 /**
  * One coherent addition to the scaffold, built from every snippet. A `file` step expands a snippet into a new
  * file (its name is what VS Code derives the names from). An `into` step expands a fragment snippet and inserts it
- * into a file written earlier: before the first line matching `beforeLine`, at the first match of `at` (a
+ * into a file written earlier: before the first line matching `beforeLine` (or the last one matching
+ * `beforeLastLine`, indented one level further when `indent` says so), at the first match of `at` (a
  * zero-width regex, with `prefix` written first), or appended. An `edit` step is what the snippet's description
  * tells the developer to do by hand (extend an import, call the guard). Paths and values may carry the template
  * tokens {{prefix}}, {{appName}} and {{appTitle}}; they are rendered from the scaffold's netsuite.ts.
@@ -307,7 +308,29 @@ function expandSnippet(body, { fileNameBase, values = {} }) {
 const scenario = [
     // The record behind everything: a sales order with its transaction number and customer.
     { snippet: 'nspModel', file: 'api/src/models/SalesOrder.ts', values: { 5: 'One sales order: its transaction number and customer' } },
-    { snippet: 'nspModelField', into: 'api/src/models/SalesOrder.ts', beforeLine: /^}$/, values: { 1: 'entity', 2: 'customerId', 3: 'number' } },
+    { snippet: 'nspModelField', into: 'api/src/models/SalesOrder.ts', beforeLine: /^}$/, indent: '    ', values: { 1: 'entity', 2: 'customerId', 3: 'number' } },
+    // A custom record with every decorator fragment, its subrecord class and its line class; a model with every decorator at once; an abstract base.
+    { snippet: 'nspModelSubrecordClass', file: 'api/src/models/FulfillmentContentAddress.ts', values: { 1: 'Where the content ships' } },
+    { snippet: 'nspModelLine', file: 'api/src/models/FulfillmentContentLine.ts', values: { 1: 'customrecord_fulfillment_content_line', 2: 'custrecord_line_id', 4: 'custrecord_line_content', 6: 'custrecord_line_item' } },
+    { snippet: 'nspModelBase', file: 'api/src/models/TransactionBase.ts' },
+    { snippet: 'nspModelAllDecorators', file: 'api/src/models/Invoice.ts', values: { 1: 'SalesOrder', 5: 'createdfrom', 6: 'salesOrder', 7: 'id', 8: 'tranId' } },
+    { snippet: 'nspModel', file: 'api/src/models/FulfillmentContent.ts', values: { 1: "'customrecord_fulfillment_content'", 2: 'custrecord_content_sku', 3: 'sku', 4: 'string', 5: 'One content line of a fulfillment' } },
+    { edit: 'api/src/models/FulfillmentContent.ts', find: "import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';", replace: "import { ExcludeFromDefaultSelect, Field, InternalId, NotMapped, ParentId, ReadOnly, RecordType, SetFirst, Sublist, Subrecord, Transform } from '@amerilux/netsuite-repository';\nimport type { EmployeeRole } from './EmployeeRole';\nimport type { FulfillmentContentAddress } from './FulfillmentContentAddress';\nimport type { FulfillmentContentLine } from './FulfillmentContentLine';\n\nexport function trimText(value: unknown): string {\n    return String(value ?? '').trim();\n}" },
+    { edit: 'api/src/models/FulfillmentContent.ts', find: '    id!: number;\n\n', replace: '' },
+    { snippet: 'nspModelInternalId', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_key', 2: 'custrecord_content_key', 3: 'contentKey' } },
+    { snippet: 'nspModelParentId', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_fulfillment', 2: 'fulfillmentId' } },
+    { snippet: 'nspModelFieldText', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_status' } },
+    { snippet: 'nspModelFieldSelect', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_location', 2: 'locationId' } },
+    { snippet: 'nspModelFieldSplit', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_state', 2: 'custrecord_content_status', 3: 'state' } },
+    { snippet: 'nspModelReadOnly', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_total', 2: 'total' } },
+    { snippet: 'nspModelReference', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_packer', 2: 'packer', 3: 'EmployeeRole', 4: 'roleId', 5: 'roleName' } },
+    { snippet: 'nspModelSubrecord', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'shipaddresslist', 2: 'shippingAddress', 3: 'Where the content ships', 4: 'FulfillmentContentAddress' } },
+    { snippet: 'nspModelSublist', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'recmachcustrecord_line_content', 2: 'customrecord_fulfillment_content', 3: 'recmachcustrecord_line_content', 5: 'FulfillmentContentLine' } },
+    { snippet: 'nspModelTransform', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 2: 'custrecord_content_po' } },
+    { snippet: 'nspModelNotMapped', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ' },
+    { snippet: 'nspModelSetFirst', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_carrier', 2: 'string | null' } },
+    { snippet: 'nspModelExcludeFromDefaultSelect', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_notes' } },
+
     { snippet: 'nspSpecification', file: 'api/src/specifications/salesOrdersSpecifications.ts', values: { 2: 'forCustomer', 3: 'customerId', 5: 'customerId', 6: 'sales orders' } },
     { snippet: 'nspRepository', file: 'api/src/repositories/salesOrdersRepository.ts', values: { 3: 'forCustomer', 4: 'sales orders', 5: 'Every sales order of the customer, in no particular order', 6: 'customerId' } },
     { edit: 'api/src/repositories/salesOrdersRepository.ts', find: "import type { SalesOrder } from '../types/models.gen';", replace: "import type { SalesOrder, SalesOrderCreate, SalesOrderPatch } from '../types/models.gen';" },
@@ -425,10 +448,10 @@ function insertFragment(source, fragment, step) {
     const normalized = source.replace(/\r\n/g, '\n');
     const fragmentLines = fragment.split('\n');
     let result;
-    if (step.beforeLine) {
+    if (step.beforeLine || step.beforeLastLine) {
         const lines = normalized.split('\n');
-        const anchor = lines.findIndex((line) => step.beforeLine.test(line));
-        if (anchor === -1) throw new Error(`${step.into}: no line matches ${step.beforeLine} for ${step.snippet}.`);
+        const anchor = step.beforeLine ? lines.findIndex((line) => step.beforeLine.test(line)) : lines.findLastIndex((line) => step.beforeLastLine.test(line));
+        if (anchor === -1) throw new Error(`${step.into}: no line matches ${step.beforeLine ?? step.beforeLastLine} for ${step.snippet}.`);
         // Where the developer would put the cursor: the anchor line's indentation, plus one level when the step says so.
         const indentation = lines[anchor].match(/^\s*/)[0] + (step.indent ?? '');
         lines.splice(anchor, 0, ...fragmentLines.map((line) => (line === '' ? line : indentation + line)));

@@ -291,7 +291,7 @@
     "nspModel": {
         "scope": "typescript",
         "prefix": "nspModel",
-        "description": "api/src/models/<Record>.ts: the model class named from the file name; the property `id` is the internal id. NetsuiteRecordType lists the native record types; a custom record uses its id string. Then npm run generate.",
+        "description": "api/src/models/<Record>.ts: the model class named from the file name; the property `id` is the internal id. NetsuiteRecordType lists the native record types; a custom record uses its id string. nspModelAllDecorators shows every decorator once. Then npm run generate.",
         "body": [
             "import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';",
             "",
@@ -302,7 +302,199 @@
             "@RecordType(${1:NetsuiteRecordType.SALES_ORDER})",
             "export class ${TM_FILENAME_BASE} {",
             "    id!: number;",
-            "    @Field('${2:tranid}') ${3:tranId}!: ${4:string};",
+            "",
+            "    @Field('${2:tranid}')",
+            "    ${3:tranId}!: ${4:string};",
+            "}",
+            ""
+        ]
+    },
+    "nspModelAllDecorators": {
+        "scope": "typescript",
+        "prefix": "nspModelAllDecorators",
+        "description": "api/src/models/<Record>.ts with every decorator once, each with a comment: keep what the record needs, delete the rest. Includes a subrecord class and a sublist line class in the same file. Then npm run generate.",
+        "body": [
+            "import { ExcludeFromDefaultSelect, Field, InternalId, NetsuiteRecordType, NotMapped, ParentId, ReadOnly, RecordType, SetFirst, Sublist, Subrecord, Transform } from '@amerilux/netsuite-repository';",
+            "import type { ${1:Customer} } from './${1}';",
+            "",
+            "/**",
+            " * ${TM_FILENAME_BASE}, with every decorator once as a starting point: keep what the record needs, delete the rest.",
+            " * Three rules cover most of a model. Every declared property is a mapped field (@NotMapped opts out). Every body",
+            " * field is writable (@ReadOnly opts out); its field id is the lowercased property name, and @Field renames it. A",
+            " * property typed as another model class is a reference, a subrecord or a sublist, and the join comes from the",
+            " * declared type. Run `npm run generate` after editing.",
+            " */",
+            "",
+            "/** A transform runs on every value read. It must be an exported function: the build step imports it by name. */",
+            "export function ${2:trimText}(value: unknown): string {",
+            "    return String(value ?? '').trim();",
+            "}",
+            "",
+            "/** A subrecord is a plain class without @RecordType; the field id comes from the property that uses it. */",
+            "export class ${TM_FILENAME_BASE}Address {",
+            "    addr1!: string | null;",
+            "",
+            "    city!: string | null;",
+            "",
+            "    /** Written before the other fields of the subrecord, because NetSuite recomputes dependants when it changes. */",
+            "    @SetFirst()",
+            "    state!: string | null;",
+            "",
+            "    zip!: string | null;",
+            "}",
+            "",
+            "/** A sublist line is a record type of its own; @ParentId() marks the field N/query joins the lines through. */",
+            "@RecordType('${3:transactionline}')",
+            "export class ${TM_FILENAME_BASE}Line {",
+            "    /** The internal id when it is not the property `id`: queried as `id`, written through the sublist field `line`. */",
+            "    @InternalId()",
+            "    @Field('line', { queryFieldId: 'id' })",
+            "    lineId!: number;",
+            "",
+            "    @ParentId()",
+            "    @Field('transaction')",
+            "    @ReadOnly()",
+            "    ${TM_FILENAME_BASE/^(.)/${1:/downcase}/}Id!: number;",
+            "",
+            "    @Field('item')",
+            "    itemId!: number;",
+            "",
+            "    quantity!: number;",
+            "",
+            "    @ReadOnly()",
+            "    amount!: number;",
+            "}",
+            "",
+            "@RecordType(${4:NetsuiteRecordType.INVOICE}, {",
+            "    // queryType: 'transaction',   the N/query root when it is not the record type",
+            "    // filter: [{ fieldId: 'mainline', operator: 'IS', values: [true] }],   conditions applied to every query",
+            "    // setName: 'documents',   the set on dbContext; the default is the pluralized class name",
+            "    // coerce: true,   coerce query values to the declared types",
+            "    // updater: { ... },   default RecordUpdaterOptions for every write",
+            "})",
+            "export class ${TM_FILENAME_BASE} {",
+            "    /** The internal id: the property `id`, read-only, by convention. */",
+            "    id!: number;",
+            "",
+            "    /** @Field renames a field whose id is not the lowercased property name. */",
+            "    @Field('tranid')",
+            "    tranId!: string;",
+            "",
+            "    /** The type comes from the property: string, number, boolean, Date; string[] or number[] for a multiselect. */",
+            "    tranDate!: Date;",
+            "",
+            "    memo?: string | null;",
+            "",
+            "    /** A select field with no reference behind it: N/query compares select and key fields through ANY_OF, so the type is declared. */",
+            "    @Field('location', { type: 'select' })",
+            "    locationId!: number | null;",
+            "",
+            "    /** Queried under one field id, written under another. */",
+            "    @Field('orderstatus', { queryFieldId: 'status' })",
+            "    status!: string;",
+            "",
+            "    /** The display text of a select field, read-only; the select field itself is the property above. */",
+            "    @Field({ queryFieldId: 'status', text: true })",
+            "    statusText!: string;",
+            "",
+            "    /** A reference: the select field behind it is `<reference>Id`, and the Pick is the projection, so only those fields are read. */",
+            "    /** @Reference() is needed only to name another select property, a targetKey, or load: 'separate' for a join N/query lacks. */",
+            "    @Field('${5:entity}')",
+            "    ${6:customer}Id!: number;",
+            "    ${6}?: Pick<${1}, '${7:id}' | '${8:companyName}'>;",
+            "",
+            "    /** Excluded from writes. */",
+            "    @Field('foreigntotal')",
+            "    @ReadOnly()",
+            "    total!: number;",
+            "",
+            "    /** Left out of the default select; include() brings it back for one query. */",
+            "    @ExcludeFromDefaultSelect()",
+            "    @Field('custbody_notes')",
+            "    notes!: string | null;",
+            "",
+            "    /** Transformed on every read. */",
+            "    @Transform(${2})",
+            "    @Field('otherrefnum')",
+            "    poNumber!: string | null;",
+            "",
+            "    /** Not a field: stays on the type for a value filled in after the query. */",
+            "    @NotMapped()",
+            "    displayLabel?: string;",
+            "",
+            "    /** A subrecord; clearListField names the list field cleared before an edit. */",
+            "    @Subrecord({ clearListField: 'shipaddresslist' })",
+            "    shippingAddress!: ${TM_FILENAME_BASE}Address;",
+            "",
+            "    /** The lines, reached from the transaction root through transactionlines, without the header line. */",
+            "    @Sublist('item', { queryType: 'transaction', relationship: 'transactionlines', filter: [{ fieldId: 'mainline', operator: 'IS', values: [false] }] })",
+            "    lines!: ${TM_FILENAME_BASE}Line[];",
+            "}",
+            ""
+        ]
+    },
+    "nspModelLine": {
+        "scope": "typescript",
+        "prefix": "nspModelLine",
+        "description": "api/src/models/<Owner>Line.ts: a sublist line, a record type of its own with @InternalId() and @ParentId(); names come from the file name. The owner declares the sublist with nspModelSublist.",
+        "body": [
+            "import { Field, InternalId, ParentId, ReadOnly, RecordType } from '@amerilux/netsuite-repository';",
+            "",
+            "/**",
+            " * One line of ${TM_FILENAME_BASE/(.*)Line$/$1/}: a sublist line is a record type of its own. The owner declares the sublist",
+            " * (nspModelSublist); @ParentId() marks the field N/query joins the lines through.",
+            " */",
+            "@RecordType('${1:transactionline}')",
+            "export class ${TM_FILENAME_BASE} {",
+            "    /** The internal id when it is not the property `id`: queried as `id`, written through the sublist field `${2}`. */",
+            "    @InternalId()",
+            "    @Field('${2:line}', { queryFieldId: 'id' })",
+            "    ${3:lineId}!: number;",
+            "",
+            "    @ParentId()",
+            "    @Field('${4:transaction}')",
+            "    @ReadOnly()",
+            "    ${5:${TM_FILENAME_BASE/^(.)(.*)Line$/${1:/downcase}$2/}Id}!: number;",
+            "",
+            "    @Field('${6:item}')",
+            "    ${7:itemId}!: number;",
+            "",
+            "    ${8:quantity}!: ${9:number};",
+            "}",
+            ""
+        ]
+    },
+    "nspModelSubrecordClass": {
+        "scope": "typescript",
+        "prefix": "nspModelSubrecordClass",
+        "description": "api/src/models/<Owner>Address.ts: a subrecord class, a plain class without @RecordType, named from the file name. The owner uses it through nspModelSubrecord.",
+        "body": [
+            "import { SetFirst } from '@amerilux/netsuite-repository';",
+            "",
+            "/** ${1:What the subrecord holds}: a plain class without @RecordType; the field id comes from the property that uses it. */",
+            "export class ${TM_FILENAME_BASE} {",
+            "    ${2:addr1}!: ${3:string | null};",
+            "",
+            "    /** Written before the other fields, because NetSuite recomputes dependants when it changes. */",
+            "    @SetFirst()",
+            "    ${4:state}!: string | null;",
+            "}",
+            ""
+        ]
+    },
+    "nspModelBase": {
+        "scope": "typescript",
+        "prefix": "nspModelBase",
+        "description": "api/src/models/<Name>.ts: an abstract mapping base without @RecordType, named from the file name. Each record type that extends it queries its own type and inherits these fields.",
+        "body": [
+            "import { Field } from '@amerilux/netsuite-repository';",
+            "",
+            "/** Common fields of ${1:every transaction}. No @RecordType, so no record set of its own: each record type that extends it queries its own type and inherits these. */",
+            "export abstract class ${TM_FILENAME_BASE} {",
+            "    id!: number;",
+            "",
+            "    @Field('${2:tranid}')",
+            "    ${3:tranId}!: string;",
             "}",
             ""
         ]
@@ -312,7 +504,145 @@
         "prefix": "nspModelField",
         "description": "One more field on a model. The field id defaults to the lowercased property name; @Field renames it.",
         "body": [
-            "@Field('${1:fieldid}') ${2:property}!: ${3:string};"
+            "@Field('${1:fieldid}')",
+            "${2:property}!: ${3:string};"
+        ]
+    },
+    "nspModelFieldText": {
+        "scope": "typescript",
+        "prefix": "nspModelFieldText",
+        "description": "One more property: the display text of a select field, read-only. A second property holds the select field itself.",
+        "body": [
+            "/** The display text of the ${1:status} select field, read-only; a second property holds the select field itself. */",
+            "@Field({ queryFieldId: '${1}', text: true })",
+            "${2:${1}Text}!: string;"
+        ]
+    },
+    "nspModelFieldSelect": {
+        "scope": "typescript",
+        "prefix": "nspModelFieldSelect",
+        "description": "One more property: a select field with no reference behind it. N/query compares select and key fields through ANY_OF, so the type is declared.",
+        "body": [
+            "/** A select field with no reference behind it: N/query compares it through ANY_OF, so the type is declared. */",
+            "@Field('${1:location}', { type: 'select' })",
+            "${2:${1}Id}!: number | null;"
+        ]
+    },
+    "nspModelFieldSplit": {
+        "scope": "typescript",
+        "prefix": "nspModelFieldSplit",
+        "description": "One more property: a field NetSuite queries under one id and writes under another.",
+        "body": [
+            "/** Queried as ${2} and written as ${1}. */",
+            "@Field('${1:orderstatus}', { queryFieldId: '${2:status}' })",
+            "${3:${2}}!: string;"
+        ]
+    },
+    "nspModelReadOnly": {
+        "scope": "typescript",
+        "prefix": "nspModelReadOnly",
+        "description": "One more property, excluded from writes. Add ReadOnly to the import.",
+        "body": [
+            "@Field('${1:foreigntotal}')",
+            "@ReadOnly()",
+            "${2:total}!: ${3:number};"
+        ]
+    },
+    "nspModelInternalId": {
+        "scope": "typescript",
+        "prefix": "nspModelInternalId",
+        "description": "The internal id when it is not the property `id` (a sublist line, a query type keyed by another field). Add InternalId to the import.",
+        "body": [
+            "/** The internal id when it is not the property `id`: queried as ${2}, written through ${1}. */",
+            "@InternalId()",
+            "@Field('${1:line}', { queryFieldId: '${2:id}' })",
+            "${3:lineId}!: number;"
+        ]
+    },
+    "nspModelParentId": {
+        "scope": "typescript",
+        "prefix": "nspModelParentId",
+        "description": "On a line or child class: the property holding the parent record's internal id, the field the rows are joined through. Add ParentId and ReadOnly to the import.",
+        "body": [
+            "/** The parent record's internal id: the field the rows are joined through. */",
+            "@ParentId()",
+            "@Field('${1:transaction}')",
+            "@ReadOnly()",
+            "${2:transactionId}!: number;"
+        ]
+    },
+    "nspModelReference": {
+        "scope": "typescript",
+        "prefix": "nspModelReference",
+        "description": "A reference to another record: the select field named <reference>Id, and the reference typed as a Pick of the target (its projection). Import the target type: import type { X } from './X'.",
+        "body": [
+            "/** The select field behind the reference, named <reference>Id so no @Reference() is needed. */",
+            "@Field('${1:entity}')",
+            "${2:customer}Id!: number;",
+            "/** The reference; the Pick is its projection. @Reference('${2}Id', { targetKey, load: 'separate', join: 'auto' }) for a match on another field or a join N/query lacks. */",
+            "${2}?: Pick<${3:Customer}, '${4:id}' | '${5:companyName}'>;"
+        ]
+    },
+    "nspModelSubrecord": {
+        "scope": "typescript",
+        "prefix": "nspModelSubrecord",
+        "description": "A subrecord property; the class is a plain class (nspModelSubrecordClass). clearListField names the list field cleared before an edit. Add Subrecord to the import and import the class.",
+        "body": [
+            "/** ${3:What it holds}; the list field is cleared before an edit. */",
+            "@Subrecord({ clearListField: '${1:shipaddresslist}' })",
+            "${2:shippingAddress}!: ${4:TransactionAddress};"
+        ]
+    },
+    "nspModelSublist": {
+        "scope": "typescript",
+        "prefix": "nspModelSublist",
+        "description": "A sublist property; the line class is a record type (nspModelLine). queryType and relationship say how the lines are reached when the owner's root has no join to them. Add Sublist to the import and import the line class.",
+        "body": [
+            "/** The ${1} lines, reached from the ${2} root through ${3}, without the header line. */",
+            "@Sublist('${1:item}', { queryType: '${2:transaction}', relationship: '${3:transactionlines}', filter: [{ fieldId: 'mainline', operator: 'IS', values: [false] }] })",
+            "${4:lines}!: ${5:TransactionLine}[];"
+        ]
+    },
+    "nspModelTransform": {
+        "scope": "typescript",
+        "prefix": "nspModelTransform",
+        "description": "A property transformed on every read by an exported function of the same file (the build step imports it by name). Add Transform to the import.",
+        "body": [
+            "/** Transformed on every read by ${1}: `export function ${1}(value: unknown): ${3} { ... }` in this file. */",
+            "@Transform(${1:trimText})",
+            "@Field('${2:otherrefnum}')",
+            "${4:poNumber}!: ${3:string} | null;"
+        ]
+    },
+    "nspModelNotMapped": {
+        "scope": "typescript",
+        "prefix": "nspModelNotMapped",
+        "description": "A property that is not a field: it stays on the type for a value filled in after the query. Add NotMapped to the import.",
+        "body": [
+            "/** Not a field: stays on the type for a value filled in after the query. */",
+            "@NotMapped()",
+            "${1:displayLabel}?: ${2:string};"
+        ]
+    },
+    "nspModelSetFirst": {
+        "scope": "typescript",
+        "prefix": "nspModelSetFirst",
+        "description": "A field written before the others, because NetSuite recomputes dependants when it changes. Add SetFirst to the import.",
+        "body": [
+            "/** Written before the other fields, because NetSuite recomputes dependants when it changes. */",
+            "@SetFirst()",
+            "${1:state}!: ${2:string | null};"
+        ]
+    },
+    "nspModelExcludeFromDefaultSelect": {
+        "scope": "typescript",
+        "prefix": "nspModelExcludeFromDefaultSelect",
+        "description": "A field left out of the default select; include() brings it back for one query. Add ExcludeFromDefaultSelect to the import.",
+        "body": [
+            "/** Left out of the default select; include() brings it back for one query. */",
+            "@ExcludeFromDefaultSelect()",
+            "@Field('${1:custbody_notes}')",
+            "${2:notes}!: ${3:string | null};"
         ]
     },
     "nspRepositoryLog": {

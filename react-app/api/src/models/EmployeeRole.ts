@@ -9,7 +9,13 @@ import { Field, InternalId, RecordType } from '@amerilux/netsuite-repository';
  */
 @RecordType('employeerolesforsearch')
 export class EmployeeRole {
-    @InternalId() @Field('role') roleId!: number;
-    @Field('entity') employeeId!: number;
-    @Field({ queryFieldId: 'role', text: true }) roleName!: string;
+    @InternalId()
+    @Field('role')
+    roleId!: number;
+
+    @Field('entity')
+    employeeId!: number;
+
+    @Field({ queryFieldId: 'role', text: true })
+    roleName!: string;
 }
