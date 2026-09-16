@@ -291,7 +291,7 @@
     "nspModel": {
         "scope": "typescript",
         "prefix": "nspModel",
-        "description": "api/src/models/<Record>.ts: the model class named from the file name; the property `id` is the internal id. NetsuiteRecordType lists the native record types; a custom record uses its id string. nspModelAllDecorators shows every decorator once. Then npm run generate.",
+        "description": "api/src/models/<Record>.ts: the model class named from the file name; the property `id` is the internal id. NetsuiteRecordType lists the native record types; a custom record uses its id string. nspHelpModel shows every decorator once. Then npm run generate.",
         "body": [
             "import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';",
             "",
@@ -309,10 +309,10 @@
             ""
         ]
     },
-    "nspModelAllDecorators": {
+    "nspHelpModel": {
         "scope": "typescript",
-        "prefix": "nspModelAllDecorators",
-        "description": "api/src/models/<Record>.ts with every decorator once, each with a comment: keep what the record needs, delete the rest. Includes a subrecord class and a sublist line class in the same file. Then npm run generate.",
+        "prefix": "nspHelpModel",
+        "description": "Help: api/src/models/<Record>.ts with every decorator once, each with a comment, so the options are in view. Keep what the record needs, delete the rest. Includes a subrecord class and a sublist line class in the same file. Then npm run generate.",
         "body": [
             "import { ExcludeFromDefaultSelect, Field, InternalId, NetsuiteRecordType, NotMapped, ParentId, ReadOnly, RecordType, SetFirst, Sublist, Subrecord, Transform } from '@amerilux/netsuite-repository';",
             "import type { ${1:Customer} } from './${1}';",
