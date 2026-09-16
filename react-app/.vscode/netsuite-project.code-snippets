@@ -2,7 +2,7 @@
     "nspControllerRestlet": {
         "scope": "typescript",
         "prefix": "nspControllerRestlet",
-        "description": "api/src/controllers/<name>Controller.ts as a Restlet: shapes, endpoints, script declaration; name and ids come from the file name. Next: nspSdfRestlet in netsuite/Objects, npm run generate, then nspHookWith.",
+        "description": "api/src/controllers/<name>Controller.ts as a Restlet: shapes, endpoints, script declaration; name and ids come from the file name. Next: nspObjectRestlet in netsuite/Objects, npm run generate, then nspHookQueryWith.",
         "body": [
             "/**",
             " * @NApiVersion 2.1",
@@ -48,7 +48,7 @@
     "nspControllerSuitelet": {
         "scope": "typescript",
         "prefix": "nspControllerSuitelet",
-        "description": "api/src/controllers/<name>Controller.ts as a Suitelet; name and ids come from the file name. Drop `browser: false` when the browser calls it. Next: nspSdfSuitelet in netsuite/Objects, npm run generate, then nspRepoSuitelet or nspHookWith.",
+        "description": "api/src/controllers/<name>Controller.ts as a Suitelet; name and ids come from the file name. Drop `browser: false` when the browser calls it. Next: nspObjectSuitelet in netsuite/Objects, npm run generate, then nspRepositorySuitelet or nspHookQueryWith.",
         "body": [
             "/**",
             " * @NApiVersion 2.1",
@@ -92,10 +92,10 @@
             ""
         ]
     },
-    "nspShapes": {
+    "nspControllerShapes": {
         "scope": "typescript",
-        "prefix": "nspShapes",
-        "description": "Request and response shapes for one more endpoint, above defineEndpoints. Every type in a controller is exported. Then nspEndpoint inside defineEndpoints.",
+        "prefix": "nspControllerShapes",
+        "description": "Request and response shapes for one more endpoint, above defineEndpoints. Every type in a controller is exported. Then nspControllerEndpoint inside defineEndpoints.",
         "body": [
             "export interface ${1:ById}Request {",
             "    ${2:id}: ${3:number};",
@@ -108,10 +108,10 @@
             ""
         ]
     },
-    "nspEndpoint": {
+    "nspControllerEndpoint": {
         "scope": "typescript",
-        "prefix": "nspEndpoint",
-        "description": "One more endpoint inside defineEndpoints: unpack the request, call the service with plain arguments, shape the response. Its shapes come from nspShapes.",
+        "prefix": "nspControllerEndpoint",
+        "description": "One more endpoint inside defineEndpoints: unpack the request, call the service with plain arguments, shape the response. Its shapes come from nspControllerShapes.",
         "body": [
             "/** ${7:What it answers}. */",
             "${1:byId}: (request: ${2:${1/^(.)/${1:/upcase}/}Request}): ${3:${1/^(.)/${1:/upcase}/}Response} => {",
@@ -120,9 +120,9 @@
             "},"
         ]
     },
-    "nspParse": {
+    "nspControllerParse": {
         "scope": "typescript",
-        "prefix": "nspParse",
+        "prefix": "nspControllerParse",
         "description": "Guard for an id that comes off the wire, above defineEndpoints: a 400 instead of a query for NaN. Add ApiError to the import from @amerilux/netsuite-api/server and call parse<Id>(request.<id>) in the handler.",
         "body": [
             "/** The wire promises a number; a caller that sends something else gets a 400, not a query for NaN. */",
@@ -136,9 +136,9 @@
             ""
         ]
     },
-    "nspAuthorize": {
+    "nspControllerAuthorize": {
         "scope": "typescript",
-        "prefix": "nspAuthorize",
+        "prefix": "nspControllerAuthorize",
         "description": "Options for the define call, as its third argument after the endpoints: `}, <name>Endpoints, { authorize });`. Runs before every handler. Add ApiError to the import.",
         "body": [
             "{",
@@ -152,7 +152,7 @@
     "nspService": {
         "scope": "typescript",
         "prefix": "nspService",
-        "description": "api/src/services/<subject>Service.ts: plain arguments in, a type the service declares out, built by build<Model>Summary. Nothing in a service names a controller. Next: nspRepo for the repository it calls, nspTestService.",
+        "description": "api/src/services/<subject>Service.ts: plain arguments in, a type the service declares out, built by build<Model>Summary. Nothing in a service names a controller. Next: nspRepository for the repository it calls, nspTestService.",
         "body": [
             "import type { ${1:${TM_FILENAME_BASE/^(.)|(ies)Service$|(ss|x|z|ch|sh)esService$|s?Service$/${1:/upcase}${2:+y}$3/g}} } from '../types/models.gen';",
             "import { ${2:repositoryFunction} } from '../repositories/${3:${TM_FILENAME_BASE/(.*)Service$/$1/}}Repository';",
@@ -176,10 +176,13 @@
             ""
         ]
     },
-    "nspRepo": {
+    "nspRepository": {
         "scope": "typescript",
-        "prefix": "nspRepo",
-        "description": "api/src/repositories/<set>Repository.ts reading through dbContext with a specification; set and model names come from the file name. Next: nspSpec, nspRepoCreate / nspRepoUpdate for writes, nspTestRepo.",
+        "prefix": [
+            "nspRepository",
+            "nspRepo"
+        ],
+        "description": "api/src/repositories/<set>Repository.ts reading through dbContext with a specification; set and model names come from the file name. Next: nspSpecification, nspRepositoryCreate / nspRepositoryUpdate for writes, nspTestRepository.",
         "body": [
             "import type { ${1:${TM_FILENAME_BASE/^(.)|(ies)Repository$|(ss|x|z|ch|sh)esRepository$|s?Repository$/${1:/upcase}${2:+y}$3/g}} } from '../types/models.gen';",
             "import { dbContext } from './generated/context.gen';",
@@ -197,9 +200,9 @@
             ""
         ]
     },
-    "nspRepoCreate": {
+    "nspRepositoryCreate": {
         "scope": "typescript",
-        "prefix": "nspRepoCreate",
+        "prefix": "nspRepositoryCreate",
         "description": "One more function in a dbContext repository: a create through withTracking(). Add <Model>Create to the import from ../types/models.gen.",
         "body": [
             "/** ${1:Creates one} and returns it with its new id. The tracker lives only inside this function. */",
@@ -209,9 +212,9 @@
             ""
         ]
     },
-    "nspRepoUpdate": {
+    "nspRepositoryUpdate": {
         "scope": "typescript",
-        "prefix": "nspRepoUpdate",
+        "prefix": "nspRepositoryUpdate",
         "description": "One more function in a dbContext repository: a one-call update through withTracking() (load, patch, save; throws on failure). Add <Model>Patch to the import from ../types/models.gen. Narrow the name to what changes.",
         "body": [
             "/** ${1:What changes}. */",
@@ -221,10 +224,10 @@
             ""
         ]
     },
-    "nspRepoSuitelet": {
+    "nspRepositorySuitelet": {
         "scope": "typescript",
-        "prefix": "nspRepoSuitelet",
-        "description": "api/src/repositories/<name>Repository.ts calling another controller of this application through its Suitelet client; the controller name comes from the file name and its types are imported as types only. Next: nspTestRepoSuitelet.",
+        "prefix": "nspRepositorySuitelet",
+        "description": "api/src/repositories/<name>Repository.ts calling another controller of this application through its Suitelet client; the controller name comes from the file name and its types are imported as types only. Next: nspTestRepositorySuitelet.",
         "body": [
             "import { createSuiteletClient } from '@amerilux/netsuite-api/server';",
             "import type { ${1:ByIdResponse}, ${2:${TM_FILENAME_BASE/^(.)(.*)Repository$/${1:/upcase}$2/}Endpoints} } from '../controllers/${3:${TM_FILENAME_BASE/(.*)Repository$/$1/}}Controller';",
@@ -244,9 +247,9 @@
             ""
         ]
     },
-    "nspRepoModule": {
+    "nspRepositoryModule": {
         "scope": "typescript",
-        "prefix": "nspRepoModule",
+        "prefix": "nspRepositoryModule",
         "description": "api/src/repositories/<source>Repository.ts reading a NetSuite module (N/runtime, N/file, ...): a repository, because only a repository touches N/*. Returns a type of its own.",
         "body": [
             "import * as ${1:runtime} from 'N/${1}';",
@@ -267,9 +270,12 @@
             ""
         ]
     },
-    "nspSpec": {
+    "nspSpecification": {
         "scope": "typescript",
-        "prefix": "nspSpec",
+        "prefix": [
+            "nspSpecification",
+            "nspSpec"
+        ],
         "description": "api/src/specifications/<set>Specifications.ts: one predicate per builder, no decisions. The model name is inferred from the file name; type over it if the guess is wrong.",
         "body": [
             "import type { Specification } from '@amerilux/netsuite-repository';",
@@ -301,25 +307,31 @@
             ""
         ]
     },
-    "nspField": {
+    "nspModelField": {
         "scope": "typescript",
-        "prefix": "nspField",
+        "prefix": "nspModelField",
         "description": "One more field on a model. The field id defaults to the lowercased property name; @Field renames it.",
         "body": [
             "@Field('${1:fieldid}') ${2:property}!: ${3:string};"
         ]
     },
-    "nspLog": {
+    "nspRepositoryLog": {
         "scope": "typescript",
-        "prefix": "nspLog",
+        "prefix": [
+            "nspRepositoryLog",
+            "nspLog"
+        ],
         "description": "A log line in the shape the lint rule wants: a fixed title, the ids in the details object. Needs `import * as log from 'N/log'`, so a repository or _host file.",
         "body": [
             "log.${1|debug,audit,error|}('${2:what happened}', { ${3:id} });"
         ]
     },
-    "nspAppIds": {
+    "nspNetsuiteIds": {
         "scope": "typescript",
-        "prefix": "nspAppIds",
+        "prefix": [
+            "nspNetsuiteIds",
+            "nspAppIds"
+        ],
         "description": "One more export in netsuite.ts: ids no controller or model owns (a saved search, a list value, a script parameter). Exported constants with `as const`, camelCase keys.",
         "body": [
             "/** ${1:What these ids reach}. */",
@@ -395,9 +407,9 @@
             ""
         ]
     },
-    "nspTestRepo": {
+    "nspTestRepository": {
         "scope": "typescript",
-        "prefix": "nspTestRepo",
+        "prefix": "nspTestRepository",
         "description": "api/__tests__/repositories/<set>Repository.test.ts: the repository against a fake dbContext whose set records the specifications applied to it. Set and model names come from the file name.",
         "body": [
             "import { beforeEach, describe, expect, it, vi } from 'vitest';",
@@ -454,9 +466,9 @@
             ""
         ]
     },
-    "nspTestRepoSuitelet": {
+    "nspTestRepositorySuitelet": {
         "scope": "typescript",
-        "prefix": "nspTestRepoSuitelet",
+        "prefix": "nspTestRepositorySuitelet",
         "description": "api/__tests__/repositories/<name>Repository.test.ts for a repository that is a Suitelet client: a fake client, and the script it is built for. The controller name comes from the file name.",
         "body": [
             "import { beforeEach, describe, expect, it, vi } from 'vitest';",
@@ -496,7 +508,7 @@
     "nspTestHook": {
         "scope": "typescript",
         "prefix": "nspTestHook",
-        "description": "client/__tests__/<controller>Query.test.ts: the generated client and a query hook's options against a fake api client. Written for a hook with an argument (nspHookWith); for one without, drop the argument and compare the key directly.",
+        "description": "client/__tests__/<controller>Query.test.ts: the generated client and a query hook's options against a fake api client. Written for a hook with an argument (nspHookQueryWith); for one without, drop the argument and compare the key directly.",
         "body": [
             "import { describe, expect, it, vi } from 'vitest';",
             "",
@@ -533,10 +545,13 @@
             ""
         ]
     },
-    "nspHook": {
+    "nspHookQuery": {
         "scope": "typescript",
-        "prefix": "nspHook",
-        "description": "client/src/hooks/use<Name>.ts: a query hook for an endpoint that takes no request; names come from the file name. For an endpoint with a request use nspHookWith.",
+        "prefix": [
+            "nspHookQuery",
+            "nspHook"
+        ],
+        "description": "client/src/hooks/use<Name>.ts: a query hook for an endpoint that takes no request; names come from the file name. For an endpoint with a request use nspHookQueryWith.",
         "body": [
             "import { queryOptions, useQuery } from '@tanstack/react-query';",
             "import { ${1:controller} } from '@/api/index.gen';",
@@ -558,9 +573,12 @@
             ""
         ]
     },
-    "nspHookWith": {
+    "nspHookQueryWith": {
         "scope": "typescript",
-        "prefix": "nspHookWith",
+        "prefix": [
+            "nspHookQueryWith",
+            "nspHookWith"
+        ],
         "description": "client/src/hooks/use<Name>.ts: a query hook for an endpoint that takes a request; the argument is part of the key. Names come from the file name. Next: nspTestHook, nspPage.",
         "body": [
             "import { queryOptions, useQuery } from '@tanstack/react-query';",
@@ -582,9 +600,12 @@
             ""
         ]
     },
-    "nspMutation": {
+    "nspHookMutation": {
         "scope": "typescript",
-        "prefix": "nspMutation",
+        "prefix": [
+            "nspHookMutation",
+            "nspMutation"
+        ],
         "description": "client/src/hooks/use<Verb><Name>.ts: a mutation hook calling one endpoint, then refetching every query of that controller (their keys start with its name). The hook name comes from the file name.",
         "body": [
             "import { useMutation, useQueryClient } from '@tanstack/react-query';",
@@ -644,9 +665,12 @@
             ""
         ]
     },
-    "nspSdfRestlet": {
+    "nspObjectRestlet": {
         "scope": "xml",
-        "prefix": "nspSdfRestlet",
+        "prefix": [
+            "nspObjectRestlet",
+            "nspSdfRestlet"
+        ],
         "description": "netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml for a Restlet controller; ids and the script file come from the file name. Next: npm run generate.",
         "body": [
             "<restlet scriptid=\"${TM_FILENAME_BASE}\">",
@@ -674,9 +698,12 @@
             ""
         ]
     },
-    "nspSdfSuitelet": {
+    "nspObjectSuitelet": {
         "scope": "xml",
-        "prefix": "nspSdfSuitelet",
+        "prefix": [
+            "nspObjectSuitelet",
+            "nspSdfSuitelet"
+        ],
         "description": "netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml for a Suitelet controller; ids and the script file come from the file name. Remove <runasrole> unless the script must run as another role. Next: npm run generate.",
         "body": [
             "<suitelet scriptid=\"${TM_FILENAME_BASE}\">",

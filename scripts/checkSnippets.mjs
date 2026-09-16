@@ -307,12 +307,12 @@ function expandSnippet(body, { fileNameBase, values = {} }) {
 const scenario = [
     // The record behind everything: a sales order with its transaction number and customer.
     { snippet: 'nspModel', file: 'api/src/models/SalesOrder.ts', values: { 5: 'One sales order: its transaction number and customer' } },
-    { snippet: 'nspField', into: 'api/src/models/SalesOrder.ts', beforeLine: /^}$/, values: { 1: 'entity', 2: 'customerId', 3: 'number' } },
-    { snippet: 'nspSpec', file: 'api/src/specifications/salesOrdersSpecifications.ts', values: { 2: 'forCustomer', 3: 'customerId', 5: 'customerId', 6: 'sales orders' } },
-    { snippet: 'nspRepo', file: 'api/src/repositories/salesOrdersRepository.ts', values: { 3: 'forCustomer', 4: 'sales orders', 5: 'Every sales order of the customer, in no particular order', 6: 'customerId' } },
+    { snippet: 'nspModelField', into: 'api/src/models/SalesOrder.ts', beforeLine: /^}$/, values: { 1: 'entity', 2: 'customerId', 3: 'number' } },
+    { snippet: 'nspSpecification', file: 'api/src/specifications/salesOrdersSpecifications.ts', values: { 2: 'forCustomer', 3: 'customerId', 5: 'customerId', 6: 'sales orders' } },
+    { snippet: 'nspRepository', file: 'api/src/repositories/salesOrdersRepository.ts', values: { 3: 'forCustomer', 4: 'sales orders', 5: 'Every sales order of the customer, in no particular order', 6: 'customerId' } },
     { edit: 'api/src/repositories/salesOrdersRepository.ts', find: "import type { SalesOrder } from '../types/models.gen';", replace: "import type { SalesOrder, SalesOrderCreate, SalesOrderPatch } from '../types/models.gen';" },
-    { snippet: 'nspRepoCreate', into: 'api/src/repositories/salesOrdersRepository.ts', append: true, values: { 1: 'Creates a sales order' } },
-    { snippet: 'nspRepoUpdate', into: 'api/src/repositories/salesOrdersRepository.ts', append: true, values: { 1: 'Changes the fields of one sales order', 2: 'amend' } },
+    { snippet: 'nspRepositoryCreate', into: 'api/src/repositories/salesOrdersRepository.ts', append: true, values: { 1: 'Creates a sales order' } },
+    { snippet: 'nspRepositoryUpdate', into: 'api/src/repositories/salesOrdersRepository.ts', append: true, values: { 1: 'Changes the fields of one sales order', 2: 'amend' } },
 
     // The service both controllers call.
     { snippet: 'nspService', file: 'api/src/services/ordersService.ts', values: { 1: 'SalesOrder', 2: 'listSalesOrdersByCustomerId', 3: 'salesOrders', 4: 'sales orders', 5: 'tranId', 7: 'Every sales order of the customer, summarized', 8: 'getOrdersByCustomer', 9: 'customerId' } },
@@ -320,37 +320,37 @@ const scenario = [
     // The orders Restlet: a byCustomer endpoint from the file snippet, a create endpoint added with the fragments, a guard and authorize.
     { snippet: 'nspControllerRestlet', file: 'api/src/controllers/ordersController.ts', values: { 1: 'byCustomer', 2: 'getOrdersByCustomer', 3: 'SalesOrderSummary', 5: 'customerId', 7: 'orders', 8: 'a customer\'s sales orders' } },
     { edit: 'api/src/controllers/ordersController.ts', find: "import { defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';", replace: "import { ApiError, defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';" },
-    { snippet: 'nspParse', into: 'api/src/controllers/ordersController.ts', beforeLine: /^export const ordersEndpoints = defineEndpoints\(\{$/, values: { 1: 'customerId' } },
+    { snippet: 'nspControllerParse', into: 'api/src/controllers/ordersController.ts', beforeLine: /^export const ordersEndpoints = defineEndpoints\(\{$/, values: { 1: 'customerId' } },
     { edit: 'api/src/controllers/ordersController.ts', find: 'const customerId = request.customerId;', replace: 'const customerId = parseCustomerId(request.customerId);' },
-    { snippet: 'nspShapes', into: 'api/src/controllers/ordersController.ts', beforeLine: /^export const ordersEndpoints = defineEndpoints\(\{$/, values: { 1: 'Create', 2: 'customerId', 4: 'orders', 5: 'SalesOrderSummary' } },
-    { snippet: 'nspEndpoint', into: 'api/src/controllers/ordersController.ts', beforeLine: /^\}\);$/, indent: '    ', values: { 1: 'create', 4: 'customerId', 5: 'orders', 6: 'getOrdersByCustomer', 7: 'Creates nothing yet: answers the customer\'s orders' } },
-    { snippet: 'nspAuthorize', into: 'api/src/controllers/ordersController.ts', at: /(?<=, ordersEndpoints)(?=\);)/, prefix: ', ', values: { 1: "endpoint === 'create' && typeof request.customerId !== 'number'" } },
-    { snippet: 'nspSdfRestlet', file: 'netsuite/Objects/customscript_{{prefix}}_orders.xml', values: { 1: 'Orders', 2: 'Lists a customer\'s sales orders' } },
+    { snippet: 'nspControllerShapes', into: 'api/src/controllers/ordersController.ts', beforeLine: /^export const ordersEndpoints = defineEndpoints\(\{$/, values: { 1: 'Create', 2: 'customerId', 4: 'orders', 5: 'SalesOrderSummary' } },
+    { snippet: 'nspControllerEndpoint', into: 'api/src/controllers/ordersController.ts', beforeLine: /^\}\);$/, indent: '    ', values: { 1: 'create', 4: 'customerId', 5: 'orders', 6: 'getOrdersByCustomer', 7: 'Creates nothing yet: answers the customer\'s orders' } },
+    { snippet: 'nspControllerAuthorize', into: 'api/src/controllers/ordersController.ts', at: /(?<=, ordersEndpoints)(?=\);)/, prefix: ', ', values: { 1: "endpoint === 'create' && typeof request.customerId !== 'number'" } },
+    { snippet: 'nspObjectRestlet', file: 'netsuite/Objects/customscript_{{prefix}}_orders.xml', values: { 1: 'Orders', 2: 'Lists a customer\'s sales orders' } },
 
     // The orderTotals Suitelet (server-only), read by a repository through its Suitelet client.
     { snippet: 'nspControllerSuitelet', file: 'api/src/controllers/orderTotalsController.ts', values: { 1: 'byCustomer', 2: 'getOrdersByCustomer', 3: 'SalesOrderSummary', 4: 'orders', 5: 'customerId', 7: 'orders', 8: 'order totals per customer' } },
-    { snippet: 'nspSdfSuitelet', file: 'netsuite/Objects/customscript_{{prefix}}_order_totals.xml', values: { 1: 'Order Totals', 2: 'Totals per customer' } },
-    { snippet: 'nspRepoSuitelet', file: 'api/src/repositories/orderTotalsRepository.ts', values: { 1: 'ByCustomerResponse', 4: 'Order totals', 5: 'listOrderTotalsForCustomer', 6: 'customerId', 8: 'orders', 9: 'byCustomer' } },
+    { snippet: 'nspObjectSuitelet', file: 'netsuite/Objects/customscript_{{prefix}}_order_totals.xml', values: { 1: 'Order Totals', 2: 'Totals per customer' } },
+    { snippet: 'nspRepositorySuitelet', file: 'api/src/repositories/orderTotalsRepository.ts', values: { 1: 'ByCustomerResponse', 4: 'Order totals', 5: 'listOrderTotalsForCustomer', 6: 'customerId', 8: 'orders', 9: 'byCustomer' } },
 
     // A repository over a NetSuite module, with a log line.
-    { snippet: 'nspRepoModule', file: 'api/src/repositories/currentScriptRepository.ts', values: { 2: 'the running script', 3: 'CurrentScript', 4: 'id', 5: 'string', 6: 'readCurrentScript', 7: 'script', 8: 'getCurrentScript()', 9: 'script.id' } },
+    { snippet: 'nspRepositoryModule', file: 'api/src/repositories/currentScriptRepository.ts', values: { 2: 'the running script', 3: 'CurrentScript', 4: 'id', 5: 'string', 6: 'readCurrentScript', 7: 'script', 8: 'getCurrentScript()', 9: 'script.id' } },
     { edit: 'api/src/repositories/currentScriptRepository.ts', find: "import * as runtime from 'N/runtime';", replace: "import * as log from 'N/log';\nimport * as runtime from 'N/runtime';" },
-    { snippet: 'nspLog', into: 'api/src/repositories/currentScriptRepository.ts', beforeLine: /^\s+return \{ id: script\.id \};$/, values: { 2: 'script read', 3: 'id: script.id' } },
+    { snippet: 'nspRepositoryLog', into: 'api/src/repositories/currentScriptRepository.ts', beforeLine: /^\s+return \{ id: script\.id \};$/, values: { 2: 'script read', 3: 'id: script.id' } },
 
     // Ids no controller or model owns.
-    { snippet: 'nspAppIds', into: 'netsuite.ts', append: true, values: { 1: 'Saved searches the reports read', 2: 'savedSearches', 3: 'openOrders', 4: 'customsearch_{{prefix}}_open_orders' } },
+    { snippet: 'nspNetsuiteIds', into: 'netsuite.ts', append: true, values: { 1: 'Saved searches the reports read', 2: 'savedSearches', 3: 'openOrders', 4: 'customsearch_{{prefix}}_open_orders' } },
 
     // Tests, one per layer.
     { snippet: 'nspTestController', file: 'api/__tests__/controllers/ordersController.test.ts', values: { 1: 'SalesOrderSummary', 3: 'getOrdersByCustomer', 4: 'customerId', 6: 'byCustomer', 7: "{ tranId: 'SO1' }", 9: 'orders' } },
     { snippet: 'nspTestService', file: 'api/__tests__/services/ordersService.test.ts', values: { 1: 'SalesOrder', 2: 'listSalesOrdersByCustomerId', 3: 'customerId', 5: 'salesOrders', 6: 'getOrdersByCustomer', 7: 'the transaction number', 8: "{ id: 1, tranId: 'SO1', customerId: 7 }", 9: "{ tranId: 'SO1' }" } },
-    { snippet: 'nspTestRepo', file: 'api/__tests__/repositories/salesOrdersRepository.test.ts', values: { 3: 'listSalesOrdersByCustomerId', 4: "[{ id: 1, tranId: 'SO1', customerId: 7 }]", 6: 'the customer', 7: 'customerId' } },
-    { snippet: 'nspTestRepoSuitelet', file: 'api/__tests__/repositories/orderTotalsRepository.test.ts', values: { 2: 'byCustomer', 3: 'listOrderTotalsForCustomer', 4: 'customerId', 5: 'orders', 6: "[{ tranId: 'SO1' }]" } },
+    { snippet: 'nspTestRepository', file: 'api/__tests__/repositories/salesOrdersRepository.test.ts', values: { 3: 'listSalesOrdersByCustomerId', 4: "[{ id: 1, tranId: 'SO1', customerId: 7 }]", 6: 'the customer', 7: 'customerId' } },
+    { snippet: 'nspTestRepositorySuitelet', file: 'api/__tests__/repositories/orderTotalsRepository.test.ts', values: { 2: 'byCustomer', 3: 'listOrderTotalsForCustomer', 4: 'customerId', 5: 'orders', 6: "[{ tranId: 'SO1' }]" } },
     { snippet: 'nspTestHook', file: 'client/__tests__/ordersQuery.test.ts', values: { 2: 'byCustomer', 3: '{ customerId: 7, orders: [] }', 4: 'ordersByCustomer', 8: '{ customerId: 7 }' } },
 
     // The client: two query hooks, a mutation, a page and its route.
-    { snippet: 'nspHookWith', file: 'client/src/hooks/useOrdersByCustomer.ts', values: { 1: 'orders', 2: 'byCustomer', 3: 'customerId', 5: 'Every sales order of the customer' } },
-    { snippet: 'nspHook', file: 'client/src/hooks/useSignedInUserRoles.ts', values: { 1: 'user', 2: 'roles', 3: 'The caller and every role assigned to them' } },
-    { snippet: 'nspMutation', file: 'client/src/hooks/useCreateOrder.ts', values: { 1: 'orders', 2: 'create', 3: 'Creates a sales order' } },
+    { snippet: 'nspHookQueryWith', file: 'client/src/hooks/useOrdersByCustomer.ts', values: { 1: 'orders', 2: 'byCustomer', 3: 'customerId', 5: 'Every sales order of the customer' } },
+    { snippet: 'nspHookQuery', file: 'client/src/hooks/useSignedInUserRoles.ts', values: { 1: 'user', 2: 'roles', 3: 'The caller and every role assigned to them' } },
+    { snippet: 'nspHookMutation', file: 'client/src/hooks/useCreateOrder.ts', values: { 1: 'orders', 2: 'create', 3: 'Creates a sales order' } },
     { snippet: 'nspPage', file: 'client/src/pages/OrdersPage.tsx', values: { 1: 'useOrdersByCustomer', 2: 'The customer\'s sales orders', 4: '7', 5: 'Orders' } },
     { snippet: 'nspRoute', file: 'client/src/routes/orders.tsx' },
 ];
