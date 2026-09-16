@@ -343,7 +343,7 @@
             "    zip!: string | null;",
             "}",
             "",
-            "/** A sublist line is a record type of its own; @ParentId() marks the field N/query joins the lines through. */",
+            "/** A sublist line is a record type like any other; what differs is the key (`line`, queried as `id`) and @ParentId(), the field N/query joins the lines through. */",
             "@RecordType('${3:transactionline}')",
             "export class ${TM_FILENAME_BASE}Line {",
             "    /** The internal id when it is not the property `id`: queried as `id`, written through the sublist field `line`. */",
@@ -433,41 +433,10 @@
             ""
         ]
     },
-    "nspModelLine": {
-        "scope": "typescript",
-        "prefix": "nspModelLine",
-        "description": "api/src/models/<Owner>Line.ts: a sublist line, a record type of its own with @InternalId() and @ParentId(); names come from the file name. The owner declares the sublist with nspModelSublist.",
-        "body": [
-            "import { Field, InternalId, ParentId, ReadOnly, RecordType } from '@amerilux/netsuite-repository';",
-            "",
-            "/**",
-            " * One line of ${TM_FILENAME_BASE/(.*)Line$/$1/}: a sublist line is a record type of its own. The owner declares the sublist",
-            " * (nspModelSublist); @ParentId() marks the field N/query joins the lines through.",
-            " */",
-            "@RecordType('${1:transactionline}')",
-            "export class ${TM_FILENAME_BASE} {",
-            "    /** The internal id when it is not the property `id`: queried as `id`, written through the sublist field `${2}`. */",
-            "    @InternalId()",
-            "    @Field('${2:line}', { queryFieldId: 'id' })",
-            "    ${3:lineId}!: number;",
-            "",
-            "    @ParentId()",
-            "    @Field('${4:transaction}')",
-            "    @ReadOnly()",
-            "    ${5:${TM_FILENAME_BASE/^(.)(.*)Line$/${1:/downcase}$2/}Id}!: number;",
-            "",
-            "    @Field('${6:item}')",
-            "    ${7:itemId}!: number;",
-            "",
-            "    ${8:quantity}!: ${9:number};",
-            "}",
-            ""
-        ]
-    },
     "nspModelSubrecordClass": {
         "scope": "typescript",
         "prefix": "nspModelSubrecordClass",
-        "description": "api/src/models/<Owner>Address.ts: a subrecord class, a plain class without @RecordType, named from the file name. The owner uses it through nspModelSubrecord.",
+        "description": "api/src/models/<Owner>Address.ts: a subrecord class, named from the file name. A plain class without @RecordType is what makes the owner's property a subrecord (a record class would be read as a reference); a subrecord with a table of its own carries @RecordType and its own @InternalId(), and the owner then marks the property with @Subrecord() explicitly. The owner uses it through nspModelSubrecord.",
         "body": [
             "import { SetFirst } from '@amerilux/netsuite-repository';",
             "",
@@ -596,7 +565,7 @@
     "nspModelSublist": {
         "scope": "typescript",
         "prefix": "nspModelSublist",
-        "description": "A sublist property; the line class is a record type (nspModelLine). queryType and relationship say how the lines are reached when the owner's root has no join to them. Add Sublist to the import and import the line class.",
+        "description": "A sublist property. The line class is a record type like any other: nspModel with nspModelInternalId (the key is `line`, queried as `id`) and nspModelParentId (the field the lines are joined through). queryType and relationship say how the lines are reached when the owner's root has no join to them. Add Sublist to the import and import the line class.",
         "body": [
             "/** The ${1} lines, reached from the ${2} root through ${3}, without the header line. */",
             "@Sublist('${1:item}', { queryType: '${2:transaction}', relationship: '${3:transactionlines}', filter: [{ fieldId: 'mainline', operator: 'IS', values: [false] }] })",
