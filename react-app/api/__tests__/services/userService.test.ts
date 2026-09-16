@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RoleSummary } from '../../src/controllers/userRolesController';
+import type { RoleSummary } from '../../src/services/userRolesService';
 import type { ActiveUser } from '../../src/repositories/activeUserRepository';
 
 // The service is tested against mocked repositories: the session reader and the role lookup are fakes.
@@ -20,10 +20,9 @@ describe('getActiveUserRoles', () => {
         listRolesForEmployee.mockReturnValue([{ roleId: 3, roleName: 'Administrator' }, { roleId: 57, roleName: 'Data Warehouse Integrator' }]);
     });
 
-    it('looks the roles up for the session user and answers who they are, their login role and every role', () => {
+    it('looks the roles up for the session user and answers who they are, with their login role, and every role', () => {
         expect(getActiveUserRoles()).toEqual({
-            user: { id: 7, name: 'Ada Lovelace', email: 'ada@example.com' },
-            activeRoleId: 3,
+            user: { id: 7, name: 'Ada Lovelace', email: 'ada@example.com', roleId: 3 },
             roles: [{ roleId: 3, roleName: 'Administrator' }, { roleId: 57, roleName: 'Data Warehouse Integrator' }],
         });
         expect(listRolesForEmployee).toHaveBeenCalledWith(7);

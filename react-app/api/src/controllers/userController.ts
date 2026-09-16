@@ -5,17 +5,18 @@
  */
 
 import { defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
+import type { RoleSummary } from '../services/userRolesService';
 import { getActiveUserRoles } from '../services/userService';
-import type { RoleSummary } from './userRolesController';
 
 /**
  * The user controller: what it sends and receives, the endpoints that do it, and the script that
  * serves them. The shapes are the wire, not the record: a DTO is an entity type from
- * api/src/types/models.gen.ts, a Pick of one, or a composition of several, and carries nothing the
- * caller does not need. `npm run generate` copies them, with the endpoint signatures and the script
- * declaration, into client/src/api/user.gen.ts, the controller's own module in the client (reached
- * as `user` from @/api/index.gen); every type here is exported for that reason. A shape's name
- * carries no controller prefix: the module is scoped by controller already.
+ * api/src/types/models.gen.ts, a type a service returns, a Pick of one, or a composition of
+ * several, and carries nothing the caller does not need. `npm run generate` copies them, with the
+ * types they are built from, the endpoint signatures and the script declaration, into
+ * client/src/api/user.gen.ts, the controller's own module in the client (reached as `user` from
+ * @/api/index.gen); every type here is exported for that reason. A shape's name carries no
+ * controller prefix: the module is scoped by controller already.
  */
 
 /** The caller as the session knows them. */
@@ -34,13 +35,18 @@ export interface RolesResponse {
 }
 
 /**
- * One function per endpoint: its parameter is the request, its return value the response, and it
- * stays thin: call a service, return the result. Both types are written on the handler; the
- * generator reads them from there.
+ * One function per endpoint: its parameter is the request, its return value the response. It is the
+ * only code that knows the wire: it unpacks the request, calls a service with plain arguments, and
+ * shapes the reply from what the service returns. The reply is written out field by field even when
+ * the shapes coincide, so a field added to the service's type later does not reach the wire unasked.
+ * Both types are written on the handler; the generator reads them from there.
  */
 export const userEndpoints = defineEndpoints({
     /** The caller and every role assigned to them. Takes no request; the session says who is calling. */
-    roles: (): RolesResponse => getActiveUserRoles(),
+    roles: (): RolesResponse => {
+        const { user, roles } = getActiveUserRoles();
+        return { user: { id: user.id, name: user.name, email: user.email }, activeRoleId: user.roleId, roles };
+    },
 });
 
 /** The endpoint signatures as a type, for server code that calls this controller through the Suitelet client. */

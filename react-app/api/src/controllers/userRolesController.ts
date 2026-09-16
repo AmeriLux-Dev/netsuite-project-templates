@@ -4,9 +4,8 @@
  * @NModuleScope SameAccount
  */
 
-import type { EmployeeRole } from '../types/models.gen';
-import { defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
-import { getRolesByEmployee } from '../services/userRolesService';
+import { ApiError, defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
+import { getRolesByEmployee, type RoleSummary } from '../services/userRolesService';
 
 /**
  * The userRoles controller, and the reason it is a Suitelet: its deployment runs as Administrator
@@ -18,10 +17,11 @@ import { getRolesByEmployee } from '../services/userRolesService';
  * employee id. While the application is Administrator-only that is moot; before other roles are
  * granted the `user` Restlet, add an `authorize` option here that rejects an employee id other than
  * the caller's (read the session through a repository function).
+ *
+ * The wire shapes are this file's; the service's types (RoleSummary) are what they are built from.
+ * The endpoint is the only code that knows the wire: it checks what came off it, calls the
+ * service with plain arguments, and shapes the reply.
  */
-
-/** A role as the wire carries it: picked from the generated entity type so it follows the model. */
-export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;
 
 export interface ByEmployeeRequest {
     employeeId: number;
@@ -33,9 +33,21 @@ export interface ByEmployeeResponse {
     roles: RoleSummary[];
 }
 
+/** The wire promises a number; a caller that sends something else gets a 400, not a query for NaN. */
+function parseEmployeeId(requested: number | string | undefined): number {
+    const parsed = typeof requested === 'string' ? Number.parseInt(requested, 10) : requested;
+    if (parsed === undefined || Number.isNaN(parsed) || parsed <= 0) {
+        throw ApiError.badRequest('employeeId must be a positive whole number.', { employeeId: requested });
+    }
+    return parsed;
+}
+
 export const userRolesEndpoints = defineEndpoints({
-    /** Every role assigned to the employee; the service answers 400 for a bad id. */
-    byEmployee: (request: ByEmployeeRequest): ByEmployeeResponse => getRolesByEmployee(request),
+    /** Every role assigned to the employee; 400 for a bad id. */
+    byEmployee: (request: ByEmployeeRequest): ByEmployeeResponse => {
+        const employeeId = parseEmployeeId(request.employeeId);
+        return { employeeId, roles: getRolesByEmployee(employeeId) };
+    },
 });
 
 /** What api/src/repositories/userRolesRepository.ts is built from: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)`. */

@@ -7,19 +7,7 @@ const { listEmployeeRolesByEmployee } = vi.hoisted(() => ({
 }));
 vi.mock('../../src/repositories/employeeRolesRepository', () => ({ listEmployeeRolesByEmployee }));
 
-import { ApiError } from '@amerilux/netsuite-api/server';
-import { getRolesByEmployee, parseEmployeeId, toRoleSummary } from '../../src/services/userRolesService';
-
-describe('parseEmployeeId', () => {
-    it('parses strings and rejects anything that is not a positive whole number as a 400', () => {
-        expect(parseEmployeeId('12')).toBe(12);
-        expect(parseEmployeeId(3)).toBe(3);
-        for (const bad of ['abc', '0', -1, undefined]) {
-            expect(() => parseEmployeeId(bad)).toThrow(ApiError);
-            expect(() => parseEmployeeId(bad)).toThrow(expect.objectContaining({ status: 400 }));
-        }
-    });
-});
+import { getRolesByEmployee, toRoleSummary } from '../../src/services/userRolesService';
 
 describe('toRoleSummary', () => {
     it('keeps the role id and name only', () => {
@@ -37,18 +25,15 @@ describe('getRolesByEmployee', () => {
     });
 
     it('queries by the id and answers the roles sorted by name', () => {
-        expect(getRolesByEmployee({ employeeId: 7 })).toEqual({
-            employeeId: 7,
-            roles: [
-                { roleId: 3, roleName: 'Administrator' },
-                { roleId: 57, roleName: 'Data Warehouse Integrator' },
-            ],
-        });
+        expect(getRolesByEmployee(7)).toEqual([
+            { roleId: 3, roleName: 'Administrator' },
+            { roleId: 57, roleName: 'Data Warehouse Integrator' },
+        ]);
         expect(listEmployeeRolesByEmployee).toHaveBeenCalledWith(7);
     });
 
-    it('rejects a bad id before querying', () => {
-        expect(() => getRolesByEmployee({ employeeId: 0 })).toThrow(expect.objectContaining({ status: 400 }));
-        expect(listEmployeeRolesByEmployee).not.toHaveBeenCalled();
+    it('answers an empty list for an employee with no roles', () => {
+        listEmployeeRolesByEmployee.mockReturnValue([]);
+        expect(getRolesByEmployee(8)).toEqual([]);
     });
 });

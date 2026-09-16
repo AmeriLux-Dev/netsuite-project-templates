@@ -3,5 +3,5 @@
   "outDir": "client/src/api",
   "scriptsOutFile": "api/src/scripts.gen.ts",
   "typeImports": { "@amerilux/netsuite-api/server": "@amerilux/netsuite-api/client" },
-  "inlineTypes": { "../types/models.gen": "api/src/types/models.gen.ts" }
+  "inlineTypes": { "../types/models.gen": "api/src/types/models.gen.ts", "../services/*": "api/src/services/*.ts" }
 }

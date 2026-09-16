@@ -188,7 +188,7 @@ const clientIndex = readFileSync(path.join(projectDir, 'client', 'src', 'api', '
 assertEqual(clientIndex.includes("export * as user from './user.gen';") && clientIndex.includes("export * as userRoles from './userRoles.gen';"), true, 'generate re-exports every controller module from the client index');
 const userModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'user.gen.ts'), 'utf8');
 assertEqual(/export const api = createApiClient<Endpoints>\(\{ kind: 'restlet', scriptId: 'customscript_demo_user', deployId: 'customdeploy_demo_user' \}\);/.test(userModule), true, 'generate writes the user client from the controller\'s declaration');
-assertEqual(userModule.includes("import type { RoleSummary } from './userRoles.gen';"), true, 'generate imports a sibling controller\'s type from its module');
+assertEqual(userModule.includes("export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;") && userModule.includes('export interface EmployeeRole {'), true, 'generate copies the service type the controller names, and the entity type it is built on, into its module');
 const userRolesModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'userRoles.gen.ts'), 'utf8');
 assertEqual(userRolesModule.includes('createApiClient'), false, 'generate writes no client for the server-only userRoles Suitelet');
 assertEqual(userRolesModule.includes('export interface EmployeeRole {'), true, 'generate copies the entity type the controller names into its module');

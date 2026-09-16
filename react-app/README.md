@@ -18,7 +18,7 @@ _What business process this serves, and for whom. Name the roles that use it and
 
 ## Dependencies
 
-- **Records and fields:** declared on the models in `api/src/models/`; each model names its record type and every field id it reads or writes. The generated entity types in `api/src/types/models.gen.ts` are what each controller's request and response shapes (declared in its controller file) pick from.
+- **Records and fields:** declared on the models in `api/src/models/`; each model names its record type and every field id it reads or writes. The generated entity types in `api/src/types/models.gen.ts` are what the services' types and each controller's request and response shapes (declared in its controller file) pick from.
 - **Scripts:** each controller declares its own script and deployment ids in its `defineRestlet` or `defineSuitelet` call. **Other ids:** `netsuite.ts` (the application's names, and any id no model or controller owns: script parameters, saved searches, list values).
 - **Packages:** `@amerilux/netsuite-api` (endpoints, the generated browser client), `@amerilux/netsuite-repository` (data access), `@amerilux/netsuite-wrapper` (instrumented `N/*` calls).
 - **Integrations and vendors:** _external systems, bundles or SuiteApps this depends on, and the accounts or credentials they need._

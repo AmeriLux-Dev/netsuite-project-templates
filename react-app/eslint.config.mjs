@@ -37,11 +37,17 @@ const recordAccessImports = [
     { group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
-// The request and response shapes live in controllers/<name>Controller.ts. The layers below take them as types
-// only: a service or repository that imported a controller's value would be pulling a deployed script into itself.
+// A service never sees a controller. Its inputs are plain arguments and its outputs are types it declares; the
+// controller imports those types to build its wire shapes and maps between the two. The dependency runs one way,
+// so any controller can call any service without naming another controller.
+const controllerImportsInServices = [
+    { group: ['**/controllers/**'], message: 'A service takes plain arguments and returns its own types; the controller imports them and maps the wire. Nothing in a service names a controller.' },
+];
+// A repository that calls another script of this application builds its client from that controller's Endpoints
+// type, as a type only: a repository that imported a controller's value would be pulling a deployed script into itself.
 const wireShapeImports = [
     { group: ['**/controllers/**', '!**/controllers/*Controller'], message: 'Below a controller, only controllers/<name>Controller.ts is visible, and only its types.' },
-    { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'The wire shapes come from controllers/<name>Controller.ts as types (import type); nothing below a controller imports its code.' },
+    { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'A controller file is seen below only as types (import type: its Endpoints type, for a Suitelet client); nothing below a controller imports its code.' },
 ];
 // The api package has one entry per side: api/ imports its server entry, client/ its client entry. The client never
 // imports from api/: `npm run generate` writes one module per controller (its types and its client) under
@@ -165,8 +171,9 @@ export default defineConfig([
         },
     },
     {
-        // An endpoint speaks the shapes declared next to it (an entity type, a Pick of one, or a composition) and calls a
-        // service. A controller declares its own script ids, so the id rule does not apply to it; the log rules still do.
+        // An endpoint speaks the shapes declared next to it (built from an entity type, a service's type, a Pick of one,
+        // or a composition), unpacks the request, calls a service with plain arguments and shapes the response. A
+        // controller declares its own script ids, so the id rule does not apply to it; the log rules still do.
         files: ['api/src/controllers/**/*.ts'],
         rules: {
             'no-restricted-syntax': ['error', ...logEntryShape],
@@ -175,7 +182,7 @@ export default defineConfig([
     },
     {
         files: ['api/src/services/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...wireShapeImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...controllerImportsInServices] }] },
     },
     {
         // The data-access layers inside api/: Specification in specifications, the context in repositories, the
