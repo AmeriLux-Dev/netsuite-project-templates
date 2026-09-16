@@ -125,14 +125,14 @@
     "nspModel": {
         "scope": "typescript",
         "prefix": "nspModel",
-        "description": "Model class under api/src/models/; the class name comes from the file name. `id` is the internal id. Run npm run generate after editing.",
+        "description": "Model class named from the file name; `id` is the internal id. NetsuiteRecordType lists the native record types; a custom record uses its id string instead.",
         "body": [
-            "import { Field, RecordType } from '@amerilux/netsuite-repository';",
+            "import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';",
             "",
-            "@RecordType('${1:customrecord_x}')",
+            "@RecordType(${1:NetsuiteRecordType.SALES_ORDER})",
             "export class ${TM_FILENAME_BASE} {",
             "    id!: number;",
-            "    @Field('${2:name}') ${3:name}!: ${4:string};",
+            "    @Field('${2:tranid}') ${3:tranId}!: ${4:string};",
             "}",
             ""
         ]

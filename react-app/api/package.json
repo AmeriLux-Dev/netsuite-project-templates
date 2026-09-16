@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@amerilux/netsuite-api": "^0.2.0",
-    "@amerilux/netsuite-repository": "^1.1.0",
+    "@amerilux/netsuite-repository": "^1.2.0",
     "@amerilux/netsuite-wrapper": "^0.4.0"
   },
   "devDependencies": {

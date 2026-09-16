@@ -87,7 +87,7 @@ Reusable query filters, used by repositories.
 
 ### src/models/
 
-One class per NetSuite record type: its record type id and the field ids the app uses.
+One class per NetSuite record type: its record type id and the field ids the app uses. A native record type is named through `NetsuiteRecordType` from `@amerilux/netsuite-repository` (`@RecordType(NetsuiteRecordType.SALES_ORDER)`), a custom record by its id (`@RecordType('customrecord_x')`). A model imports nothing from `N/*`: `npm run generate` evaluates it outside NetSuite.
 
 Written once, here; `npm run generate` reads them.
 
@@ -224,7 +224,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspService` | `api/src/services/<subject>Service.ts` |
 | `nspRepo` | `api/src/repositories/<subject>Repository.ts` |
 | `nspSpec` | `api/src/specifications/<record>Specifications.ts` |
-| `nspModel`, `nspField` | `api/src/models/<Record>.ts`, one more field |
+| `nspModel`, `nspField` | `api/src/models/<Record>.ts` (a native record type through `NetsuiteRecordType`, a custom record by its id string); one more field |
 | `nspHook` | `client/src/hooks/use<Name>.ts` |
 | `nspSdfRestlet`, `nspSdfSuitelet` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` |
 
