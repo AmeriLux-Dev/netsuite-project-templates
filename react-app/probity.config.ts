@@ -160,7 +160,17 @@ export default defineConfig({
 - Refactor with unchanged behaviour, configuration, documentation, generated files and .gitignore changes need no new test.
 - Test observable behaviour through the public surface: inputs to outputs, calls made to the record sets or the typed api client, envelope status and error. Never assert on DOM structure, CSS classes or internal state.
 - Repository functions use the generated dbContext; tests mock it with a fake whose sets record the specifications applied to them. Service tests mock the repository module.
-- Prefer extending an existing test file over a duplicate; prefer the lowest level that proves the behaviour.`,
+- Prefer extending an existing test file over a duplicate; prefer the lowest level that proves the behaviour.
+
+### Refactor or behaviour: how to decide
+
+Most writes here land on existing code, so decide by this procedure, in order:
+
+1. Would any existing assertion under __tests__/ have to change for the pending write to be correct, or does the write need an assertion that does not exist yet? If yes, it is a behaviour change: the red comes first. If no, and the affected tests have been observed passing in this session, it is a refactor.
+2. Refactors in this codebase look like: a check moving between layers with its test moving alongside (a wire check leaving a service for its controller); a service or repository function split into two with the same outputs; a DTO field renamed across the controller and the client; a repository function extracted from a query that already exists elsewhere; a hook's query options lifted out for reuse.
+3. Behaviour changes look like: a new endpoint; a new field on a response or a request; a new branch, default, sort order or validation in a service; a new specification predicate; a changed error status or message; a new call to the record sets or to another script.
+4. Existing behaviour being changed on purpose: the assertion changes first and is seen failing, then the code. Existing code with no test being refactored: a pinning test that passes as things stand comes first, then the refactor under it.
+5. A refactor is only a refactor while its tests were seen green in the recent session. A test run is the evidence; prose about intent is not. If the window shows neither a red nor a green for the files touched, ask for the tests to be run rather than guessing from the diff.`,
                 }),
             ],
         },
