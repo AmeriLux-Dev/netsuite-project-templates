@@ -1,5 +1,5 @@
 import type { Specification } from '@amerilux/netsuite-repository';
-import { EmployeeRoleFields, type EmployeeRole } from '../repositories/generated/EmployeeRole.gen';
+import { type EmployeeRole, EmployeeRoleFields as Fields } from '../repositories/generated/EmployeeRole.gen';
 
 /**
  * The query vocabulary for role assignments: one predicate per builder, no decisions. A repository
@@ -7,4 +7,4 @@ import { EmployeeRoleFields, type EmployeeRole } from '../repositories/generated
  */
 
 export const forEmployee = (employeeId: number): Specification<EmployeeRole> =>
-    (query) => query.where(EmployeeRoleFields.employeeId, '=', employeeId);
+    (query) => query.where(Fields.employeeId, '=', employeeId);

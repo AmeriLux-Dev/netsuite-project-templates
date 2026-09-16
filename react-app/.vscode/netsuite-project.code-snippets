@@ -101,7 +101,7 @@
         "body": [
             "import type { ${1:Model} } from '../types/models.gen';",
             "import { dbContext } from './generated/context.gen';",
-            "import { ${3:forX} } from '../specifications/${2:${TM_FILENAME_BASE/(.*)Repository$/$1/}}Specifications';",
+            "import { ${3:byId} } from '../specifications/${2:${TM_FILENAME_BASE/(.*)Repository$/$1/}}Specifications';",
             "",
             "export function ${4:list${1}By}(${5:value}: ${6:number}): ${1}[] {",
             "    return dbContext.${2}.list(${3}(${5}));",
@@ -112,13 +112,13 @@
     "nspSpec": {
         "scope": "typescript",
         "prefix": "nspSpec",
-        "description": "Specifications file for one record type: one predicate per builder.",
+        "description": "Specifications file for one record type: one predicate per builder. The model name is inferred from the file name (<set>Specifications.ts); type over it if the guess is wrong.",
         "body": [
             "import type { Specification } from '@amerilux/netsuite-repository';",
-            "import { ${1:Model}Fields, type ${1} } from '../repositories/generated/${1}.gen';",
+            "import { type ${1:${TM_FILENAME_BASE/^(.)|(ies)Specifications$|(ss|x|z|ch|sh)esSpecifications$|s?Specifications$/${1:/upcase}${2:+y}$3/g}}, ${1}Fields as Fields } from '../repositories/generated/${1}.gen';",
             "",
-            "export const ${2:forX} = (${3:value}: ${4:number}): Specification<${1}> =>",
-            "    (query) => query.where(${1}Fields.${5:field}, '=', ${3});",
+            "export const ${2:byId} = (${3:id}: ${4:number}): Specification<${1}> =>",
+            "    (query) => query.where(Fields.${5:id}, '=', ${3});",
             ""
         ]
     },

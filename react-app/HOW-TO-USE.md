@@ -217,6 +217,8 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 
 `netsuite-project.code-snippets`: VS Code snippets that emit each layer's file in the shape this project expects. In a new file type the prefix and accept the completion, then tab through the placeholders. Names and ids are derived from the file name wherever the layout fixes them.
 
+`settings.json`: puts snippets first in the suggest list and keeps the list closed while you tab through placeholders. An inline suggestion from an AI completion extension is a separate channel: press Escape to dismiss it, or Ctrl+Space to open the suggest list explicitly.
+
 | Prefix | File |
 |---|---|
 | `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts` |
