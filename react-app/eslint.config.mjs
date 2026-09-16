@@ -55,6 +55,11 @@ const wireShapeImports = [
 const apiPackageServerSide = [
     { group: ['@amerilux/netsuite-api/client', '@amerilux/netsuite-api/testing'], message: 'api/ imports @amerilux/netsuite-api/server. The client entry is for client/, the testing entry for vitest configs.' },
 ];
+// The generated client modules are the client's vocabulary: any file may name their types. Only a hook calls
+// their `api`, so pages, routes and components may import them as types only.
+const generatedClientModuleImports = [
+    { group: ['@/api/*', '**/src/api/*.gen'], allowTypeImports: true, message: 'A component never fetches. Use a hook. The generated module\'s types are fine here (import type).' },
+];
 const apiPackageClientSide = [
     { group: ['@amerilux/netsuite-api/server', '@amerilux/netsuite-api/testing'], message: 'client/ imports @amerilux/netsuite-api/client. The server entry runs in NetSuite.' },
     { group: ['api/**'], message: 'The client never imports from api/. Its types and clients are in the generated @/api/index.gen.' },
@@ -126,7 +131,8 @@ export default defineConfig([
     {
         // Layers. Endpoint calls service, service calls repository, repository composes specifications over the generated
         // sets. Client pages and routes call hooks, hooks call the generated client module. The client's whole view of
-        // the api is that generated module.
+        // the api is that generated module; pages and components may take its types (the rule for that is in the
+        // client block below, because this rule cannot tell a type import apart).
         files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}'],
         rules: {
             'import-x/no-restricted-paths': ['error', {
@@ -137,7 +143,6 @@ export default defineConfig([
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
                     { target: './api/src/models', from: ['./api/src/types', './api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], message: 'A model declares a record; it knows nothing about the wire or the layers above it.' },
-                    { target: ['./client/src/pages', './client/src/routes', './client/src/components'], from: './client/src/api', message: 'A component never fetches. Use a hook.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client', from: './api', message: 'The client never imports from api/; its view of the backend is the generated client module.' },
                     { target: './api', from: './client', message: 'The api never imports from client/.' },
@@ -159,6 +164,11 @@ export default defineConfig([
             'no-restricted-globals': ['error', { name: 'fetch', message: 'fetch lives in @amerilux/netsuite-api/client. Call a function of the generated @/api/index.gen.' }],
             '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageClientSide] }],
         },
+    },
+    {
+        // What renders takes the generated modules' types and nothing else from them: the `api` is called from a hook.
+        files: ['client/src/pages/**/*.{ts,tsx}', 'client/src/routes/**/*.{ts,tsx}', 'client/src/components/**/*.{ts,tsx}'],
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageClientSide, ...generatedClientModuleImports] }] },
     },
     {
         files: ['api/src/**/*.ts'],
