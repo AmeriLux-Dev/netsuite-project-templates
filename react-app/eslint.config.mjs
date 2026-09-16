@@ -29,12 +29,14 @@ const logEntryShape = [
 ];
 
 // Alerting strategy: no script sends its own alert. Rules over the span stream do, and recipients come from the README owners.
-const alertingImports = [{ group: ['N/email'], message: 'No script sends its own alert. Alert rules read the span stream.' }];
+// Business email (a PO to a vendor) is an outbound side effect like any other N/* call: a repository function sends it.
+const alertingImports = [{ group: ['N/email'], message: 'No script sends its own alert; alert rules read the span stream. Business email is sent from a repository function.' }];
 // Dependency governance: the shared package is imported by the data-access layers only (models, specifications, repositories).
 const sharedPackageImports = [{ group: ['@amerilux/netsuite-repository', '@amerilux/netsuite-repository/*'], message: 'Only api/src/models, api/src/specifications and api/src/repositories import the shared repository package.' }];
-// An endpoint never queries, a service never loads a record, and neither creates the context: a repository function does.
+// An endpoint never queries, a service never loads a record, and neither creates the context or reaches any other
+// NetSuite module: a repository function does.
 const recordAccessImports = [
-    { group: ['N/record', 'N/query', 'N/search'], message: 'Endpoints parse and reply, services decide. Only a repository touches records.' },
+    { group: ['N/*'], message: 'Endpoints parse and reply, services decide. Only a repository touches NetSuite (N/*).' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
 // A service never sees a controller. Its inputs are plain arguments and its outputs are types it declares; the
@@ -195,10 +197,14 @@ export default defineConfig([
         rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...controllerImportsInServices] }] },
     },
     {
-        // The data-access layers inside api/: Specification in specifications, the context in repositories, the
-        // package's decorators in models.
-        files: ['api/src/models/**/*.ts', 'api/src/specifications/**/*.ts', 'api/src/repositories/**/*.ts'],
+        // The data-access layers inside api/: Specification in specifications, the package's decorators in models.
+        files: ['api/src/models/**/*.ts', 'api/src/specifications/**/*.ts'],
         rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...apiPackageServerSide, ...wireShapeImports] }] },
+    },
+    {
+        // Repositories: the context, every N/* module the application touches, and outbound side effects such as email.
+        files: ['api/src/repositories/**/*.ts'],
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageServerSide, ...wireShapeImports] }] },
     },
     {
         // The app file: names and ids, imported by both api/ and client/.

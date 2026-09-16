@@ -147,9 +147,9 @@ export default defineConfig({
             ],
         },
 
-        /* Test-first for the pure logic the tests are designed around: services, repositories, and client hooks. */
+        /* Test-first for the pure logic the tests are designed around: controllers, services, repositories, and client hooks. */
         {
-            files: ['api/src/services/**', 'api/src/repositories/**', 'client/src/hooks/**'],
+            files: ['api/src/controllers/**', 'api/src/services/**', 'api/src/repositories/**', 'client/src/hooks/**'],
             rules: [
                 enforceTddExceptComponents({
                     instructions: (defaults) => `${defaults}
