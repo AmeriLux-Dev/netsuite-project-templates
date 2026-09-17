@@ -314,6 +314,18 @@
             ""
         ]
     },
+    "nspServiceJobStart": {
+        "scope": "typescript",
+        "prefix": "nspServiceJobStart",
+        "description": "One more function in a service: starts a job and answers the run id a page follows. Add `import { startJobRun } from '../repositories/jobRunRepository';` and `import { jobs } from '../scripts.gen';` at the top. The input shape is built here because a repository never names a service's type.",
+        "body": [
+            "/** Starts a run of ${1:closeOldOrders} and answers its id; the page follows the run by that id. */",
+            "export function start${2:ClosingOldOrders}(${3:olderThanDays}: ${4:number}): string {",
+            "    return startJobRun(jobs.${1}, { ${3} } satisfies ${5:CloseOldOrdersRequest});",
+            "}",
+            ""
+        ]
+    },
     "nspRepository": {
         "scope": "typescript",
         "prefix": [
@@ -404,28 +416,6 @@
             "export function ${6:read${3}}(): ${3} {",
             "    const ${7:value} = ${1}.${8:getCurrentUser()};",
             "    return { ${4}: ${9:Number(${7}.${4})} };",
-            "}",
-            ""
-        ]
-    },
-    "nspRepositoryJob": {
-        "scope": "typescript",
-        "prefix": "nspRepositoryJob",
-        "description": "api/src/repositories/<name>Repository.ts: starts a job and answers the run id. A service decides whether to start it; a controller hands the run id to the page, which polls it with useJobRun.",
-        "body": [
-            "import { jobs } from '../scripts.gen';",
-            "import { startJobRun } from './jobRunRepository';",
-            "import type { ${2:WorkRequest} } from '../services/${3:subject}Service';",
-            "",
-            "/**",
-            " * Starts the ${1:closeOldOrders} job. Data access, because starting one writes a run record and submits a",
-            " * task: a 409 comes back when every deployment of the job is already running, and the run id it answers is",
-            " * what the page polls until the run ends.",
-            " */",
-            "",
-            "/** Starts a run of ${1} and answers its run id. */",
-            "export function start${1/^(.)/${1:/upcase}/}(input: ${2}): string {",
-            "    return startJobRun(jobs.${1}, input);",
             "}",
             ""
         ]

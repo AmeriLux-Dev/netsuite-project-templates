@@ -153,7 +153,7 @@ ${[
     customRecordField(`${fieldPrefix}_job`, { label: 'Job', fieldType: 'TEXT', mandatory: true, help: 'The job&apos;s name, as its declaration gives it.' }),
     customRecordField(`${fieldPrefix}_status`, { label: 'Status', fieldType: 'TEXT', help: 'pending, running, complete or failed.' }),
     customRecordField(`${fieldPrefix}_stage`, { label: 'Stage', fieldType: 'TEXT' }),
-    customRecordField(`${fieldPrefix}_percent`, { label: 'Percent Complete', fieldType: 'INTEGER' }),
+    customRecordField(`${fieldPrefix}_percent`, { label: 'Percent Complete', fieldType: 'INTEGER', help: 'How far the stage being worked had got when the run was last read; 100 once the run ends.' }),
     customRecordField(`${fieldPrefix}_input`, { label: 'Input', fieldType: 'LONGTEXT', help: 'What the run was started with, as JSON.' }),
     customRecordField(`${fieldPrefix}_result`, { label: 'Result', fieldType: 'LONGTEXT', help: 'What the summarize stage returned, as JSON.' }),
     customRecordField(`${fieldPrefix}_errors`, { label: 'Errors', fieldType: 'LONGTEXT', help: 'Everything that failed in the run, as JSON.' }),
@@ -310,7 +310,7 @@ export const { getInputData, map, summarize } = defineJob({
 `;
 
 const jobRunRepository = `import { createJobRunStore } from '@amerilux/netsuite-api/server';
-import type { JobRef, JobRun } from '@amerilux/netsuite-api/server';
+import type { JobRef, JobRun, JobRunListEntry, JobRunQuery } from '@amerilux/netsuite-api/server';
 import { jobRuns } from '../scripts.gen';
 
 /**
@@ -334,6 +334,15 @@ export function findJobRun(runId: string): JobRun | null {
     return jobRunStore.read(runId);
 }
 
+/**
+ * The caller's own runs of one job, newest first: how a page finds the run it lost track of when someone
+ * refreshed or came back later. One query, no record loads, and the rows say what the record says — read
+ * the run by id for the truth about a task.
+ */
+export function listJobRuns(runQuery: JobRunQuery): JobRunListEntry[] {
+    return jobRunStore.findRuns(runQuery);
+}
+
 /** Run ids older than the given number of days: what the cleanup job works through. */
 export function listExpiredJobRunIds(olderThanDays: number): string[] {
     return jobRunStore.findExpired(olderThanDays);
@@ -344,9 +353,9 @@ export function deleteJobRun(runId: string): void {
 }
 `;
 
-const jobRunService = `import type { JobRun } from '@amerilux/netsuite-api/server';
+const jobRunService = `import type { JobRun, JobRunListEntry } from '@amerilux/netsuite-api/server';
 import { readActiveUser } from '../repositories/activeUserRepository';
-import { deleteJobRun, findJobRun, listExpiredJobRunIds } from '../repositories/jobRunRepository';
+import { deleteJobRun, findJobRun, listExpiredJobRunIds, listJobRuns } from '../repositories/jobRunRepository';
 
 /**
  * What may be known about a job run, and what the cleanup job removes. A run belongs to whoever
@@ -360,6 +369,14 @@ export function getJobRunForCaller(runId: string): JobRun | null {
     const run = findJobRun(runId);
     if (!run) return null;
     return run.startedBy !== null && run.startedBy === readActiveUser().id ? run : null;
+}
+
+/**
+ * The caller's recent runs of one job, newest first. A page asks for these when it has no run id: after a
+ * refresh, or when someone comes back to the page, this is how it picks up a run that is still going.
+ */
+export function listJobRunsForCaller(job: string, limit = 5): JobRunListEntry[] {
+    return listJobRuns({ job, startedBy: readActiveUser().id, limit });
 }
 
 /** The runs old enough to remove. */
@@ -380,7 +397,7 @@ const jobRunsController = `/**
 
 import { ApiError, defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
 import type { JobRunError, JobRunStage, JobRunStatus } from '@amerilux/netsuite-api/server';
-import { getJobRunForCaller } from '../services/jobRunService';
+import { getJobRunForCaller, listJobRunsForCaller } from '../services/jobRunService';
 
 /**
  * What a run of a job is doing. Every job's page polls this one endpoint, and \`result\` is whatever
@@ -389,6 +406,10 @@ import { getJobRunForCaller } from '../services/jobRunService';
  *
  * Starting a job is not here: that belongs to the controller of whatever the job is part of, so the
  * service can decide whether it should start at all.
+ *
+ * \`mine\` is how a page survives a refresh. The run id lives in the page, so it is gone when someone
+ * reloads or comes back later; the run itself does not, and it records who started it. A page with no run
+ * id asks for the caller's recent runs of the job and picks up where it left off.
  */
 
 export interface StatusRequest {
@@ -401,12 +422,35 @@ export interface StatusResponse {
     status: JobRunStatus;
     /** Where the run is, while NetSuite is working on it. */
     stage: JobRunStage | null;
-    percentComplete: number;
+    /** How far the stage being worked has got, 0 to 100; it starts again at each stage. */
+    stagePercentComplete: number;
+    /** Rows the stage being worked has finished and was given, or null once NetSuite has nothing to say about the task. */
+    itemsProcessed: number | null;
+    itemsTotal: number | null;
     startedAt: string | null;
     finishedAt: string | null;
     /** What the job's summarize stage returned, once it has; the hook gives it the job's own type. */
     result: unknown;
     errors: JobRunError[];
+}
+
+export interface MineRequest {
+    /** The job whose runs to answer, as its declaration names it. */
+    job: string;
+    /** How many, newest first. Five unless asked otherwise. */
+    limit?: number;
+}
+
+/** One run as the list gives it: enough to decide which to follow, without its input or result. */
+export interface RunSummary {
+    id: string;
+    status: JobRunStatus;
+    stage: JobRunStage | null;
+    stagePercentComplete: number;
+}
+
+export interface MineResponse {
+    runs: RunSummary[];
 }
 
 export const jobRunsEndpoints = defineEndpoints({
@@ -419,12 +463,21 @@ export const jobRunsEndpoints = defineEndpoints({
             job: run.job,
             status: run.status,
             stage: run.stage,
-            percentComplete: run.percentComplete,
+            stagePercentComplete: run.stagePercentComplete,
+            itemsProcessed: run.itemsProcessed,
+            itemsTotal: run.itemsTotal,
             startedAt: run.startedAt,
             finishedAt: run.finishedAt,
             result: run.result,
             errors: run.errors,
         };
+    },
+
+    /** The caller's own recent runs of one job, newest first: what a page with no run id asks for. */
+    mine: (request: MineRequest): MineResponse => {
+        if (typeof request.job !== 'string' || request.job === '') throw ApiError.badRequest('job is required.', { job: request.job });
+        const runs = listJobRunsForCaller(request.job, typeof request.limit === 'number' ? request.limit : undefined);
+        return { runs: runs.map((run) => ({ id: run.id, status: run.status, stage: run.stage, stagePercentComplete: run.stagePercentComplete })) };
     },
 });
 
@@ -439,6 +492,7 @@ export const post = defineRestlet({
 `;
 
 const useJobRunHook = `import { useQuery } from '@tanstack/react-query';
+import { ApiClientError } from '@amerilux/netsuite-api/client';
 import { jobRuns } from '@/api/index.gen';
 
 /**
@@ -446,19 +500,51 @@ import { jobRuns } from '@/api/index.gen';
  * starting endpoint gave it and asks about it every couple of seconds; the polling stops by itself
  * once the run is complete or failed, and the run says why it failed rather than going quiet.
  *
+ * The run id lives in the page, so a refresh loses it — the run does not. Called with the job's name and
+ * no run id, the hook asks the server for the caller's own runs of that job and picks up the one still
+ * going (\`resume: 'latest'\` takes the newest run whether it ended or not, for a page that should show
+ * the last result again). Keep the run id in the URL as well (\`?run=812\`) and a reload comes back to
+ * the same run even when the caller has several.
+ *
+ * A run that no longer exists — cleaned up after its retention days, or someone else's — is not an
+ * error: \`isMissing\` says so, and nothing is reported to the error banner, so the page can drop the
+ * stale id and start again.
+ *
  * The result is whatever that job's summarize stage returns, so the caller names the job's own type:
- * \`useJobRun<jobs.closeStaleOrders.Result>(runId)\`.
+ * \`useJobRun<jobs.closeOldOrders.Result>({ job: 'closeOldOrders', runId })\`.
  */
 
 const POLL_INTERVAL_MILLISECONDS = 2000;
+const NOT_FOUND = 404;
+
+export interface UseJobRunOptions {
+    /** The job's name, as its declaration gives it: what the hook asks for when it has no run id. */
+    job: string;
+    /** The run to follow, when the page knows it. */
+    runId?: string;
+    /** Which run to pick up when there is no run id: one still going (the default), or the newest either way. */
+    resume?: 'running' | 'latest' | 'none';
+}
 
 export const jobRunQueryKey = (runId: string | undefined) => ['jobRuns', 'status', runId] as const;
+export const jobRunsMineQueryKey = (job: string) => ['jobRuns', 'mine', job] as const;
 
-export function useJobRun<TResult = unknown>(runId: string | undefined) {
+export function useJobRun<TResult = unknown>({ job, runId, resume = 'running' }: UseJobRunOptions) {
+    // Only asked when the page has no run id of its own: one request, not a poll.
+    const mine = useQuery({
+        queryKey: jobRunsMineQueryKey(job),
+        enabled: runId === undefined && resume !== 'none',
+        queryFn: ({ signal }) => jobRuns.api.mine({ job }, { signal }),
+    });
+    const resumed = mine.data?.runs.find((run) => (resume === 'latest' ? true : run.status === 'pending' || run.status === 'running'));
+    const followedRunId = runId ?? resumed?.id;
+
     const query = useQuery({
-        queryKey: jobRunQueryKey(runId),
-        enabled: runId !== undefined,
-        queryFn: ({ signal }) => jobRuns.api.status({ runId: runId as string }, { signal }),
+        queryKey: jobRunQueryKey(followedRunId),
+        enabled: followedRunId !== undefined,
+        // A run that is gone is an answer, not a failure: the page is told, and the banner is not.
+        queryFn: ({ signal }) => jobRuns.api.status({ runId: followedRunId as string }, { signal, handleError: false }),
+        retry: (failureCount, error) => !(error instanceof ApiClientError && error.status === NOT_FOUND) && failureCount < 2,
         // A finished run never changes again; anything else is still worth asking about.
         refetchInterval: ({ state }) => (state.data?.status === 'complete' || state.data?.status === 'failed' ? false : POLL_INTERVAL_MILLISECONDS),
     });
@@ -466,8 +552,14 @@ export function useJobRun<TResult = unknown>(runId: string | undefined) {
     return {
         ...query,
         run,
+        /** The run being followed: the one the page named, or the one that was picked up. */
+        runId: followedRunId,
         /** True while the run exists and has not ended. */
         isRunning: run !== undefined && (run.status === 'pending' || run.status === 'running'),
+        /** True when there is no such run any more: cleaned up, or never the caller's. */
+        isMissing: query.error instanceof ApiClientError && query.error.status === NOT_FOUND,
+        /** True while the hook is still looking for a run to pick up. */
+        isResuming: mine.isPending && mine.fetchStatus === 'fetching',
         result: (run?.result ?? null) as TResult | null,
     };
 }
@@ -501,6 +593,9 @@ if (written.length === 0) {
     if (kept.length > 0) {
         console.log('Already there, left alone:');
         for (const file of kept) console.log(`  = ${file}`);
+        console.log('A file this script wrote in an earlier version is never changed. If one of those is older than');
+        console.log('this template (no mine endpoint in jobRunsController.ts, no job option on useJobRun), copy the');
+        console.log('newer version out of scripts/addJobs.mjs by hand.');
     }
     console.log('\nNext: `npm run generate`, then write a job under api/src/jobs (the nspJob snippet, or HOW-TO-USE.md, "Adding a job").');
     console.log('The run record and the cleanup script reach the account on the next `npm run deploy`.');

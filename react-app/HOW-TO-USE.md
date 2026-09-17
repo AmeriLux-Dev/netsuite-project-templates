@@ -86,6 +86,14 @@ A job is layered like a controller: a stage calls a service with plain arguments
 
 Export the stages the job has, and always `summarize`: that is where the run is closed.
 
+Many jobs answer nothing, because the records they write are the point. Such a job declares no `summarize` and still exports it, and the wrapper closes the run for it; one that wants a last word without a result (a notification when the run ends) declares `summarize` with a `void` return. Either way the run's result is `null`, and a page follows `status`, the progress fields and `errors` instead.
+
+A run carries two kinds of progress, because NetSuite reports them that way. `stagePercentComplete` is how far the
+**stage being worked** has got, so it counts to 100 in the map stage and starts again in the reduce stage;
+`itemsProcessed` and `itemsTotal` are that stage’s own row counts, which only go up. Say the counts out loud and
+keep the percent for the bar. The counts come from the task alone, so they are null once the run has ended or its task id
+has been purged; a finished run reads 100 percent and has its result, which is the better thing to show by then.
+
 ### src/events/
 
 Logic that belongs to a NetSuite record rather than to this application. Two folders, one file per script, named for what it fires on (`salesOrder.ts`):
@@ -135,7 +143,7 @@ Written once, here; `npm run generate` reads them.
 
 Generated from the declarations: `scripts` (every controller's script by controller name), `jobs` (every job, once the project has any) and `jobRuns` (the run record's ids, read from `netsuite-api.config.json`).
 
-A repository passes a `scripts` entry to `createSuiteletClient` and a `jobs` entry to `startJobRun`; `jobRuns` is what a job's declaration hands to `defineJob`.
+A repository passes a `scripts` entry to `createSuiteletClient`, and a service passes a `jobs` entry to `startJobRun`; `jobRuns` is what a job's declaration hands to `defineJob`.
 
 ### src/_host/
 
@@ -260,12 +268,13 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspControllerParse`, `nspControllerAuthorize` | a guard for an id that comes off the wire; the `authorize` option after the endpoints |
 | `nspJob` | `api/src/jobs/<name>.ts`: a Map/Reduce job as stages, with its script declaration |
 | `nspJobReduce`, `nspJobParameter` | one more stage: a reduce that gathers what map wrote; one more typed script parameter on the declaration |
+| `nspServiceJobStart` | one more function in a service: starts a job and answers the run id a page follows |
+| `nspServiceJobStart` | one more function in a service: starts a job and answers the run id |
 | `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript |
 | `nspService` | `api/src/services/<subject>Service.ts`, with its `build<Model>Summary` function |
 | `nspRepository`, `nspRepositoryCreate`, `nspRepositoryUpdate` | `api/src/repositories/<set>Repository.ts` over `dbContext`; one more create or update through `withTracking()` |
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
-| `nspRepositoryJob` | `api/src/repositories/<name>Repository.ts` starting a job and answering its run id |
 | `nspSpecification` | `api/src/specifications/<set>Specifications.ts` |
 | `nspModel`, `nspHelpModel`, `nspModelSubrecordClass`, `nspModelBase` | `api/src/models/<Record>.ts`: a record (a native type through `NetsuiteRecordType`, a custom record by its id string); the same with every decorator once and a comment on each, to trim down; a subrecord class (no `@RecordType` unless it has a table of its own); an abstract base. A sublist line is a record like any other: `nspModel` with `nspModelInternalId` and `nspModelParentId` |
 | `nspModelField`, `nspModelFieldText`, `nspModelFieldSelect`, `nspModelFieldSplit`, `nspModelReadOnly`, `nspModelInternalId`, `nspModelParentId`, `nspModelReference`, `nspModelSubrecord`, `nspModelSublist`, `nspModelTransform`, `nspModelNotMapped`, `nspModelSetFirst`, `nspModelExcludeFromDefaultSelect` | one more property on a model, one snippet per decorator; type `nspModel` to see every option |
@@ -392,7 +401,7 @@ A script that calls another controller of this application from the server (the 
 
 A job is one deployed Map/Reduce script: background work, started from the application or on a schedule. It answers nothing to whoever started it, so every run is a row in this application's run record, and that row is what a page follows.
 
-If the project has no `api/src/jobs` folder yet, run **`npm run add:jobs`** once. It adds the run record and its SDF object, the cleanup script that clears old runs daily, the repository and service that read a run, the `jobRuns` controller a page polls, the `useJobRun` hook that polls it, and the `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
+If the project has no `api/src/jobs` folder yet, run **`npm run add:jobs`** once. It adds the run record and its SDF object, the cleanup script that clears old runs daily, the repository and service that read a run, the `jobRuns` controller a page polls (its `status` and `mine` endpoints), the `useJobRun` hook that polls it and picks a run up again after a refresh, and the `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
 
 Then, in order:
 
@@ -438,27 +447,55 @@ Then, in order:
     ```
     `getInputData`'s first parameter is the run's input and `summarize`'s return type is its result: `npm run generate` reads the shapes from those two annotations, the way it reads an endpoint's request and response. The values carried between stages are JSON, so a stage says what it expects (`values: number[]` on a reduce stage, `JobSummary<Total>` on summarize) and the wrapper hands them back that way. A stage calls a service with plain arguments; `N/*` and repositories are as out of bounds here as in a controller.
 
-    Export the stages the job has, and `summarize` always: it is where the run is closed, and a job without it would leave every run of it looking unfinished. A stage exported but not declared throws when NetSuite calls it.
+    Export the stages the job has, and `summarize` always: it is where the run is closed, and a job without it would leave every run of it looking unfinished. A stage exported but not declared throws when NetSuite calls it — except `summarize`, which the wrapper closes the run with when the job declares none of its own. That is how a job that answers nothing is written:
+    ```typescript
+    export const { getInputData, map, summarize } = defineJob({ /* … */ }, {
+        getInputData: (input: ResendFailedRequest): number[] => listFailedOrderIds(input.since),
+        map: (orderId: number): void => resendOrder(orderId),
+    });
+    ```
+    Its run's result is `null`, and the page follows `status`, the progress fields and `errors`. A job that wants a last word without a result — a notification once the run ends — declares `summarize` with a `void` return instead.
 
     The declaration creates nothing. `deployments` is how many runs of the job can overlap, because NetSuite runs one instance of a deployment at a time: add a second deployment (the same id plus `_2`) for a job two people may start at once. `runParameter` is the script parameter the run id arrives in, and `parameters` are the job's own, typed for the stages and read from the deployment.
 3. **`netsuite/Objects/customscript_{{prefix}}_<snake_name>_mr.xml`**: the script record, its parameters and its deployments (the `nspObjectMapReduce` snippet). Every deployment the declaration lists and every parameter it names must be here; `npm run lint` says so otherwise. A job that runs on a schedule carries a `<recurrence>` on its deployment, as the cleanup script does: the schedule belongs in SDF, because a deploy overwrites the deployment record and would drop one entered in the account.
 4. **`npm run generate`**: `api/src/scripts.gen.ts` gets the job under `jobs`, and `client/src/api/<name>Job.gen.ts` gets the run's `Input` and `Result` types, reached as `jobs.<name>` from `@/api/index.gen`. Nothing callable is generated for a job: a page starts one through a controller.
-5. **Starting it.** A repository submits the task (the `nspRepositoryJob` snippet), a service decides whether it should start, and an endpoint hands the run id to the page:
+5. **Starting it.** The service decides and builds the run's input (the `nspServiceJobStart` snippet); `startJobRun`, in the repository `npm run add:jobs` wrote, submits the task. An endpoint hands the run id to the page:
     ```typescript
-    // api/src/repositories/orderJobsRepository.ts
-    export function startCloseOldOrders(input: CloseOldOrdersRequest): string {
-        return startJobRun(jobs.closeOldOrders, input);
+    // api/src/services/ordersService.ts
+    import { startJobRun } from '../repositories/jobRunRepository';
+    import { jobs } from '../scripts.gen';
+
+    /** Starts a run and answers its id; the page follows the run by that id. */
+    export function startClosingOldOrders(olderThanDays: number): string {
+        return startJobRun(jobs.closeOldOrders, { olderThanDays } satisfies CloseOldOrdersRequest);
     }
 
     // api/src/controllers/ordersController.ts
-    closeOld: (request: CloseOldRequest): JobStartedResponse => ({ runId: startClosingOldOrders(request.olderThanDays) }),
+    closeOld: (request: CloseOldRequest): CloseOldResponse => ({ runId: startClosingOldOrders(request.olderThanDays) }),
     ```
+    The input is built in the service because a repository never names a service's type: `startJobRun` takes the job and the input as they come, and `satisfies` checks the shape where it is written.
     When every deployment of the job is already running, starting it answers **409** and no run is written, because nothing started; the page can say so and offer to try again.
-6. **Following it.** The page holds the run id and passes it to `useJobRun`, naming the job's result type:
+6. **Following it.** The page passes the job's name and the run id to `useJobRun`, naming the job's result type:
     ```typescript
-    const run = useJobRun<jobs.closeOldOrders.Result>(runId);
-    // run.run?.status, run.run?.percentComplete, run.isRunning, run.result?.closed
+    const { run, isRunning, isMissing, result } = useJobRun<jobs.closeOldOrders.Result>({ job: 'closeOldOrders', runId });
+    // run?.status, run?.stage, run?.errors, result?.closed
+    // `${run?.itemsProcessed ?? 0} of ${run?.itemsTotal ?? 0}` — the rows this stage has done
     ```
+    `stagePercentComplete` is the **stage's** progress and not the run's: it reaches 100 in the map stage and
+    starts again in the reduce stage. `itemsProcessed` and `itemsTotal` are that stage's row counts, which only
+    go up, so they are the honest thing to put in front of someone. The counts come from the task alone and are null
+    once the run has ended; by then it reads 100 percent and has its result.
+
+    **A refresh loses the run id, not the run.** The run records who started it, so a page called with no
+    run id asks the `mine` endpoint for the caller's own runs of that job and picks up the one still going;
+    `resume: 'latest'` takes the newest run whether it ended or not, for a page that should show the last
+    result again, and `resume: 'none'` turns that off. Keep the run id in the URL as well (`?run=812`) and a
+    reload comes back to the same run even when the caller has several going.
+
+    Coming back to a run that has **already finished** needs nothing special: the record still holds the
+    result, so the first ask answers `complete` with it and the hook never starts polling. A run that is
+    gone — cleaned up after its retention days, or never the caller's — is not an error either: `isMissing`
+    says so, the error banner is not involved, and the page can drop the stale id and offer to start again.
     It polls every two seconds and stops by itself when the run is complete or failed. A run that dies before it writes anything is `failed`, not silence: reading a run asks NetSuite about the task as well, so a task it gave up on, or one that finished without writing a result, comes back as a failure with a reason. `run.errors` carries everything that went wrong in the run, one entry per failed key.
 7. **Tests.** A job is tested through its stages: `mapContextFor`, `reduceContextFor` and `summarizeContextFor` from `@amerilux/netsuite-api/testing` build the contexts NetSuite would pass, and `written` on the first two says what the stage handed to the stage after it.
 

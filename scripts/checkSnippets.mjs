@@ -454,7 +454,13 @@ const scenario = [
             '  </scriptcustomfields>',
         ].join('\n'),
     },
-    { snippet: 'nspRepositoryJob', file: 'api/src/repositories/orderJobsRepository.ts', values: { 1: 'closeOldOrders', 2: 'CloseOldOrdersRequest', 3: 'orders' } },
+    // What the snippet's description says to do by hand: the two imports the start function needs.
+    {
+        edit: 'api/src/services/ordersService.ts',
+        find: "import type { SalesOrder } from '../types/models.gen';",
+        replace: ["import { startJobRun } from '../repositories/jobRunRepository';", "import { jobs } from '../scripts.gen';", "import type { SalesOrder } from '../types/models.gen';"].join('\n'),
+    },
+    { snippet: 'nspServiceJobStart', into: 'api/src/services/ordersService.ts', append: true, values: { 1: 'closeOldOrders', 2: 'ClosingOldOrders', 3: 'olderThanDays', 4: 'number', 5: 'CloseOldOrdersRequest' } },
 
     // Events: self-contained SuiteScript, with no SDF object of their own.
     {
