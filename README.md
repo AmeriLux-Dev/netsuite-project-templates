@@ -11,7 +11,7 @@ The CLI downloads one template folder from this repository at a git ref (`main` 
 ## Layout
 
 ```
-react-app/            Suitelet-hosted React application: Vite client, webpack AMD API, one script per controller
+react-app/            Suitelet-hosted React application: Vite client, webpack AMD API, one script per controller, job or event
 scripts/e2e.mjs       renders react-app with the CLI, then installs, generates, typechecks, lints, tests and builds the result
 scripts/checkSnippets.mjs   expands every VS Code snippet of react-app into the e2e scaffold and typechecks the result (run by e2e.mjs)
 scripts/check-no-private-refs.mjs   fails when anything account-specific leaks in
@@ -37,7 +37,7 @@ node scripts/e2e.mjs                                     # the published CLI, th
 node scripts/e2e.mjs --keep                              # leave the scratch project in the OS temp dir for inspection
 ```
 
-The check scaffolds `DemoApp` into the OS temp directory, installs, generates, typechecks, lints, tests and builds it, adds a Restlet and a Suitelet controller, and asserts the File Cabinet output and the deploy guard. It needs Node 22 or newer and Java 17 or newer (for the SuiteCloud CLI).
+The check scaffolds `DemoApp` into the OS temp directory, installs, generates, typechecks, lints, tests and builds it, adds a Restlet and a Suitelet controller, sets up jobs with `npm run add:jobs` and builds the job it writes, and asserts the File Cabinet output and the deploy guard. It needs Node 22 or newer and Java 17 or newer (for the SuiteCloud CLI).
 
 ## Releasing
 

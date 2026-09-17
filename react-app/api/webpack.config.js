@@ -13,7 +13,12 @@ const outputDir = path.resolve(apiDir, '../netsuite/FileCabinet/SuiteScripts/{{a
 const wrapperConfigPath = path.join(apiDir, 'netsuite-wrapper.config.js');
 const wrapperConfig = require(wrapperConfigPath);
 const hostClientScriptPath = path.join(sourceDir, '_host', 'host.ts');
-const hostClientScriptEntryName = '_host/host';
+const clientEventsDir = path.join(sourceDir, 'events', 'client');
+
+/** True for a script that runs in the browser: the host script and every client event. */
+function isBrowserScript(filePath) {
+    return filePath === hostClientScriptPath || filePath.startsWith(`${clientEventsDir}${path.sep}`);
+}
 
 /** The leading JSDoc block, which NetSuite reads for @NApiVersion and @NScriptType. */
 function readScriptHeader(filePath) {
@@ -73,13 +78,13 @@ module.exports = (_env, argv) => {
         module: {
             rules: [
                 {
-                    // The client script runs in the browser: the one file compiled with the DOM library.
-                    test: hostClientScriptPath,
-                    use: [{ loader: 'ts-loader', options: { transpileOnly: false, instance: 'host', configFile: path.join(apiDir, 'tsconfig.host.json') } }],
+                    // What runs in the browser is compiled with the DOM library: the host script and the client events.
+                    test: isBrowserScript,
+                    use: [{ loader: 'ts-loader', options: { transpileOnly: false, instance: 'browser', configFile: path.join(apiDir, 'tsconfig.browser.json') } }],
                 },
                 {
                     test: /\.ts$/i,
-                    exclude: [/node_modules/, /\.d\.ts$/i, hostClientScriptPath],
+                    exclude: [/node_modules/, /\.d\.ts$/i, isBrowserScript],
                     use: [{ loader: 'ts-loader', options: { transpileOnly: false, instance: 'server', configFile: path.join(apiDir, 'tsconfig.json') } }],
                 },
             ],
@@ -110,18 +115,18 @@ module.exports = (_env, argv) => {
     // Babel instrumentation pass and the telemetry bootstrap entry. Do not add another N/* externals
     // function here; it would short-circuit the rewrite. Instrumentation is only read from options.
     //
-    // The client script is left out: it runs in the browser and calls no N/* module, and the
-    // telemetry bootstrap would make NetSuite load N/record, N/search and N/cache into the page
-    // before pageInit runs. Its entry is added back after the wrapper has done its work.
-    const { [hostClientScriptEntryName]: hostClientScriptEntry, ...wrappedEntries } = entries;
+    // What runs in the browser is left out: the host script and the client events are pages, not
+    // server scripts, and the telemetry bootstrap would make NetSuite load N/record, N/search and
+    // N/cache into the page before anything of theirs runs. Their entries are added back after the
+    // wrapper has done its work. User events go through it like any other server script.
+    const browserEntries = Object.fromEntries(Object.entries(entries).filter(([, entryPath]) => isBrowserScript(entryPath)));
+    const wrappedEntries = Object.fromEntries(Object.entries(entries).filter(([, entryPath]) => !isBrowserScript(entryPath)));
     const wrappedConfig = applyNetSuiteWrapperWebpack({ ...config, entry: wrappedEntries }, {
         configPath: wrapperConfigPath,
         instrumentation: wrapperConfig.instrumentation === true
-            ? { exclude: [/node_modules/, /\.d\.ts$/i, hostClientScriptPath] }
+            ? { exclude: [/node_modules/, /\.d\.ts$/i, isBrowserScript] }
             : false,
     });
-    if (hostClientScriptEntry) {
-        wrappedConfig.entry = { ...wrappedConfig.entry, [hostClientScriptEntryName]: hostClientScriptEntry };
-    }
+    wrappedConfig.entry = { ...wrappedConfig.entry, ...browserEntries };
     return wrappedConfig;
 };

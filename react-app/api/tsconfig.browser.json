@@ -3,6 +3,6 @@
   "compilerOptions": {
     "lib": ["ES2019", "DOM"]
   },
-  "include": ["src/_host/host.ts"],
+  "include": ["src/_host/host.ts", "src/events/client/**/*.ts"],
   "exclude": ["node_modules"]
 }

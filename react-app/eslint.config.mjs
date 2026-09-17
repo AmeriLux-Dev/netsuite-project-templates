@@ -39,6 +39,11 @@ const recordAccessImports = [
     { group: ['N/*'], message: 'Endpoints parse and reply, services decide. Only a repository touches NetSuite (N/*).' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
+// A client event runs in the browser, on a NetSuite record page rather than in this app: it calls N/* itself,
+// logs with console, and is not wrapped for telemetry. Its only rule is that it belongs to no layer of this app.
+const appLayerImportsInClientEvents = [
+    { group: ['**/services/**', '**/repositories/**', '**/specifications/**', '**/controllers/**', '**/jobs/**'], message: 'A client event is self-contained: it runs on a record page, not in this application. Call N/* directly.' },
+];
 // A service never sees a controller. Its inputs are plain arguments and its outputs are types it declares; the
 // controller imports those types to build its wire shapes and maps between the two. The dependency runs one way,
 // so any controller can call any service without naming another controller.
@@ -98,7 +103,7 @@ export default defineConfig([
             // Path aliases (@/* in client/, N/* in api/) live in the workspace tsconfigs, not at the root.
             'import-x/resolver': {
                 typescript: {
-                    project: ['api/tsconfig.json', 'api/tsconfig.host.json', 'api/tsconfig.test.json', 'client/tsconfig.json', 'client/tsconfig.node.json'],
+                    project: ['api/tsconfig.json', 'api/tsconfig.browser.json', 'api/tsconfig.test.json', 'client/tsconfig.json', 'client/tsconfig.node.json'],
                     noWarnOnMultipleProjects: true,
                 },
             },
@@ -117,8 +122,9 @@ export default defineConfig([
     },
     {
         // Tests need literal ids to stand in for real ones; a model declares its own record and field ids; the
-        // structure check names the id prefixes it verifies. (A controller declares its script ids too: see its block.)
-        files: ['**/__tests__/**', 'api/src/models/**', 'scripts/checkStructure.mjs'],
+        // structure check names the id prefixes it verifies, and the job setup script writes the run record's own.
+        // (A controller and a job declare their script ids too: see their blocks.)
+        files: ['**/__tests__/**', 'api/src/models/**', 'scripts/checkStructure.mjs', 'scripts/addJobs.mjs'],
         rules: { 'no-restricted-syntax': 'off' },
     },
     {
@@ -140,11 +146,15 @@ export default defineConfig([
             'import-x/no-restricted-paths': ['error', {
                 zones: [
                     { target: './api/src/controllers', from: ['./api/src/repositories', './api/src/specifications', './api/src/models'], message: 'An endpoint never queries. Call a service.' },
+                    { target: './api/src/jobs', from: ['./api/src/repositories', './api/src/specifications', './api/src/models'], message: 'A job stage never queries. Call a service, as an endpoint does.' },
                     { target: './api/src/services', from: ['./api/src/specifications', './api/src/models'], message: 'A service decides; the repository queries.' },
                     { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
-                    { target: './api/src/models', from: ['./api/src/types', './api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], message: 'A model declares a record; it knows nothing about the wire or the layers above it.' },
+                    { target: './api/src/models', from: ['./api/src/types', './api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './api/src/jobs', './api/src/events'], message: 'A model declares a record; it knows nothing about the wire or the layers above it.' },
+                    // A job and a user event are entry points, so nothing calls into them; a client event belongs to no layer at all.
+                    { target: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], from: ['./api/src/jobs', './api/src/events'], message: 'A job or an event is an entry point: NetSuite calls it, this application does not.' },
+                    { target: './api/src/events/client', from: ['./api/src/events/user', './api/src/jobs'], message: 'A client event is self-contained; nothing of the server side belongs in a page script.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client', from: './api', message: 'The client never imports from api/; its view of the backend is the generated client module.' },
                     { target: './api', from: './client', message: 'The api never imports from client/.' },
@@ -190,6 +200,50 @@ export default defineConfig([
         rules: {
             'no-restricted-syntax': ['error', ...logEntryShape],
             '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports] }],
+        },
+    },
+    {
+        // A job is an entry point like a controller: its stages unpack what NetSuite hands them, call services with
+        // plain arguments, and return the run's result. It declares its own script, deployment and parameter ids, so
+        // the id rule does not apply to it; the log rules still do.
+        files: ['api/src/jobs/**/*.ts'],
+        rules: {
+            'no-restricted-syntax': ['error', ...logEntryShape],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports] }],
+        },
+    },
+    {
+        // A user event is self-contained: it reads and writes the record NetSuite hands it, and reaches anything else
+        // through a repository function. The ids it uses are written in the file, so the id rule does not apply; N/*
+        // stays available as types (EntryPoints, record.Record), because the context is typed by them.
+        files: ['api/src/events/user/**/*.ts'],
+        rules: {
+            'no-restricted-syntax': ['error', ...logEntryShape],
+            '@typescript-eslint/no-restricted-imports': ['error', {
+                patterns: [
+                    ...alertingImports,
+                    ...sharedPackageImports,
+                    ...apiPackageServerSide,
+                    { group: ['N/*', '!N/log', '!N/types'], allowTypeImports: true, message: 'A user event works the record its context carries and logs with N/log; everything else in NetSuite it reaches through a repository function, so the call is tracked like any other.' },
+                    { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+                ],
+            }],
+        },
+    },
+    {
+        // A client event runs on a NetSuite record page, not in this application: N/* directly, console for logging,
+        // its ids in the file, and no telemetry (webpack leaves it out of the wrapper, as it does the host script).
+        files: ['api/src/events/client/**/*.ts'],
+        languageOptions: { globals: { ...globals.browser } },
+        rules: {
+            'no-console': 'off',
+            'no-restricted-syntax': 'off',
+            '@typescript-eslint/no-restricted-imports': ['error', {
+                patterns: [
+                    ...appLayerImportsInClientEvents,
+                    { group: ['@amerilux/netsuite-api', '@amerilux/netsuite-api/*'], message: 'A client event is not part of this application\'s API; it talks to NetSuite through N/* like any other page script.' },
+                ],
+            }],
         },
     },
     {

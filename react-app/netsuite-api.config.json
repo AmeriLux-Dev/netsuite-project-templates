@@ -1,5 +1,6 @@
 {
   "controllers": "api/src/controllers",
+  "jobs": "api/src/jobs",
   "outDir": "client/src/api",
   "scriptsOutFile": "api/src/scripts.gen.ts",
   "typeImports": { "@amerilux/netsuite-api/server": "@amerilux/netsuite-api/client" },

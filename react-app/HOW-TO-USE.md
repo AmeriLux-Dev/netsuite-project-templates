@@ -11,6 +11,8 @@ Every entry links to its section.
 <pre>
 <a href="#api">api/</a>
   <a href="#srccontrollers">src/controllers/</a>
+  <a href="#srcjobs">src/jobs/</a>
+  <a href="#srcevents">src/events/</a>
   <a href="#srcservices">src/services/</a>
   <a href="#srcrepositories">src/repositories/</a>
   <a href="#srcspecifications">src/specifications/</a>
@@ -57,6 +59,8 @@ The backend. Webpack bundles it into one JavaScript file per deployed script.
 
 Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller.
 
+There are four kinds of deployed script, one file each: a controller (an API the frontend calls), a job (background work), a user event (logic on a record being saved) and a client event (logic on a record page in the browser). A file becomes a script only when its leading JSDoc carries `@NScriptType`; everything else is bundled into the scripts that import it.
+
 ### src/controllers/
 
 One file per deployed script, `<name>Controller.ts`.
@@ -64,6 +68,36 @@ One file per deployed script, `<name>Controller.ts`.
 The file holds the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them. The entry point declares the script's id and deployment id (`defineEndpoints`, `defineRestlet`, `defineSuitelet` from `@amerilux/netsuite-api/server`).
 
 See [Adding a controller](#adding-a-controller) for the full shape of the file.
+
+### src/jobs/
+
+One file per Map/Reduce script, `<name>.ts`. There is no such folder until `npm run add:jobs` has been run (see [Adding a job](#adding-a-job)).
+
+A job is background work: NetSuite runs it in stages, and it answers nothing to whoever started it. What stands in for an answer is a **run**: a row in this application's own run record. Starting a job writes the run and hands back its id; the stages read the run's input from it and write the result to it; a page follows the run by that id until it ends.
+
+The file declares its stages and its script in one call (`defineJob` from `@amerilux/netsuite-api/server`):
+
+- `getInputData` takes the run's input and answers the work as an array
+- `map` does one item of it, and `job.write(key, value)` hands a value to the next stage
+- `reduce` gathers the values written under one key
+- `summarize` says what the run came to; its return value becomes the run's result
+
+A job is layered like a controller: a stage calls a service with plain arguments and touches no `N/*` and no repository. The input and result shapes belong to the service, so the service that starts a run and the stages that do the work speak the same types.
+
+Export the stages the job has, and always `summarize`: that is where the run is closed.
+
+### src/events/
+
+Logic that belongs to a NetSuite record rather than to this application. Two folders, one file per script, named for what it fires on (`salesOrder.ts`):
+
+- `user/` runs on the server when a record is saved (`@NScriptType UserEventScript`)
+- `client/` runs in the browser on a record page (`@NScriptType ClientScript`)
+
+Events are self-contained, and deliberately outside the layers. A user event works the record its context carries, logs with `N/log`, and reaches anything else in NetSuite through a repository function, so that call is tracked like any other. A client event is a page script: it calls `N/*` itself, logs with `console`, and is built without the wrapper telemetry, the same way the host script is.
+
+The ids an event uses are written at the top of the event file, because that file is the only place they are needed.
+
+Events have no SDF object here: **you create their script record and deployments in NetSuite**, pointing at the built file (`/SuiteScripts/{{appName}}/api/events/user/<name>.js`). `npm run deploy` uploads the file; nothing creates the record. See [Adding an event](#adding-an-event).
 
 ### src/services/
 
@@ -99,15 +133,15 @@ Written once, here; `npm run generate` reads them.
 
 ### src/scripts.gen.ts
 
-Generated from the controllers' declarations: every script by controller name.
+Generated from the declarations: `scripts` (every controller's script by controller name), `jobs` (every job, once the project has any) and `jobRuns` (the run record's ids, read from `netsuite-api.config.json`).
 
-This is what a repository passes to `createSuiteletClient`.
+A repository passes a `scripts` entry to `createSuiteletClient` and a `jobs` entry to `startJobRun`; `jobRuns` is what a job's declaration hands to `defineJob`.
 
 ### src/_host/
 
 The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folder you do not add to.
 
-The client script (`host.ts`) runs in the browser, so it is the one file compiled with the DOM library (`tsconfig.host.json`) and the one script built without the wrapper's telemetry bootstrap and instrumentation (`webpack.config.js`). The rest of `src/` has no `window` or `document`.
+The client script (`host.ts`) runs in the browser, so it is compiled with the DOM library (`tsconfig.browser.json`, which covers `src/events/client` too) and built without the wrapper's telemetry bootstrap and instrumentation (`webpack.config.js`). The rest of `src/` has no `window` or `document`.
 
 ### __tests__/
 
@@ -205,13 +239,13 @@ Imported by both `api/` and `client/` (a page or component imports it by relativ
 
 ### netsuite-api.config.json
 
-Where `netsuite-api generate` reads the controllers and writes the generated files.
+Where `netsuite-api generate` reads the controllers and the jobs, and writes the generated files.
 
-The values are the defaults; the file is there to document them.
+The values are the defaults; the file is there to document them. A project with jobs also has a `jobRuns` block naming the run record it deployed (`npm run add:jobs` writes it): the record's id, what its field ids start with, and any field this application added to it.
 
 ### scripts/
 
-Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (run by `npm run lint`).
+Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (run by `npm run lint`) and `addJobs.mjs` (`npm run add:jobs`).
 
 ### .vscode/
 
@@ -224,10 +258,14 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts` |
 | `nspControllerShapes`, `nspControllerEndpoint` | one more endpoint: its request and response shapes above `defineEndpoints`, the handler inside it |
 | `nspControllerParse`, `nspControllerAuthorize` | a guard for an id that comes off the wire; the `authorize` option after the endpoints |
+| `nspJob` | `api/src/jobs/<name>.ts`: a Map/Reduce job as stages, with its script declaration |
+| `nspJobReduce`, `nspJobParameter` | one more stage: a reduce that gathers what map wrote; one more typed script parameter on the declaration |
+| `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript |
 | `nspService` | `api/src/services/<subject>Service.ts`, with its `build<Model>Summary` function |
 | `nspRepository`, `nspRepositoryCreate`, `nspRepositoryUpdate` | `api/src/repositories/<set>Repository.ts` over `dbContext`; one more create or update through `withTracking()` |
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
+| `nspRepositoryJob` | `api/src/repositories/<name>Repository.ts` starting a job and answering its run id |
 | `nspSpecification` | `api/src/specifications/<set>Specifications.ts` |
 | `nspModel`, `nspHelpModel`, `nspModelSubrecordClass`, `nspModelBase` | `api/src/models/<Record>.ts`: a record (a native type through `NetsuiteRecordType`, a custom record by its id string); the same with every decorator once and a comment on each, to trim down; a subrecord class (no `@RecordType` unless it has a table of its own); an abstract base. A sublist line is a record like any other: `nspModel` with `nspModelInternalId` and `nspModelParentId` |
 | `nspModelField`, `nspModelFieldText`, `nspModelFieldSelect`, `nspModelFieldSplit`, `nspModelReadOnly`, `nspModelInternalId`, `nspModelParentId`, `nspModelReference`, `nspModelSubrecord`, `nspModelSublist`, `nspModelTransform`, `nspModelNotMapped`, `nspModelSetFirst`, `nspModelExcludeFromDefaultSelect` | one more property on a model, one snippet per decorator; type `nspModel` to see every option |
@@ -237,7 +275,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspTestHook` | `client/__tests__/<controller>Query.test.ts` |
 | `nspHookQuery`, `nspHookQueryWith`, `nspHookMutation` | `client/src/hooks/use<Name>.ts`: a query for an endpoint without a request, one with a request, a mutation |
 | `nspPage`, `nspRoute` (TSX) | `client/src/pages/<Name>Page.tsx`, `client/src/routes/<segment>.tsx` |
-| `nspObjectRestlet`, `nspObjectSuitelet` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` |
+| `nspObjectRestlet`, `nspObjectSuitelet`, `nspObjectMapReduce` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`; the Map/Reduce one carries the job's parameters and its deployment |
 
 A prefix is `nsp`, the folder the file belongs in, then what the snippet emits. Typing `nspRepository` lists everything a repository can take. A `nspHelp<Folder>` snippet is a reference rather than a starting point: it shows every option there is (`nspHelpModel` emits a model with every decorator once, each commented) for you to trim down. The names that used to be shorter still work as aliases (`nspRepo`, `nspSpec`, `nspHook`, `nspLog`, `nspSdfRestlet`). A file snippet's description ends with the snippet that comes next in the recipe, so a chain can be followed from the suggest list. The template repository checks every snippet before a release: expanded together into a fresh scaffold, the set must generate, typecheck and pass the structure check.
 
@@ -349,6 +387,118 @@ Behind the controller: a service under `api/src/services/` (`<subject>Service.ts
 A script that calls another controller of this application from the server (the `user` restlet calling the `userRoles` Suitelet) builds the same kind of client in a repository: `createSuiteletClient<UserRolesEndpoints>(scripts.userRoles)` from `@amerilux/netsuite-api/server`, with `scripts` from `api/src/scripts.gen.ts` and the type imported from the controller file.
 
 `npm run lint` names any piece that is missing or disagrees with the others; `npm run generate` names a controller it cannot turn into a client; `npm run typecheck` catches a client call that names an endpoint the controller lacks.
+
+## Adding a job
+
+A job is one deployed Map/Reduce script: background work, started from the application or on a schedule. It answers nothing to whoever started it, so every run is a row in this application's run record, and that row is what a page follows.
+
+If the project has no `api/src/jobs` folder yet, run **`npm run add:jobs`** once. It adds the run record and its SDF object, the cleanup script that clears old runs daily, the repository and service that read a run, the `jobRuns` controller a page polls, the `useJobRun` hook that polls it, and the `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
+
+Then, in order:
+
+1. **The service** (`api/src/services/<subject>Service.ts`): the shapes on either end of a run and the functions the stages call. They belong to the service because the service that starts a run and the stages that do the work both need them.
+    ```typescript
+    /** What a run of the closeOldOrders job is asked to do. */
+    export interface CloseOldOrdersRequest {
+        olderThanDays: number;
+    }
+
+    /** What such a run leaves behind. */
+    export interface CloseOldOrdersResult {
+        closed: number;
+    }
+    ```
+2. **`api/src/jobs/<name>.ts`**: the whole job in one file (the `nspJob` snippet). The NetSuite header, then the stages and the script declaration in one `defineJob` call.
+    ```typescript
+    /**
+     * @NApiVersion 2.1
+     * @NScriptType MapReduceScript
+     * @NModuleScope SameAccount
+     */
+    import { defineJob } from '@amerilux/netsuite-api/server';
+    import type { JobSummary } from '@amerilux/netsuite-api/server';
+    import { jobRuns } from '../scripts.gen';
+    import { closeOrder, listOldOrderIds, type CloseOldOrdersRequest, type CloseOldOrdersResult } from '../services/ordersService';
+
+    export const { getInputData, map, summarize } = defineJob({
+        name: 'closeOldOrders',
+        scriptId: 'customscript_{{prefix}}_close_old_orders_mr',
+        deployments: ['customdeploy_{{prefix}}_close_old_orders_mr'],
+        runParameter: 'custscript_{{prefix}}_close_old_orders_run',
+        parameters: { batchSize: { id: 'custscript_{{prefix}}_batch_size', type: 'integer' } },
+        runs: jobRuns,
+    }, {
+        getInputData: (input: CloseOldOrdersRequest): number[] => listOldOrderIds(input.olderThanDays),
+        map: (orderId: number, job): void => {
+            closeOrder(orderId);
+            job.write(String(orderId), 1);
+        },
+        summarize: (summary: JobSummary<number>): CloseOldOrdersResult => ({ closed: summary.output.length }),
+    });
+    ```
+    `getInputData`'s first parameter is the run's input and `summarize`'s return type is its result: `npm run generate` reads the shapes from those two annotations, the way it reads an endpoint's request and response. The values carried between stages are JSON, so a stage says what it expects (`values: number[]` on a reduce stage, `JobSummary<Total>` on summarize) and the wrapper hands them back that way. A stage calls a service with plain arguments; `N/*` and repositories are as out of bounds here as in a controller.
+
+    Export the stages the job has, and `summarize` always: it is where the run is closed, and a job without it would leave every run of it looking unfinished. A stage exported but not declared throws when NetSuite calls it.
+
+    The declaration creates nothing. `deployments` is how many runs of the job can overlap, because NetSuite runs one instance of a deployment at a time: add a second deployment (the same id plus `_2`) for a job two people may start at once. `runParameter` is the script parameter the run id arrives in, and `parameters` are the job's own, typed for the stages and read from the deployment.
+3. **`netsuite/Objects/customscript_{{prefix}}_<snake_name>_mr.xml`**: the script record, its parameters and its deployments (the `nspObjectMapReduce` snippet). Every deployment the declaration lists and every parameter it names must be here; `npm run lint` says so otherwise. A job that runs on a schedule carries a `<recurrence>` on its deployment, as the cleanup script does: the schedule belongs in SDF, because a deploy overwrites the deployment record and would drop one entered in the account.
+4. **`npm run generate`**: `api/src/scripts.gen.ts` gets the job under `jobs`, and `client/src/api/<name>Job.gen.ts` gets the run's `Input` and `Result` types, reached as `jobs.<name>` from `@/api/index.gen`. Nothing callable is generated for a job: a page starts one through a controller.
+5. **Starting it.** A repository submits the task (the `nspRepositoryJob` snippet), a service decides whether it should start, and an endpoint hands the run id to the page:
+    ```typescript
+    // api/src/repositories/orderJobsRepository.ts
+    export function startCloseOldOrders(input: CloseOldOrdersRequest): string {
+        return startJobRun(jobs.closeOldOrders, input);
+    }
+
+    // api/src/controllers/ordersController.ts
+    closeOld: (request: CloseOldRequest): JobStartedResponse => ({ runId: startClosingOldOrders(request.olderThanDays) }),
+    ```
+    When every deployment of the job is already running, starting it answers **409** and no run is written, because nothing started; the page can say so and offer to try again.
+6. **Following it.** The page holds the run id and passes it to `useJobRun`, naming the job's result type:
+    ```typescript
+    const run = useJobRun<jobs.closeOldOrders.Result>(runId);
+    // run.run?.status, run.run?.percentComplete, run.isRunning, run.result?.closed
+    ```
+    It polls every two seconds and stops by itself when the run is complete or failed. A run that dies before it writes anything is `failed`, not silence: reading a run asks NetSuite about the task as well, so a task it gave up on, or one that finished without writing a result, comes back as a failure with a reason. `run.errors` carries everything that went wrong in the run, one entry per failed key.
+7. **Tests.** A job is tested through its stages: `mapContextFor`, `reduceContextFor` and `summarizeContextFor` from `@amerilux/netsuite-api/testing` build the contexts NetSuite would pass, and `written` on the first two says what the stage handed to the stage after it.
+
+Run records are not history: the cleanup job removes them after the number of days on its deployment's `Retention Days` parameter (7 by default). Change it in NetSuite; no deploy needed.
+
+## Adding an event
+
+An event is logic that belongs to a NetSuite record rather than to this application: a user event when a record is saved, a client event on a record page in the browser. Events are self-contained, and they are the one kind of script whose record you create in NetSuite yourself.
+
+1. **The file**, named for what it fires on: `api/src/events/user/<subject>.ts` (the `nspUserEvent` snippet) or `api/src/events/client/<subject>.ts` (`nspClientEvent`).
+    ```typescript
+    /**
+     * @NApiVersion 2.1
+     * @NScriptType UserEventScript
+     * @NModuleScope SameAccount
+     */
+    import * as log from 'N/log';
+    import type { EntryPoints } from 'N/types';
+    import { listOpenOrdersForCustomer } from '../../repositories/salesOrdersRepository';
+
+    /** The ids this event works with, written here because the event is its own. */
+    const fields = {
+        memo: 'memo',
+    } as const;
+
+    export const beforeSubmit: EntryPoints.UserEvent.beforeSubmit = (context: EntryPoints.UserEvent.beforeSubmitContext): void => {
+        if (context.type !== context.UserEventType.CREATE && context.type !== context.UserEventType.EDIT) return;
+        try {
+            const open = listOpenOrdersForCustomer(Number(context.newRecord.getValue({ fieldId: 'entity' })));
+            context.newRecord.setValue({ fieldId: fields.memo, value: String(open.length) + ' open orders' });
+        } catch (error) {
+            log.error('event failed', { record: context.newRecord.type, id: context.newRecord.id, message: error instanceof Error ? error.message : String(error) });
+        }
+    };
+    ```
+    A user event works the record its context carries and logs with `N/log`; anything else in NetSuite it reaches through a repository function, so the call is tracked like any other and can be tested. It catches what it throws and logs it: an event that fails should not stop someone saving a record, unless refusing the save is the point of the event. A client event is the other way round: it runs in the browser, so it calls `N/*` itself and logs with `console`, and nothing of this application belongs in it.
+2. **`npm run build`** puts the file in the File Cabinet at `/SuiteScripts/{{appName}}/api/events/user/<subject>.js`, and `npm run deploy` uploads it.
+3. **Create the script record in NetSuite**: Customization › Scripting › Scripts › New, select the uploaded file, then add a deployment per record type, with the execution contexts and the audience it should run for. A client event is either deployed the same way or attached to a form from a user event's `beforeLoad` (`context.form.clientScriptModulePath`).
+
+There is no SDF object for an event and no entry in the structure check beyond the file name and the script type: what an event is deployed to lives in the account, where whoever deploys it can see it. Ids the event uses are written at the top of the file.
 
 ## Naming
 

@@ -166,8 +166,13 @@ if (existsSync(plainDir)) rmSync(plainDir, { recursive: true, force: true });
 runCli([
     plainDir,
     '--local-template', templateDir,
-    '--prefix', 'plain', '--author', 'ci', '--yes', '--no-install', '--no-git',
+    '--prefix', 'plain', '--author', 'ci', '--yes', '--no-install', '--no-git', '--jobs',
 ], templatesRoot);
+// --jobs runs the project's own add:jobs, which needs no dependencies: the run record, the cleanup job and what a page follows a run with.
+assertEqual(existsSync(path.join(plainDir, 'netsuite', 'Objects', 'customrecord_plain_job_run.xml')), true, '--jobs writes the run record object with the project prefix');
+assertEqual(existsSync(path.join(plainDir, 'api', 'src', 'jobs', 'jobRunCleanup.ts')), true, '--jobs writes the cleanup job');
+assertEqual(existsSync(path.join(plainDir, 'client', 'src', 'hooks', 'useJobRun.ts')), true, '--jobs writes the hook a page follows a run with');
+assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'netsuite-api.config.json'), 'utf8')).jobRuns, { recordType: 'customrecord_plain_job_run', fieldPrefix: 'custrecord_plain_jr', extraFields: {} }, '--jobs names the run record in the generator config');
 assertEqual(existsSync(path.join(plainDir, 'probity.config.ts')), false, 'default scaffold has no probity.config.ts');
 const plainSettings = JSON.parse(readFileSync(path.join(plainDir, '.claude', 'settings.json'), 'utf8'));
 assertEqual(plainSettings.hooks, undefined, 'default scaffold has no hook');
@@ -239,6 +244,26 @@ const leftoverTokens = listFiles(projectDir)
     .filter((file) => /\.(ts|tsx|js|cjs|mjs|json|md|xml|css|html|example|code-snippets)$/.test(file) || file === '.gitignore' || file === '.npmrc')
     .filter((file) => readFileSync(path.join(projectDir, file), 'utf8').includes('{{'));
 assertEqual(leftoverTokens, [], 'no template tokens left behind');
+
+// Jobs are opt-in: a scaffold has none until `npm run add:jobs`, which adds the run record, the script that
+// clears old runs, and what a page follows a run with. It must be safe to run twice, and what it adds must
+// generate, lint and build like anything else.
+assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'jobs')), false, 'a scaffold without --jobs has no jobs folder');
+run('npm', ['run', 'add:jobs'], projectDir);
+assertEqual(existsSync(path.join(projectDir, 'netsuite', 'Objects', 'customrecord_demo_job_run.xml')), true, 'add:jobs writes the run record object');
+assertEqual(JSON.parse(readFileSync(path.join(projectDir, 'netsuite-api.config.json'), 'utf8')).jobRuns.recordType, 'customrecord_demo_job_run', 'add:jobs names the run record in the generator config');
+const addJobsAgain = spawnSync('npm', ['run', 'add:jobs'], { cwd: projectDir, encoding: 'utf8', shell: isWindows });
+assertEqual(/already set up/.test(addJobsAgain.stdout), true, 'add:jobs run a second time adds nothing');
+run('npm', ['run', 'generate'], projectDir);
+const scriptsModuleWithJobs = readFileSync(path.join(projectDir, 'api', 'src', 'scripts.gen.ts'), 'utf8');
+assertEqual(scriptsModuleWithJobs.includes("jobRunCleanup: { kind: 'mapreduce', name: 'jobRunCleanup', scriptId: 'customscript_demo_job_cleanup_mr'"), true, 'generate writes the job into the scripts map');
+assertEqual(scriptsModuleWithJobs.includes("recordType: 'customrecord_demo_job_run',"), true, 'generate writes the run record ids next to the scripts');
+assertEqual(readFileSync(path.join(projectDir, 'client', 'src', 'api', 'jobs.gen.ts'), 'utf8').includes("export * as jobRunCleanup from './jobRunCleanupJob.gen';"), true, 'generate re-exports every job module under jobs');
+run('npm', ['run', 'typecheck'], projectDir);
+run('npm', ['run', 'lint'], projectDir);
+run('npm', ['run', 'build', '-w', 'api'], projectDir);
+assertEqual(existsSync(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup.js')), true, 'the cleanup job is built into the File Cabinet');
+assertBanner(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup.js'));
 
 // Every VS Code snippet, expanded into this scaffold as one coherent addition, must generate, typecheck and pass
 // the structure check (scripts/checkSnippets.mjs); the check restores the scaffold afterwards.

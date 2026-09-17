@@ -10,8 +10,15 @@
  *     declaration says name: '<name>' and ids that share the prefix and the name and fit NetSuite's 40-character cap
  *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching the entry point, declares the
  *     deployment, and points at api/controllers/<name>Controller.js
+ * For every job (api/src/jobs/<name>.ts):
+ *   - its defineJob declaration names a script whose ids share the prefix and the name, end in _mr, and fit the cap
+ *   - netsuite/Objects/<scriptId>.xml is a <mapreducescript> declaring every deployment the job may run on and every
+ *     script parameter it reads, and points at api/jobs/<name>.js
+ *
  * And the other way round: every SDF script object points at an existing source whose @NScriptType matches, and
  * every server-side @NScriptType file has an object (a ClientScript attached to a form has no script record).
+ * Events are the exception: their script records are created in NetSuite by hand, so api/src/events is checked for
+ * its file names and script types only.
  * (`npm run generate` reads the same declarations to write the clients and fails on one it cannot read; TypeScript
  * checks the rest: a client call that names an endpoint the controller lacks does not compile.)
  */
@@ -121,13 +128,14 @@ function checkScriptIds(controller, prefix) {
     }
 }
 
-/** Reads an SDF script object and returns its kind, deployment ids and the api/src path of its source file. */
+/** Reads an SDF script object and returns its kind, deployment ids, parameter ids and the api/src path of its source file. */
 function readScriptObject(objectPath) {
     const xml = readProjectFile(objectPath);
     const opening = xml.match(/^\s*<(restlet|suitelet|\w+)\s+scriptid="([^"]*)"/);
     const deployIds = Array.from(xml.matchAll(/<scriptdeployment scriptid="([^"]*)">/g), (match) => match[1]);
+    const parameterIds = Array.from(xml.matchAll(/<scriptcustomfield\s+scriptid="([^"]*)"/g), (match) => match[1]);
     const scriptFile = xml.match(/<scriptfile>\[([^\]]*)\]<\/scriptfile>/)?.[1];
-    return { objectPath, kind: opening?.[1], scriptId: opening?.[2], deployIds, scriptFile };
+    return { objectPath, kind: opening?.[1], scriptId: opening?.[2], deployIds, parameterIds, scriptFile };
 }
 
 function checkControllerObject(controller, folder) {
@@ -142,6 +150,73 @@ function checkControllerObject(controller, folder) {
     }
     if (!object.deployIds.includes(controller.deployId)) report(`${objectPath}: declares no <scriptdeployment scriptid="${controller.deployId}">.`);
     const expectedScriptFile = `/SuiteScripts/${folder}/api/controllers/${controller.name}Controller.js`;
+    if (object.scriptFile !== expectedScriptFile) report(`${objectPath}: <scriptfile> must be [${expectedScriptFile}] (found "${object.scriptFile ?? ''}").`);
+}
+
+/**
+ * The job a file declares in its defineJob call, read from the source as text. The generator reads the
+ * same call with a real parser and fails first on anything malformed; what is checked here is only
+ * what it cannot see: the ids against the SDF object.
+ */
+function readJob(jobPath) {
+    const name = path.basename(jobPath, '.ts');
+    const source = readProjectFile(jobPath);
+    const declaration = source.match(/=\s*defineJob\(\s*\{([\s\S]*?)\}\s*,/)?.[1];
+    if (!declaration) {
+        report(`${jobPath}: must declare its script with \`export const { getInputData, map, summarize } = defineJob({ ... }, { ... })\`; see HOW-TO-USE.md ("Adding a job").`);
+        return undefined;
+    }
+    const declaredType = readDeclaredScriptType(source);
+    if (declaredType !== 'MapReduceScript') report(`${jobPath}: @NScriptType must be MapReduceScript (found "${declaredType ?? 'none'}").`);
+    const scriptId = declaration.match(/\bscriptId:\s*'([^']*)'/)?.[1];
+    const runParameter = declaration.match(/\brunParameter:\s*'([^']*)'/)?.[1];
+    const deployments = Array.from(declaration.match(/\bdeployments:\s*\[([^\]]*)\]/)?.[1]?.matchAll(/'([^']*)'/g) ?? [], (match) => match[1]);
+    const parameters = Array.from(declaration.matchAll(/\bid:\s*'(custscript_[^']*)'/g), (match) => match[1]);
+    if (scriptId === undefined || runParameter === undefined || deployments.length === 0) {
+        report(`${jobPath}: the job declaration needs scriptId, runParameter and a non-empty deployments array, all as string literals.`);
+        return undefined;
+    }
+    return { name, jobPath, scriptId, deployments, runParameter, parameters };
+}
+
+/** A job's ids: the prefix and the name they share, the _mr suffix, and NetSuite's 40-character cap. */
+function checkJobIds(job, prefix) {
+    const where = job.jobPath;
+    const ids = [['scriptId', job.scriptId, `customscript_${prefix}_`], ['runParameter', job.runParameter, `custscript_${prefix}_`], ...job.deployments.map((deployment) => ['deployment', deployment, `customdeploy_${prefix}_`])];
+    for (const [label, id, expectedPrefix] of ids) {
+        if (id.length > SCRIPT_ID_MAX_LENGTH) report(`${where}: ${label} "${id}" is ${id.length} characters; NetSuite caps ids at ${SCRIPT_ID_MAX_LENGTH}.`);
+        if (!id.startsWith(expectedPrefix)) report(`${where}: ${label} "${id}" must start with ${expectedPrefix}.`);
+        else if (!/^[a-z][a-z0-9_]*$/.test(id.slice(expectedPrefix.length))) report(`${where}: the id suffix of "${id}" must be lowercase letters, digits and underscores.`);
+    }
+    const scriptSuffix = job.scriptId.startsWith(`customscript_${prefix}_`) ? job.scriptId.slice(`customscript_${prefix}_`.length) : undefined;
+    if (scriptSuffix !== undefined && !scriptSuffix.endsWith('_mr')) {
+        report(`${where}: scriptId "${job.scriptId}" must end with _mr; a job is a Map/Reduce script and the suffix says so in NetSuite's script list.`);
+    }
+    for (const deployment of job.deployments) {
+        const deploySuffix = deployment.startsWith(`customdeploy_${prefix}_`) ? deployment.slice(`customdeploy_${prefix}_`.length) : undefined;
+        if (scriptSuffix !== undefined && deploySuffix !== undefined && !deploySuffix.startsWith(scriptSuffix)) {
+            report(`${where}: deployment "${deployment}" does not share the script's name ("${scriptSuffix}"); a second deployment of the same job is that name plus _2, _3.`);
+        }
+    }
+}
+
+function checkJobObject(job, folder) {
+    const objectPath = `netsuite/Objects/${job.scriptId}.xml`;
+    if (!projectFileExists(objectPath)) {
+        report(`${job.jobPath}: ${objectPath} is missing; every job needs its SDF object (the nspObjectMapReduce snippet writes one).`);
+        return;
+    }
+    const object = readScriptObject(objectPath);
+    if (object.kind !== 'mapreducescript' || object.scriptId !== job.scriptId) {
+        report(`${objectPath}: must open with <mapreducescript scriptid="${job.scriptId}"> to match ${job.jobPath}.`);
+    }
+    for (const deployment of job.deployments) {
+        if (!object.deployIds.includes(deployment)) report(`${objectPath}: declares no <scriptdeployment scriptid="${deployment}">; the job's declaration says it may run there.`);
+    }
+    for (const parameter of [job.runParameter, ...job.parameters]) {
+        if (!object.parameterIds.includes(parameter)) report(`${objectPath}: declares no <scriptcustomfield scriptid="${parameter}">; the job reads that parameter.`);
+    }
+    const expectedScriptFile = `/SuiteScripts/${folder}/api/jobs/${job.name}.js`;
     if (object.scriptFile !== expectedScriptFile) report(`${objectPath}: <scriptfile> must be [${expectedScriptFile}] (found "${object.scriptFile ?? ''}").`);
 }
 
@@ -167,11 +242,34 @@ function checkObjectsAndSources(folder) {
     }
     for (const sourceFile of listFilesRecursively('api/src')) {
         if (!sourceFile.endsWith('.ts') || sourceFile.endsWith('.d.ts') || sourceFile.includes('/repositories/generated/')) continue;
+        // Events are deployed by hand: the developer creates their script record and its deployments in NetSuite,
+        // so nothing under api/src/events is expected to have an SDF object here.
+        if (sourceFile.startsWith('api/src/events/')) continue;
         const declaredType = readDeclaredScriptType(readProjectFile(sourceFile));
         // A client script attached to a Suitelet form (api/src/_host/host.ts) has no script record of its own.
         if (!declaredType || declaredType === 'ClientScript') continue;
         if (!referencedSources.has(sourceFile)) report(`${sourceFile} carries @NScriptType but no SDF object under netsuite/Objects points at it; add the object.`);
     }
+}
+
+/**
+ * Events: named for what they fire on, and carrying the script type NetSuite reads. They are self-contained
+ * SuiteScript with no SDF object, so there is nothing else here to hold them to.
+ */
+function checkEvents() {
+    let count = 0;
+    for (const [folder, expectedType] of [['api/src/events/user', 'UserEventScript'], ['api/src/events/client', 'ClientScript']]) {
+        for (const eventFile of listFilesRecursively(folder)) {
+            if (!/^[a-z][A-Za-z0-9]*\.ts$/.test(path.basename(eventFile))) {
+                report(`${eventFile}: an event file is named <subject>.ts, with <subject> in camelCase; nothing else lives in ${folder}.`);
+                continue;
+            }
+            count += 1;
+            const declaredType = readDeclaredScriptType(readProjectFile(eventFile));
+            if (declaredType !== expectedType) report(`${eventFile}: @NScriptType must be ${expectedType} (found "${declaredType ?? 'none'}").`);
+        }
+    }
+    return count;
 }
 
 const app = readAppNames();
@@ -187,22 +285,43 @@ for (const controllerFile of listFilesRecursively('api/src/controllers')) {
     checkScriptIds(controller, app.prefix);
     checkControllerObject(controller, app.folder);
 }
-for (const property of ['scriptId', 'deployId']) {
-    const seen = new Map();
-    for (const controller of controllers) {
-        const owner = seen.get(controller[property]);
-        if (owner) report(`${controller.controllerPath}: ${property} "${controller[property]}" is also declared by ${owner}.`);
-        else seen.set(controller[property], controller.controllerPath);
+const jobs = [];
+for (const jobFile of listFilesRecursively('api/src/jobs')) {
+    if (!/^[a-z][A-Za-z0-9]*\.ts$/.test(path.basename(jobFile))) {
+        report(`${jobFile}: a job file is named <name>.ts, with <name> in camelCase; nothing else lives in api/src/jobs.`);
+        continue;
     }
+    const job = readJob(jobFile);
+    if (!job) continue;
+    jobs.push(job);
+    checkJobIds(job, app.prefix);
+    checkJobObject(job, app.folder);
 }
+// Every script id in the account is one script: a controller's, a job's, or one of a job's deployments.
+const scriptOwners = new Map();
+const deployOwners = new Map();
+const claim = (owners, id, where, label) => {
+    const owner = owners.get(id);
+    if (owner) report(`${where}: ${label} "${id}" is also declared by ${owner}.`);
+    else owners.set(id, where);
+};
+for (const controller of controllers) {
+    claim(scriptOwners, controller.scriptId, controller.controllerPath, 'scriptId');
+    claim(deployOwners, controller.deployId, controller.controllerPath, 'deployId');
+}
+for (const job of jobs) {
+    claim(scriptOwners, job.scriptId, job.jobPath, 'scriptId');
+    for (const deployment of job.deployments) claim(deployOwners, deployment, job.jobPath, 'deployment');
+}
+const eventCount = checkEvents();
 checkObjectsAndSources(app.folder);
 
 if (problems.length > 0) {
     console.error(`Structure check found ${problems.length} problem(s):`);
     for (const problem of problems) console.error(`  - ${problem}`);
-    console.error('\nHOW-TO-USE.md ("Adding a controller") lists every piece a script needs.');
+    console.error('\nHOW-TO-USE.md ("Adding a controller", "Adding a job") lists every piece a script needs.');
     console.error('If this project no longer follows the template\'s controller layout, remove this check: delete scripts/checkStructure.mjs');
     console.error('and drop `&& node scripts/checkStructure.mjs` from the lint script in package.json (HOW-TO-USE.md, "Removing a rule you have outgrown").');
     process.exit(1);
 }
-console.log(`Structure check passed: ${controllers.length} controller(s).`);
+console.log(`Structure check passed: ${controllers.length} controller(s), ${jobs.length} job(s), ${eventCount} event(s).`);

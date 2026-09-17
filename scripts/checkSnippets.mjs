@@ -302,8 +302,10 @@ function expandSnippet(body, { fileNameBase, values = {} }) {
  * into a file written earlier: before the first line matching `beforeLine` (or the last one matching
  * `beforeLastLine`, indented one level further when `indent` says so), at the first match of `at` (a
  * zero-width regex, with `prefix` written first), or appended. An `edit` step is what the snippet's description
- * tells the developer to do by hand (extend an import, call the guard). Paths and values may carry the template
- * tokens {{prefix}}, {{appName}} and {{appTitle}}; they are rendered from the scaffold's netsuite.ts.
+ * tells the developer to do by hand (extend an import, call the guard). A `run` step runs one of the project's
+ * npm scripts, for a setup step the snippets assume has happened (`add:jobs`); what it creates is named in
+ * `creates`, so the restore takes those files away again. Paths and values may carry the template tokens
+ * {{prefix}}, {{appName}} and {{appTitle}}; they are rendered from the scaffold's netsuite.ts.
  */
 const scenario = [
     // The record behind everything: a sales order with its transaction number and customer.
@@ -378,6 +380,89 @@ const scenario = [
     { snippet: 'nspHookMutation', file: 'client/src/hooks/useCreateOrder.ts', values: { 1: 'orders', 2: 'create', 3: 'Creates a sales order' } },
     { snippet: 'nspPage', file: 'client/src/pages/OrdersPage.tsx', values: { 1: 'useOrdersByCustomer', 2: 'The customer\'s sales orders', 4: '7', 5: 'Orders' } },
     { snippet: 'nspRoute', file: 'client/src/routes/orders.tsx' },
+
+    // Jobs: the run machinery a project adds once, then a job, its object, and the repository that starts it.
+    {
+        run: 'add:jobs',
+        creates: [
+            'netsuite/Objects/customrecord_{{prefix}}_job_run.xml',
+            'netsuite/Objects/customscript_{{prefix}}_job_cleanup_mr.xml',
+            'netsuite/Objects/customscript_{{prefix}}_job_runs.xml',
+            'api/src/jobs/jobRunCleanup.ts',
+            'api/src/repositories/jobRunRepository.ts',
+            'api/src/services/jobRunService.ts',
+            'api/src/controllers/jobRunsController.ts',
+            'client/src/hooks/useJobRun.ts',
+            'netsuite-api.config.json',
+        ],
+    },
+    // What the job's stages call, and the shapes on either end of a run: the service owns both, so the service
+    // that starts a run and the stages that do the work speak the same types.
+    {
+        edit: 'api/src/services/ordersService.ts',
+        find: "export type SalesOrderSummary = Pick<SalesOrder, 'tranId'>;",
+        replace: [
+            "export type SalesOrderSummary = Pick<SalesOrder, 'tranId'>;",
+            '',
+            '/** What a run of the closeOldOrders job is asked to do. */',
+            'export interface CloseOldOrdersRequest {',
+            '    olderThanDays: number;',
+            '}',
+            '',
+            '/** What such a run leaves behind. */',
+            'export interface CloseOldOrdersResult {',
+            '    closed: number;',
+            '}',
+            '',
+            '/** The ids of the orders old enough to close. */',
+            'export function listOldOrderIds(olderThanDays: number): number[] {',
+            '    return olderThanDays > 0 ? [] : [];',
+            '}',
+            '',
+            'export function closeOrder(orderId: number): void {',
+            "    if (orderId <= 0) throw new Error('An order id is a positive number.');",
+            '}',
+        ].join('\n'),
+    },
+    {
+        snippet: 'nspJob',
+        file: 'api/src/jobs/closeOldOrders.ts',
+        values: { 1: 'CloseOldOrdersRequest', 2: 'CloseOldOrdersResult', 3: 'listOldOrderIds', 4: 'closeOrder', 5: 'orders', 6: 'closes sales orders older than a cutoff', 7: 'number', 8: 'olderThanDays', 9: 'orderId', 10: 'closed' },
+    },
+    { snippet: 'nspJobParameter', into: 'api/src/jobs/closeOldOrders.ts', beforeLine: /^\s+runs: jobRuns,$/, values: { 1: 'batchSize', 2: 'batch_size', 3: 'integer' } },
+    { snippet: 'nspJobReduce', into: 'api/src/jobs/closeOldOrders.ts', beforeLine: /^\s+summarize: \(summary/, values: { 1: 'orderId', 2: 'counts', 3: 'number', 4: 'length' } },
+    // What the reduce snippet's description says to do by hand: NetSuite runs the stages the file exports.
+    { edit: 'api/src/jobs/closeOldOrders.ts', find: 'export const { getInputData, map, summarize }', replace: 'export const { getInputData, map, reduce, summarize }' },
+    { snippet: 'nspObjectMapReduce', file: 'netsuite/Objects/customscript_{{prefix}}_close_old_orders_mr.xml', values: { 1: 'Close Old Orders', 2: 'Closes sales orders older than a cutoff' } },
+    // Every parameter the job declares needs its field on the object; the structure check says so otherwise.
+    {
+        edit: 'netsuite/Objects/customscript_{{prefix}}_close_old_orders_mr.xml',
+        find: '  </scriptcustomfields>',
+        replace: [
+            '    <scriptcustomfield scriptid="custscript_{{prefix}}_batch_size">',
+            '      <accesslevel>2</accesslevel>',
+            '      <defaultvalue>100</defaultvalue>',
+            '      <description>How many orders one run closes.</description>',
+            '      <displaytype>NORMAL</displaytype>',
+            '      <fieldtype>INTEGER</fieldtype>',
+            '      <isformula>F</isformula>',
+            '      <ismandatory>F</ismandatory>',
+            '      <label>Batch Size</label>',
+            '      <searchlevel>2</searchlevel>',
+            '      <storevalue>T</storevalue>',
+            '    </scriptcustomfield>',
+            '  </scriptcustomfields>',
+        ].join('\n'),
+    },
+    { snippet: 'nspRepositoryJob', file: 'api/src/repositories/orderJobsRepository.ts', values: { 1: 'closeOldOrders', 2: 'CloseOldOrdersRequest', 3: 'orders' } },
+
+    // Events: self-contained SuiteScript, with no SDF object of their own.
+    {
+        snippet: 'nspUserEvent',
+        file: 'api/src/events/user/salesOrder.ts',
+        values: { 1: 'Sales Order', 2: 'memo', 3: 'memo', 4: 'listSalesOrdersByCustomerId', 5: 'salesOrders', 6: 'Stamps the memo when a sales order is saved' },
+    },
+    { snippet: 'nspClientEvent', file: 'api/src/events/client/salesOrder.ts', values: { 1: 'sales order', 2: 'quantity', 3: 'quantity', 4: 'Warns when the quantity is not a positive number' } },
 ];
 
 // ── running it ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -475,6 +560,12 @@ function insertFragment(source, fragment, step) {
 }
 
 function applyStep(step) {
+    if (step.run) {
+        // Everything the script writes is remembered first, so the restore takes it away again.
+        for (const created of step.creates) rememberOriginal(renderTokens(created));
+        run('npm', ['run', step.run], projectDir);
+        return `npm run ${step.run}`;
+    }
     if (step.edit) {
         const relativePath = renderTokens(step.edit);
         rememberOriginal(relativePath);

@@ -12,5 +12,6 @@
     }
   },
   "include": ["src/**/*.ts", "../netsuite.ts"],
-  "exclude": ["node_modules", "src/_host/host.ts"]
+  // What runs in the browser is compiled by tsconfig.browser.json instead: the host script and every client event.
+  "exclude": ["node_modules", "src/_host/host.ts", "src/events/client"]
 }

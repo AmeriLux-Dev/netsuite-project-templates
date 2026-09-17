@@ -16,6 +16,7 @@
     "dev": "npm run generate && npm run dev -w client",
     "typecheck": "npm run generate && npm run typecheck --workspaces",
     "lint": "eslint . && node scripts/checkStructure.mjs",
+    "add:jobs": "node scripts/addJobs.mjs",
     "test": "npm run generate && npm test --workspaces --if-present",
     "build": "npm run generate && npm run build -w client && npm run build -w api",
     "deploy": "node scripts/deploy.mjs",
