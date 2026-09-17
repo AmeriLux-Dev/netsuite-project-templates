@@ -42,6 +42,16 @@ jobs:
         working-directory: create-netsuite-project
       - run: node scripts/e2e.mjs --cli create-netsuite-project
 
+  pins:
+    name: Dependency pins match published versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/checkDependencyPins.mjs
+
   secrets:
     name: Secret and private-reference scan
     runs-on: ubuntu-latest

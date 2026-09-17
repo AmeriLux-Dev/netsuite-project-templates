@@ -19,7 +19,8 @@
     "test": "npm run generate && npm test --workspaces --if-present",
     "build": "npm run generate && npm run build -w client && npm run build -w api",
     "deploy": "node scripts/deploy.mjs",
-    "deploy:files": "node scripts/deploy.mjs --files-only"
+    "deploy:files": "node scripts/deploy.mjs --files-only",
+    "update:amerilux": "npm install @amerilux/netsuite-api@latest -w api -w client && npm install @amerilux/netsuite-repository@latest @amerilux/netsuite-wrapper@latest -w api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

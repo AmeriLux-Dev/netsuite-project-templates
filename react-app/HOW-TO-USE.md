@@ -261,13 +261,17 @@ Agent guardrails, hooked up in `.claude/settings.json`.
 {{/if}}
 ### package.json
 
-Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, generate, typecheck, lint, test, build, deploy).
+Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, generate, typecheck, lint, test, build, deploy, update:amerilux).
 
 ### node_modules/
 
 The only install. npm workspaces hoist every workspace's packages here, so one `npm install` at the root installs everything.
 
 Add a package to the workspace that uses it: `npm install -w api <package>`. `npm run lint` fails when a workspace imports a package its own `package.json` does not declare.
+
+Updating packages: `npm update` at the root moves every workspace to the newest version inside its range. The AmeriLux packages (`@amerilux/netsuite-api`, `@amerilux/netsuite-repository`, `@amerilux/netsuite-wrapper`) are still 0.x, so a caret range only floats across patch releases and a new minor is outside it; `npm run update:amerilux` installs the latest of all three into the workspaces that use them and rewrites the pins. A package used by both workspaces (`@amerilux/netsuite-api`) must carry the same range in both `package.json` files, or npm installs two copies.
+
+If `npm install` fails with `ETARGET` (`No matching version found`), a pin names a version the registry does not have; nothing was installed. Fix the pin, then run `npm install` again from the root. Do not install into one workspace by hand: that leaves the other workspace and the lockfile behind.
 
 ## Adding a controller
 
