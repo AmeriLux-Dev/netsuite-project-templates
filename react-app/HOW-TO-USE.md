@@ -71,18 +71,29 @@ See [Adding a controller](#adding-a-controller) for the full shape of the file.
 
 ### src/jobs/
 
-One file per Map/Reduce script, `<name>.ts`. There is no such folder until `npm run add:jobs` has been run (see [Adding a job](#adding-a-job)).
+One folder per Map/Reduce script, and the folder is everything about that job. There is no `api/src/jobs` at all until `npm run add:jobs` has been run (see [Adding a job](#adding-a-job)).
+
+```
+api/src/jobs/closeOldOrders/
+  closeOldOrders.ts    the script NetSuite loads: its ids, its deployments, its parameters, its stages
+  getInputData.ts      what the work is, and the shape a run is started with
+  map.ts               what one item does, and the value it writes
+  summarize.ts         what the run leaves behind: the result shape
+  start.ts             how a run is started, for a controller to call
+```
 
 A job is background work: NetSuite runs it in stages, and it answers nothing to whoever started it. What stands in for an answer is a **run**: a row in this application's own run record. Starting a job writes the run and hands back its id; the stages read the run's input from it and write the result to it; a page follows the run by that id until it ends.
 
-The file declares its stages and its script in one call (`defineJob` from `@amerilux/netsuite-api/server`):
+The file of the folder's own name declares the script and wires the stages (`defineJob` from `@amerilux/netsuite-api/server`), and does nothing else: it imports `defineJob`, the generated scripts map, and the stage files beside it. Nothing imports **it** — NetSuite loads it. Each stage is then a file named for the entry point NetSuite calls, exporting `<stage>Function`:
 
 - `getInputData` takes the run's input and answers the work as an array
 - `map` does one item of it, and `job.write(key, value)` hands a value to the next stage
 - `reduce` gathers the values written under one key
 - `summarize` says what the run came to; its return value becomes the run's result
 
-A job is layered like a controller: a stage calls a service with plain arguments and touches no `N/*` and no repository. The input and result shapes belong to the service, so the service that starts a run and the stages that do the work speak the same types.
+So a developer opens map.ts to see what the map stage does, and the shapes on either end of a run are declared where the stage that names them lives: the input in getInputData.ts, the result in summarize.ts, and the value map writes in map.ts, which summarize names again.
+
+A job's folder is a service's peer: it calls services and repositories, and touches no `N/*`, model, specification or controller. Nothing below it may import it — only a controller reaches in, for the `start<Name>` its `start.ts` declares.
 
 Export the stages the job has, and always `summarize`: that is where the run is closed.
 
@@ -266,10 +277,10 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts` |
 | `nspControllerShapes`, `nspControllerEndpoint` | one more endpoint: its request and response shapes above `defineEndpoints`, the handler inside it |
 | `nspControllerParse`, `nspControllerAuthorize` | a guard for an id that comes off the wire; the `authorize` option after the endpoints |
-| `nspJob` | `api/src/jobs/<name>.ts`: a Map/Reduce job as stages, with its script declaration |
-| `nspJobReduce`, `nspJobParameter` | one more stage: a reduce that gathers what map wrote; one more typed script parameter on the declaration |
-| `nspServiceJobStart` | one more function in a service: starts a job and answers the run id a page follows |
-| `nspServiceJobStart` | one more function in a service: starts a job and answers the run id |
+| `nspJob` | `api/src/jobs/<name>/<name>.ts`: the file NetSuite loads, declaring the script and wiring its stages |
+| `nspJobGetInputData`, `nspJobMap`, `nspJobSummarize` | one stage file each, with the shapes on that stage's own boundary |
+| `nspJobReduce`, `nspJobParameter` | the reduce stage as its own file; one more typed script parameter on the declaration |
+| `nspJobStart` | `api/src/jobs/<name>/start.ts`: starts a run and answers the id a page follows |
 | `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript |
 | `nspService` | `api/src/services/<subject>Service.ts`, with its `build<Model>Summary` function |
 | `nspRepository`, `nspRepositoryCreate`, `nspRepositoryUpdate` | `api/src/repositories/<set>Repository.ts` over `dbContext`; one more create or update through `withTracking()` |
@@ -401,23 +412,11 @@ A script that calls another controller of this application from the server (the 
 
 A job is one deployed Map/Reduce script: background work, started from the application or on a schedule. It answers nothing to whoever started it, so every run is a row in this application's run record, and that row is what a page follows.
 
-If the project has no `api/src/jobs` folder yet, run **`npm run add:jobs`** once. It adds the run record and its SDF object, the cleanup script that clears old runs daily, the repository and service that read a run, the `jobRuns` controller a page polls (its `status` and `mine` endpoints), the `useJobRun` hook that polls it and picks a run up again after a refresh, and the `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
+If the project has no `api/src/jobs` folder yet, run **`npm run add:jobs`** once. It adds the run record and its SDF object, the cleanup job that clears old runs daily, the repository and service that read a run, the `jobRuns` controller a page polls (its `status` and `mine` endpoints), the `useJobRun` hook that polls it and picks a run up again after a refresh, and the `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
 
-Then, in order:
+A job is a folder of its own name, and everything about it lives there. Then, in order:
 
-1. **The service** (`api/src/services/<subject>Service.ts`): the shapes on either end of a run and the functions the stages call. They belong to the service because the service that starts a run and the stages that do the work both need them.
-    ```typescript
-    /** What a run of the closeOldOrders job is asked to do. */
-    export interface CloseOldOrdersRequest {
-        olderThanDays: number;
-    }
-
-    /** What such a run leaves behind. */
-    export interface CloseOldOrdersResult {
-        closed: number;
-    }
-    ```
-2. **`api/src/jobs/<name>.ts`**: the whole job in one file (the `nspJob` snippet). The NetSuite header, then the stages and the script declaration in one `defineJob` call.
+1. **`api/src/jobs/<name>/<name>.ts`**: the file NetSuite loads (the `nspJob` snippet). The header, the script declaration, and the stages wired by name — and nothing else, so what the job *is* reads at a glance.
     ```typescript
     /**
      * @NApiVersion 2.1
@@ -425,9 +424,10 @@ Then, in order:
      * @NModuleScope SameAccount
      */
     import { defineJob } from '@amerilux/netsuite-api/server';
-    import type { JobSummary } from '@amerilux/netsuite-api/server';
-    import { jobRuns } from '../scripts.gen';
-    import { closeOrder, listOldOrderIds, type CloseOldOrdersRequest, type CloseOldOrdersResult } from '../services/ordersService';
+    import { jobRuns } from '../../scripts.gen';
+    import { getInputDataFunction } from './getInputData';
+    import { mapFunction } from './map';
+    import { summarizeFunction } from './summarize';
 
     export const { getInputData, map, summarize } = defineJob({
         name: 'closeOldOrders',
@@ -437,45 +437,61 @@ Then, in order:
         parameters: { batchSize: { id: 'custscript_{{prefix}}_batch_size', type: 'integer' } },
         runs: jobRuns,
     }, {
-        getInputData: (input: CloseOldOrdersRequest): number[] => listOldOrderIds(input.olderThanDays),
-        map: (orderId: number, job): void => {
-            closeOrder(orderId);
-            job.write(String(orderId), 1);
-        },
-        summarize: (summary: JobSummary<number>): CloseOldOrdersResult => ({ closed: summary.output.length }),
+        getInputData: getInputDataFunction,
+        map: mapFunction,
+        summarize: summarizeFunction,
     });
     ```
-    `getInputData`'s first parameter is the run's input and `summarize`'s return type is its result: `npm run generate` reads the shapes from those two annotations, the way it reads an endpoint's request and response. The values carried between stages are JSON, so a stage says what it expects (`values: number[]` on a reduce stage, `JobSummary<Total>` on summarize) and the wrapper hands them back that way. A stage calls a service with plain arguments; `N/*` and repositories are as out of bounds here as in a controller.
+    The declaration creates nothing. `deployments` is how many runs of the job can overlap, because NetSuite runs one instance of a deployment at a time: add a second deployment (the same id plus `_2`) for a job two people may start at once. `runParameter` is the script parameter the run id arrives in, and `parameters` are the job's own, read from the deployment.
 
-    Export the stages the job has, and `summarize` always: it is where the run is closed, and a job without it would leave every run of it looking unfinished. A stage exported but not declared throws when NetSuite calls it — except `summarize`, which the wrapper closes the run with when the job declares none of its own. That is how a job that answers nothing is written:
+    Export the stages the job has, and `summarize` always: it is where the run is closed, and a job without it would leave every run of it looking unfinished. A stage exported but not declared throws when NetSuite calls it — except `summarize`, which the wrapper closes the run with when the job declares none of its own. That is how a job that answers nothing is written: leave `summarize` out of the stages and keep it in the exports. Its run's result is `null`, and the page follows `status`, the progress fields and `errors`.
+
+2. **A file per stage, beside it** (`nspJobGetInputData`, `nspJobMap`, `nspJobSummarize`, `nspJobReduce`). Each exports `<stage>Function` — the plain names are what the definition file exports to NetSuite, so the two would collide — and declares the shapes on its own boundary.
     ```typescript
-    export const { getInputData, map, summarize } = defineJob({ /* … */ }, {
-        getInputData: (input: ResendFailedRequest): number[] => listFailedOrderIds(input.since),
-        map: (orderId: number): void => resendOrder(orderId),
-    });
+    // api/src/jobs/closeOldOrders/getInputData.ts
+    import { listOldOrderIds } from '../../services/ordersService';
+
+    /** What a run of this job is asked to do; whatever starts a run builds this. */
+    export interface CloseOldOrdersRequest {
+        olderThanDays: number;
+    }
+
+    export interface CloseOldOrdersItem {
+        orderId: number;
+    }
+
+    export const getInputDataFunction = (input: CloseOldOrdersRequest): CloseOldOrdersItem[] =>
+        listOldOrderIds(input.olderThanDays).map((orderId) => ({ orderId }));
     ```
-    Its run's result is `null`, and the page follows `status`, the progress fields and `errors`. A job that wants a last word without a result — a notification once the run ends — declares `summarize` with a `void` return instead.
+    `getInputData`'s first parameter is the run's input and `summarize`'s return type is its result: `npm run generate` reads the shapes from those two annotations wherever the stage is written, the way it reads an endpoint's request and response. A stage names only what it uses of the run — `job: { write: (key: string, value: CloseOldOrdersOutcome) => void }`, or `job: { parameters: { batchSize: number } }` — so a test calls it with a plain object. The values carried between stages are JSON, so the stage that reads them says what it expects (`values: CloseOldOrdersOutcome[]` on a reduce, `JobSummary<CloseOldOrdersOutcome>` on summarize) and the wrapper hands them back that way.
 
-    The declaration creates nothing. `deployments` is how many runs of the job can overlap, because NetSuite runs one instance of a deployment at a time: add a second deployment (the same id plus `_2`) for a job two people may start at once. `runParameter` is the script parameter the run id arrives in, and `parameters` are the job's own, typed for the stages and read from the deployment.
-3. **`netsuite/Objects/customscript_{{prefix}}_<snake_name>_mr.xml`**: the script record, its parameters and its deployments (the `nspObjectMapReduce` snippet). Every deployment the declaration lists and every parameter it names must be here; `npm run lint` says so otherwise. A job that runs on a schedule carries a `<recurrence>` on its deployment, as the cleanup script does: the schedule belongs in SDF, because a deploy overwrites the deployment record and would drop one entered in the account.
-4. **`npm run generate`**: `api/src/scripts.gen.ts` gets the job under `jobs`, and `client/src/api/<name>Job.gen.ts` gets the run's `Result` type and the shapes it names, reached as `jobs.<name>` from `@/api/index.gen`. The input is not there: the service owns that shape and names it where the run is started, and nothing in the browser says it. Nothing callable is generated for a job: a page starts one through a controller.
-5. **Starting it.** The service decides and builds the run's input (the `nspServiceJobStart` snippet); `startJobRun`, in the repository `npm run add:jobs` wrote, submits the task. An endpoint hands the run id to the page:
+    A stage calls a service or a repository, as a service would; `N/*`, models, specifications and controllers are out of bounds, and `npm run lint` says so.
+
+3. **`api/src/jobs/<name>/start.ts`**: how a run is started (the `nspJobStart` snippet). The one file of the folder that is not a stage, and the one a controller calls.
     ```typescript
-    // api/src/services/ordersService.ts
-    import { startJobRun } from '../repositories/jobRunRepository';
-    import { jobs } from '../scripts.gen';
+    import { startJobRun } from '../../repositories/jobRunRepository';
+    import { jobs } from '../../scripts.gen';
+    import type { CloseOldOrdersRequest } from './getInputData';
 
     /** Starts a run and answers its id; the page follows the run by that id. */
     export function startClosingOldOrders(olderThanDays: number): string {
         return startJobRun(jobs.closeOldOrders, { olderThanDays } satisfies CloseOldOrdersRequest);
     }
+    ```
+    It lives here because the run's input shape is the job's, declared in its getInputData: a service that built it would be naming a job, and nothing below a job may. `satisfies` checks the shape where it is written. When every deployment of the job is already running, starting it answers **409** and no run is written, because nothing started; the page can say so and offer to try again.
 
+4. **`netsuite/Objects/customscript_{{prefix}}_<snake_name>_mr.xml`**: the script record, its parameters and its deployments (the `nspObjectMapReduce` snippet). Every deployment the declaration lists and every parameter it names must be here, and `<scriptfile>` points at `api/jobs/<name>/<name>.js`; `npm run lint` says so otherwise. A job that runs on a schedule carries a `<recurrence>` on its deployment, as the cleanup job does: the schedule belongs in SDF, because a deploy overwrites the deployment record and would drop one entered in the account.
+
+5. **`npm run generate`**: `api/src/scripts.gen.ts` gets the job under `jobs`, and `client/src/api/<name>Job.gen.ts` gets the run's `Result` type and the shapes it names, reached as `jobs.<name>` from `@/api/index.gen`. The input is not there: nothing in the browser says it. Nothing callable is generated for a job either — a page starts one through a controller.
+
+6. **The endpoint, and the page.** A controller calls the job's own starter and answers the run id:
+    ```typescript
     // api/src/controllers/ordersController.ts
+    import { startClosingOldOrders } from '../jobs/closeOldOrders/start';
+
     closeOld: (request: CloseOldRequest): CloseOldResponse => ({ runId: startClosingOldOrders(request.olderThanDays) }),
     ```
-    The input is built in the service because a repository never names a service's type: `startJobRun` takes the job and the input as they come, and `satisfies` checks the shape where it is written.
-    When every deployment of the job is already running, starting it answers **409** and no run is written, because nothing started; the page can say so and offer to try again.
-6. **Following it.** The page passes the job's name and the run id to `useJobRun`, naming the job's result type:
+    The page passes the job's name and the run id to `useJobRun`, naming the job's result type:
     ```typescript
     const { run, isRunning, isMissing, result } = useJobRun<jobs.closeOldOrders.Result>({ job: 'closeOldOrders', runId });
     // run?.status, run?.stage, run?.errors, result?.closed
@@ -497,9 +513,8 @@ Then, in order:
     gone — cleaned up after its retention days, or never the caller's — is not an error either: `isMissing`
     says so, the error banner is not involved, and the page can drop the stale id and offer to start again.
     It polls every two seconds and stops by itself when the run is complete or failed. A run that dies before it writes anything is `failed`, not silence: reading a run asks NetSuite about the task as well, so a task it gave up on, or one that finished without writing a result, comes back as a failure with a reason. `run.errors` carries everything that went wrong in the run, one entry per failed key.
-7. **Tests.** A job is tested through its stages: `mapContextFor`, `reduceContextFor` and `summarizeContextFor` from `@amerilux/netsuite-api/testing` build the contexts NetSuite would pass, and `written` on the first two says what the stage handed to the stage after it.
 
-Run records are not history: the cleanup job removes them after the number of days on its deployment's `Retention Days` parameter (7 by default). Change it in NetSuite; no deploy needed.
+7. **Tests.** A stage is a function in a file, so it is tested as one: mock what it calls, hand it a plain `job` with the `write` or `parameters` it names, and assert what it wrote or answered (`api/__tests__/jobs/<name>/<stage>.test.ts`). For a stage written inline in the definition file instead, `mapContextFor`, `reduceContextFor` and `summarizeContextFor` from `@amerilux/netsuite-api/testing` build the contexts NetSuite would pass, and `written` on the first two says what the stage handed to the stage after it.
 
 ## Adding an event
 

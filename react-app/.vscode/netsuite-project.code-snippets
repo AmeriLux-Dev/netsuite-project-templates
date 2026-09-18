@@ -152,7 +152,7 @@
     "nspJob": {
         "scope": "typescript",
         "prefix": "nspJob",
-        "description": "api/src/jobs/<name>.ts: a Map/Reduce job as stages, with its script declaration; name and ids come from the file name. Its input and result types come from the service. Next: nspObjectMapReduce in netsuite/Objects, npm run generate, then nspRepositoryJob to start it.",
+        "description": "api/src/jobs/<name>/<name>.ts: the file NetSuite loads for a job. Declares the script — ids from the folder name — and wires the stages beside it. Next: nspJobGetInputData, nspJobMap, nspJobSummarize and nspJobStart in the same folder, nspObjectMapReduce in netsuite/Objects, then npm run generate.",
         "body": [
             "/**",
             " * @NApiVersion 2.1",
@@ -161,17 +161,17 @@
             " */",
             "",
             "import { defineJob } from '@amerilux/netsuite-api/server';",
-            "import type { JobSummary } from '@amerilux/netsuite-api/server';",
-            "import { jobRuns } from '../scripts.gen';",
-            "import { ${3:listWork}, ${4:doOneThing}, type ${1:WorkRequest}, type ${2:WorkResult} } from '../services/${5:subject}Service';",
+            "import { jobRuns } from '../../scripts.gen';",
+            "import { getInputDataFunction } from './getInputData';",
+            "import { mapFunction } from './map';",
+            "import { summarizeFunction } from './summarize';",
             "",
             "/**",
-            " * The ${TM_FILENAME_BASE} job: ${6:what a run of it does}. getInputData takes the run's input and answers the",
-            " * work; map does one item of it; summarize says what the run came to. A stage calls a service, as an",
-            " * endpoint does: nothing here touches N/* or a repository.",
+            " * The ${TM_FILENAME_BASE} job: ${1:what a run of it does}.",
             " *",
-            " * The input and result shapes are the service's, so the service that starts a run and the service the",
-            " * stages call speak the same types; `npm run generate` copies them into the run's client module.",
+            " * This file declares the script and wires the stages; each stage file beside it holds what that stage does,",
+            " * and the shapes on either end of a run are declared where the stage that names them is. Nothing imports",
+            " * this file: NetSuite loads it.",
             " */",
             "",
             "export const { getInputData, map, summarize } = defineJob({",
@@ -181,30 +181,114 @@
             "    runParameter: 'custscript_{{prefix}}_${TM_FILENAME_BASE/([A-Z])/_${1:/downcase}/g}_run',",
             "    runs: jobRuns,",
             "}, {",
-            "    getInputData: (input: ${1}): ${7:number}[] => ${3}(input.${8:olderThanDays}),",
-            "    map: (${9:item}: ${7}, job): void => {",
-            "        ${4}(${9});",
-            "        job.write(String(${9}), 1);",
-            "    },",
-            "    summarize: (summary: JobSummary<number>): ${2} => ({ ${10:handled}: summary.output.length }),",
+            "    getInputData: getInputDataFunction,",
+            "    map: mapFunction,",
+            "    summarize: summarizeFunction,",
             "});",
+            ""
+        ]
+    },
+    "nspJobGetInputData": {
+        "scope": "typescript",
+        "prefix": "nspJobGetInputData",
+        "description": "api/src/jobs/<job>/getInputData.ts: the stage that answers the work, and the shapes a run is started with and works through. The generator reads the run's input from this function's first parameter.",
+        "body": [
+            "import { ${1:listWork} } from '../../${2|services,repositories|}/${3:subject}${4|Service,Repository|}';",
+            "",
+            "/** What a run of this job is asked to do; whatever starts a run builds this. */",
+            "export interface ${5:WorkRequest} {",
+            "    ${6:olderThanDays}: ${7:number};",
+            "}",
+            "",
+            "/** One piece of the work: what the map stage is handed. */",
+            "export interface ${8:WorkItem} {",
+            "    ${9:orderId}: number;",
+            "}",
+            "",
+            "/** ${10:What the work is, and in what order.} */",
+            "export const getInputDataFunction = (input: ${5}): ${8}[] => ${1}(input.${6}).map((${9}) => ({ ${9} }));",
+            ""
+        ]
+    },
+    "nspJobMap": {
+        "scope": "typescript",
+        "prefix": "nspJobMap",
+        "description": "api/src/jobs/<job>/map.ts: the stage that does one item and writes what it came to. Names only what it uses of the run, so a test calls it with a plain object.",
+        "body": [
+            "import { ${1:doOneThing} } from '../../${2|services,repositories|}/${3:subject}${4|Service,Repository|}';",
+            "import type { ${5:WorkItem} } from './getInputData';",
+            "",
+            "/** What the map stage writes per item, and what summarize gathers. */",
+            "export interface ${6:WorkOutcome} {",
+            "    ${7:orderId}: number;",
+            "    ${8:closed}: boolean;",
+            "}",
+            "",
+            "/** ${9:What one item does}; nothing thrown leaves a stage, so a failure here is one item, not the run. */",
+            "export const mapFunction = (item: ${5}, job: { write: (key: string, value: ${6}) => void }): void => {",
+            "    job.write(String(item.${7}), { ${7}: item.${7}, ${8}: ${1}(item.${7}) });",
+            "};",
+            ""
+        ]
+    },
+    "nspJobSummarize": {
+        "scope": "typescript",
+        "prefix": "nspJobSummarize",
+        "description": "api/src/jobs/<job>/summarize.ts: the stage that closes the run, and the result shape the page reads. The generator reads the run's result from this function's return type.",
+        "body": [
+            "import type { JobSummary } from '@amerilux/netsuite-api/server';",
+            "import type { ${1:WorkOutcome} } from './map';",
+            "",
+            "/** What a finished run leaves behind; the page reads it as jobs.<name>.Result. */",
+            "export interface ${2:WorkResult} {",
+            "    ${3:handled}: number;",
+            "    ${4:outcomes}: ${1}[];",
+            "}",
+            "",
+            "export const summarizeFunction = (summary: JobSummary<${1}>): ${2} => {",
+            "    const ${4} = summary.output.map((entry) => entry.value);",
+            "    return { ${3}: ${4}.length, ${4} };",
+            "};",
+            ""
+        ]
+    },
+    "nspJobStart": {
+        "scope": "typescript",
+        "prefix": "nspJobStart",
+        "description": "api/src/jobs/<job>/start.ts: how a run of the job is started. The one file of the folder that is not a stage, and the one a controller calls.",
+        "body": [
+            "import { startJobRun } from '../../repositories/jobRunRepository';",
+            "import { jobs } from '../../scripts.gen';",
+            "import type { ${1:WorkRequest} } from './getInputData';",
+            "",
+            "/**",
+            " * Starts a run of this job and answers its id; the page follows the run by that id. Throws a 409 when every",
+            " * deployment of the job is already running, which the page can offer to retry.",
+            " */",
+            "export function start${2:ClosingOldOrders}(${3:olderThanDays}: ${4:number}): string {",
+            "    return startJobRun(jobs.${5:closeOldOrders}, { ${3} } satisfies ${1});",
+            "}",
             ""
         ]
     },
     "nspJobReduce": {
         "scope": "typescript",
         "prefix": "nspJobReduce",
-        "description": "One more stage in a job: a reduce that gathers what map wrote under each key. Put it between map and summarize, and add reduce to the exported stages.",
+        "description": "api/src/jobs/<job>/reduce.ts: the stage that gathers what map wrote under one key. Add it to the job's declaration and to the stages it exports.",
         "body": [
-            "reduce: (${1:key}: string, ${2:values}: ${3:number}[], job): void => {",
-            "    job.write(${1}, ${2}.${4:reduce((total, value) => total + value, 0)});",
-            "},"
+            "import type { ${1:WorkOutcome} } from './map';",
+            "",
+            "/** ${2:What one key comes to} once every item under it has been written. */",
+            "export const reduceFunction = (key: string, values: ${1}[], job: { write: (key: string, value: ${3:number}) => void }): void => {",
+            "    job.write(key, values.${4:length});",
+            "};",
+            ""
         ]
     },
     "nspJobParameter": {
         "scope": "typescript",
         "prefix": "nspJobParameter",
-        "description": "One more script parameter on a job declaration, typed for the stages. Add the matching <scriptcustomfield> to the job's SDF object, and a value on the deployment.",
+        "description": "One more script parameter on a job's declaration, typed for the stages that read it. Add the matching <scriptcustomfield> to the job's SDF object and a value on the deployment; a stage names what it reads as job: { parameters: { <name>: <type> } }.",
         "body": [
             "parameters: { ${1:batchSize}: { id: 'custscript_{{prefix}}_${2:batch_size}', type: '${3|integer,text,decimal,checkbox,date,select|}' } },"
         ]
@@ -310,18 +394,6 @@
             "/** ${7:What it answers}. */",
             "export function ${8:serviceFunction}(${9:id}: ${10:number}): ${1}Summary[] {",
             "    return ${2}(${9}).map(build${1}Summary);",
-            "}",
-            ""
-        ]
-    },
-    "nspServiceJobStart": {
-        "scope": "typescript",
-        "prefix": "nspServiceJobStart",
-        "description": "One more function in a service: starts a job and answers the run id a page follows. Add `import { startJobRun } from '../repositories/jobRunRepository';` and `import { jobs } from '../scripts.gen';` at the top. The input shape is built here because a repository never names a service's type.",
-        "body": [
-            "/** Starts a run of ${1:closeOldOrders} and answers its id; the page follows the run by that id. */",
-            "export function start${2:ClosingOldOrders}(${3:olderThanDays}: ${4:number}): string {",
-            "    return startJobRun(jobs.${1}, { ${3} } satisfies ${5:CloseOldOrdersRequest});",
             "}",
             ""
         ]
@@ -1198,7 +1270,7 @@
             "  <notifyadmins>F</notifyadmins>",
             "  <notifyemails></notifyemails>",
             "  <notifyowner>T</notifyowner>",
-            "  <scriptfile>[/SuiteScripts/{{appName}}/api/jobs/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_mr$|_([a-z])/${1:/upcase}/g}.js]</scriptfile>",
+            "  <scriptfile>[/SuiteScripts/{{appName}}/api/jobs/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_mr$|_([a-z])/${1:/upcase}/g}/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_mr$|_([a-z])/${1:/upcase}/g}.js]</scriptfile>",
             "  <scriptcustomfields>",
             "    <scriptcustomfield scriptid=\"${TM_FILENAME_BASE/^customscript_(.*)_mr$/custscript_$1_run/}\">",
             "      <accesslevel>2</accesslevel>",

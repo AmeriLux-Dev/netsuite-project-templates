@@ -170,7 +170,7 @@ runCli([
 ], templatesRoot);
 // --jobs runs the project's own add:jobs, which needs no dependencies: the run record, the cleanup job and what a page follows a run with.
 assertEqual(existsSync(path.join(plainDir, 'netsuite', 'Objects', 'customrecord_plain_job_run.xml')), true, '--jobs writes the run record object with the project prefix');
-assertEqual(existsSync(path.join(plainDir, 'api', 'src', 'jobs', 'jobRunCleanup.ts')), true, '--jobs writes the cleanup job');
+assertEqual(existsSync(path.join(plainDir, 'api', 'src', 'jobs', 'jobRunCleanup', 'jobRunCleanup.ts')), true, '--jobs writes the cleanup job in its own folder');
 assertEqual(existsSync(path.join(plainDir, 'client', 'src', 'hooks', 'useJobRun.ts')), true, '--jobs writes the hook a page follows a run with');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'netsuite-api.config.json'), 'utf8')).jobRuns, { recordType: 'customrecord_plain_job_run', fieldPrefix: 'custrecord_plain_jr', extraFields: {} }, '--jobs names the run record in the generator config');
 assertEqual(existsSync(path.join(plainDir, 'probity.config.ts')), false, 'default scaffold has no probity.config.ts');
@@ -262,8 +262,8 @@ assertEqual(readFileSync(path.join(projectDir, 'client', 'src', 'api', 'jobs.gen
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);
 run('npm', ['run', 'build', '-w', 'api'], projectDir);
-assertEqual(existsSync(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup.js')), true, 'the cleanup job is built into the File Cabinet');
-assertBanner(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup.js'));
+assertEqual(existsSync(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup', 'jobRunCleanup.js')), true, 'the cleanup job is built into the File Cabinet');
+assertBanner(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup', 'jobRunCleanup.js'));
 
 // Every VS Code snippet, expanded into this scaffold as one coherent addition, must generate, typecheck and pass
 // the structure check (scripts/checkSnippets.mjs); the check restores the scaffold afterwards.

@@ -388,7 +388,10 @@ const scenario = [
             'netsuite/Objects/customrecord_{{prefix}}_job_run.xml',
             'netsuite/Objects/customscript_{{prefix}}_job_cleanup_mr.xml',
             'netsuite/Objects/customscript_{{prefix}}_job_runs.xml',
-            'api/src/jobs/jobRunCleanup.ts',
+            'api/src/jobs/jobRunCleanup/jobRunCleanup.ts',
+            'api/src/jobs/jobRunCleanup/getInputData.ts',
+            'api/src/jobs/jobRunCleanup/map.ts',
+            'api/src/jobs/jobRunCleanup/summarize.ts',
             'api/src/repositories/jobRunRepository.ts',
             'api/src/services/jobRunService.ts',
             'api/src/controllers/jobRunsController.ts',
@@ -396,43 +399,61 @@ const scenario = [
             'netsuite-api.config.json',
         ],
     },
-    // What the job's stages call, and the shapes on either end of a run: the service owns both, so the service
-    // that starts a run and the stages that do the work speak the same types.
+    // What the job's stages call. The shapes on either end of a run are the job's own, declared in the stage
+    // that names them, so the service holds only the work.
     {
         edit: 'api/src/services/ordersService.ts',
         find: "export type SalesOrderSummary = Pick<SalesOrder, 'tranId'>;",
         replace: [
             "export type SalesOrderSummary = Pick<SalesOrder, 'tranId'>;",
             '',
-            '/** What a run of the closeOldOrders job is asked to do. */',
-            'export interface CloseOldOrdersRequest {',
-            '    olderThanDays: number;',
-            '}',
-            '',
-            '/** What such a run leaves behind. */',
-            'export interface CloseOldOrdersResult {',
-            '    closed: number;',
-            '}',
-            '',
             '/** The ids of the orders old enough to close. */',
             'export function listOldOrderIds(olderThanDays: number): number[] {',
             '    return olderThanDays > 0 ? [] : [];',
             '}',
             '',
-            'export function closeOrder(orderId: number): void {',
+            '/** Closes one order, and says whether it went. */',
+            'export function closeOrder(orderId: number): boolean {',
             "    if (orderId <= 0) throw new Error('An order id is a positive number.');",
+            '    return true;',
             '}',
         ].join('\n'),
     },
     {
         snippet: 'nspJob',
-        file: 'api/src/jobs/closeOldOrders.ts',
-        values: { 1: 'CloseOldOrdersRequest', 2: 'CloseOldOrdersResult', 3: 'listOldOrderIds', 4: 'closeOrder', 5: 'orders', 6: 'closes sales orders older than a cutoff', 7: 'number', 8: 'olderThanDays', 9: 'orderId', 10: 'closed' },
+        file: 'api/src/jobs/closeOldOrders/closeOldOrders.ts',
+        values: { 1: 'closes sales orders older than a cutoff' },
     },
-    { snippet: 'nspJobParameter', into: 'api/src/jobs/closeOldOrders.ts', beforeLine: /^\s+runs: jobRuns,$/, values: { 1: 'batchSize', 2: 'batch_size', 3: 'integer' } },
-    { snippet: 'nspJobReduce', into: 'api/src/jobs/closeOldOrders.ts', beforeLine: /^\s+summarize: \(summary/, values: { 1: 'orderId', 2: 'counts', 3: 'number', 4: 'length' } },
-    // What the reduce snippet's description says to do by hand: NetSuite runs the stages the file exports.
-    { edit: 'api/src/jobs/closeOldOrders.ts', find: 'export const { getInputData, map, summarize }', replace: 'export const { getInputData, map, reduce, summarize }' },
+    {
+        snippet: 'nspJobGetInputData',
+        file: 'api/src/jobs/closeOldOrders/getInputData.ts',
+        values: { 1: 'listOldOrderIds', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersRequest', 6: 'olderThanDays', 7: 'number', 8: 'CloseOldOrdersItem', 9: 'orderId', 10: 'The ids of the orders old enough to close' },
+    },
+    {
+        snippet: 'nspJobMap',
+        file: 'api/src/jobs/closeOldOrders/map.ts',
+        values: { 1: 'closeOrder', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'orderId', 8: 'closed', 9: 'Closes one order' },
+    },
+    {
+        snippet: 'nspJobSummarize',
+        file: 'api/src/jobs/closeOldOrders/summarize.ts',
+        values: { 1: 'CloseOldOrdersOutcome', 2: 'CloseOldOrdersResult', 3: 'closed', 4: 'outcomes' },
+    },
+    // A reduce gathers what map wrote under one key, so what it writes is what summarize then reads.
+    {
+        snippet: 'nspJobReduce',
+        file: 'api/src/jobs/closeOldOrders/reduce.ts',
+        values: { 1: 'CloseOldOrdersOutcome', 2: 'Which outcome of a key stands', 3: 'CloseOldOrdersOutcome', 4: 'at(0) ?? { orderId: 0, closed: false }' },
+    },
+    { snippet: 'nspJobParameter', into: 'api/src/jobs/closeOldOrders/closeOldOrders.ts', beforeLine: /^\s+runs: jobRuns,$/, values: { 1: 'batchSize', 2: 'batch_size', 3: 'integer' } },
+    // What the reduce snippet's description says to do by hand: wire the stage, and export it for NetSuite to run.
+    {
+        edit: 'api/src/jobs/closeOldOrders/closeOldOrders.ts',
+        find: "import { mapFunction } from './map';",
+        replace: ["import { mapFunction } from './map';", "import { reduceFunction } from './reduce';"].join('\n'),
+    },
+    { edit: 'api/src/jobs/closeOldOrders/closeOldOrders.ts', find: '    map: mapFunction,', replace: ['    map: mapFunction,', '    reduce: reduceFunction,'].join('\n') },
+    { edit: 'api/src/jobs/closeOldOrders/closeOldOrders.ts', find: 'export const { getInputData, map, summarize }', replace: 'export const { getInputData, map, reduce, summarize }' },
     { snippet: 'nspObjectMapReduce', file: 'netsuite/Objects/customscript_{{prefix}}_close_old_orders_mr.xml', values: { 1: 'Close Old Orders', 2: 'Closes sales orders older than a cutoff' } },
     // Every parameter the job declares needs its field on the object; the structure check says so otherwise.
     {
@@ -454,13 +475,11 @@ const scenario = [
             '  </scriptcustomfields>',
         ].join('\n'),
     },
-    // What the snippet's description says to do by hand: the two imports the start function needs.
     {
-        edit: 'api/src/services/ordersService.ts',
-        find: "import type { SalesOrder } from '../types/models.gen';",
-        replace: ["import { startJobRun } from '../repositories/jobRunRepository';", "import { jobs } from '../scripts.gen';", "import type { SalesOrder } from '../types/models.gen';"].join('\n'),
+        snippet: 'nspJobStart',
+        file: 'api/src/jobs/closeOldOrders/start.ts',
+        values: { 1: 'CloseOldOrdersRequest', 2: 'ClosingOldOrders', 3: 'olderThanDays', 4: 'number', 5: 'closeOldOrders' },
     },
-    { snippet: 'nspServiceJobStart', into: 'api/src/services/ordersService.ts', append: true, values: { 1: 'closeOldOrders', 2: 'ClosingOldOrders', 3: 'olderThanDays', 4: 'number', 5: 'CloseOldOrdersRequest' } },
 
     // Events: self-contained SuiteScript, with no SDF object of their own.
     {

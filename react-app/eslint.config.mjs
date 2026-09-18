@@ -39,6 +39,11 @@ const recordAccessImports = [
     { group: ['N/*'], message: 'Endpoints parse and reply, services decide. Only a repository touches NetSuite (N/*).' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
+// A job's folder decides and calls a repository, as a service does; its stages are handed what NetSuite gave them.
+const jobRecordAccessImports = [
+    { group: ['N/*'], message: 'A job decides and calls a repository; only a repository touches NetSuite (N/*).' },
+    { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+];
 // A client event runs in the browser, on a NetSuite record page rather than in this app: it calls N/* itself,
 // logs with console, and is not wrapped for telemetry. Its only rule is that it belongs to no layer of this app.
 const appLayerImportsInClientEvents = [
@@ -146,14 +151,17 @@ export default defineConfig([
             'import-x/no-restricted-paths': ['error', {
                 zones: [
                     { target: './api/src/controllers', from: ['./api/src/repositories', './api/src/specifications', './api/src/models'], message: 'An endpoint never queries. Call a service.' },
-                    { target: './api/src/jobs', from: ['./api/src/repositories', './api/src/specifications', './api/src/models'], message: 'A job stage never queries. Call a service, as an endpoint does.' },
+                    { target: './api/src/jobs', from: ['./api/src/specifications', './api/src/models'], message: 'A job decides and calls a repository, as a service does; it knows nothing about records or queries.' },
                     { target: './api/src/services', from: ['./api/src/specifications', './api/src/models'], message: 'A service decides; the repository queries.' },
                     { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
                     { target: './api/src/models', from: ['./api/src/types', './api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './api/src/jobs', './api/src/events'], message: 'A model declares a record; it knows nothing about the wire or the layers above it.' },
-                    // A job and a user event are entry points, so nothing calls into them; a client event belongs to no layer at all.
-                    { target: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], from: ['./api/src/jobs', './api/src/events'], message: 'A job or an event is an entry point: NetSuite calls it, this application does not.' },
+                    // A job owns the shapes on either end of its runs, so it sits above a service and nothing below may name it;
+                    // a controller is the exception, calling the start<Name> its folder declares. An event NetSuite calls alone,
+                    // and a client event belongs to no layer at all.
+                    { target: ['./api/src/services', './api/src/repositories', './api/src/specifications'], from: './api/src/jobs', message: "A job is above a service: the shapes on either end of a run are the job's own, and only a controller reaches into a job's folder, for its start." },
+                    { target: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], from: './api/src/events', message: 'An event is an entry point: NetSuite calls it, this application does not.' },
                     { target: './api/src/events/client', from: ['./api/src/events/user', './api/src/jobs'], message: 'A client event is self-contained; nothing of the server side belongs in a page script.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client', from: './api', message: 'The client never imports from api/; its view of the backend is the generated client module.' },
@@ -203,13 +211,13 @@ export default defineConfig([
         },
     },
     {
-        // A job is an entry point like a controller: its stages unpack what NetSuite hands them, call services with
-        // plain arguments, and return the run's result. It declares its own script, deployment and parameter ids, so
-        // the id rule does not apply to it; the log rules still do.
+        // A job is a folder: <name>/<name>.ts declares the script NetSuite loads and wires the stages, and a file per
+        // stage beside it does the work, calling services and repositories as a service would. A job declares its own
+        // script, deployment and parameter ids, so the id rule does not apply to it; the log rules still do.
         files: ['api/src/jobs/**/*.ts'],
         rules: {
             'no-restricted-syntax': ['error', ...logEntryShape],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...jobRecordAccessImports] }],
         },
     },
     {

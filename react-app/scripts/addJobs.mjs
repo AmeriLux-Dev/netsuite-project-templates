@@ -6,7 +6,7 @@
  * What it adds:
  *   - netsuite/Objects/customrecord_<prefix>_job_run.xml   the record a run lives in
  *   - netsuite/Objects/customscript_<prefix>_job_cleanup_mr.xml  the cleanup job, scheduled daily
- *   - api/src/jobs/jobRunCleanup.ts                       that job's stages
+ *   - api/src/jobs/jobRunCleanup/                        that job's stages, one file each
  *   - api/src/repositories/jobRunRepository.ts            the run store: start, read, find expired, remove
  *   - api/src/services/jobRunService.ts                   who may see a run, and what cleanup removes
  *   - api/src/controllers/jobRunsController.ts (+ object)  the endpoint a page polls
@@ -210,7 +210,7 @@ const cleanupObject = `<mapreducescript scriptid="${cleanupScriptId}">
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
   <notifyowner>T</notifyowner>
-  <scriptfile>[/SuiteScripts/${app.folder}/api/jobs/jobRunCleanup.js]</scriptfile>
+  <scriptfile>[/SuiteScripts/${app.folder}/api/jobs/jobRunCleanup/jobRunCleanup.js]</scriptfile>
   <scriptcustomfields>
 ${[
     scriptParameter(cleanupRunParameter, { label: 'Run Id', fieldType: 'TEXT', help: 'The run record this run reports to. Left empty: a scheduled run opens its own.' }),
@@ -275,22 +275,19 @@ const cleanupJob = `/**
  */
 
 import { defineJob } from '@amerilux/netsuite-api/server';
-import type { JobSummary } from '@amerilux/netsuite-api/server';
-import { jobRuns } from '../scripts.gen';
-import { listExpiredJobRuns, removeJobRun } from '../services/jobRunService';
+import { jobRuns } from '../../scripts.gen';
+import { getInputDataFunction } from './getInputData';
+import { mapFunction } from './map';
+import { summarizeFunction } from './summarize';
 
 /**
  * Removes run records that have outlived the retention parameter on this job's deployment. A run
  * record is how a page follows a job that is working and how a failure is found afterwards; it is not
  * history, so it goes. Change \`Retention Days\` on the deployment in NetSuite to keep more or less.
  *
- * This job is itself a job, so it has a run of its own, cleaned up by a later run like any other.
+ * This file declares the script and wires the stages; each stage file beside it holds what it does.
+ * The job is itself a job, so it has a run of its own, cleaned up by a later run like any other.
  */
-
-/** What the run leaves behind: how many records it removed. */
-export interface CleanupResult {
-    removed: number;
-}
 
 export const { getInputData, map, summarize } = defineJob({
     name: 'jobRunCleanup',
@@ -300,13 +297,38 @@ export const { getInputData, map, summarize } = defineJob({
     parameters: { retentionDays: { id: '${cleanupDaysParameter}', type: 'integer' } },
     runs: jobRuns,
 }, {
-    getInputData: (_input: void, job): string[] => listExpiredJobRuns(job.parameters.retentionDays),
-    map: (runId: string, job): void => {
-        removeJobRun(runId);
-        job.write(runId, 1);
-    },
-    summarize: (summary: JobSummary<number>): CleanupResult => ({ removed: summary.output.length }),
+    getInputData: getInputDataFunction,
+    map: mapFunction,
+    summarize: summarizeFunction,
 });
+`;
+
+const cleanupGetInputData = `import { listExpiredJobRuns } from '../../services/jobRunService';
+
+/**
+ * The run records old enough to remove: everything past the retention parameter on this job's deployment.
+ * A stage names only what it uses of the run, so a test can call it with a plain object.
+ */
+export const getInputDataFunction = (_input: void, job: { parameters: { retentionDays: number } }): string[] => listExpiredJobRuns(job.parameters.retentionDays);
+`;
+
+const cleanupMap = `import { removeJobRun } from '../../services/jobRunService';
+
+/** Removes one run record, and writes a one so summarize can count what went. */
+export const mapFunction = (runId: string, job: { write: (key: string, value: number) => void }): void => {
+    removeJobRun(runId);
+    job.write(runId, 1);
+};
+`;
+
+const cleanupSummarize = `import type { JobSummary } from '@amerilux/netsuite-api/server';
+
+/** What the run leaves behind: how many records it removed. */
+export interface CleanupResult {
+    removed: number;
+}
+
+export const summarizeFunction = (summary: JobSummary<number>): CleanupResult => ({ removed: summary.output.length });
 `;
 
 const jobRunRepository = `import { createJobRunStore } from '@amerilux/netsuite-api/server';
@@ -567,7 +589,10 @@ export function useJobRun<TResult = unknown>({ job, runId, resume = 'running' }:
 addProjectFile(`netsuite/Objects/${recordType}.xml`, runRecordObject);
 addProjectFile(`netsuite/Objects/${cleanupScriptId}.xml`, cleanupObject);
 addProjectFile(`netsuite/Objects/${controllerScriptId}.xml`, controllerObject);
-addProjectFile('api/src/jobs/jobRunCleanup.ts', cleanupJob);
+addProjectFile('api/src/jobs/jobRunCleanup/jobRunCleanup.ts', cleanupJob);
+addProjectFile('api/src/jobs/jobRunCleanup/getInputData.ts', cleanupGetInputData);
+addProjectFile('api/src/jobs/jobRunCleanup/map.ts', cleanupMap);
+addProjectFile('api/src/jobs/jobRunCleanup/summarize.ts', cleanupSummarize);
 addProjectFile('api/src/repositories/jobRunRepository.ts', jobRunRepository);
 addProjectFile('api/src/services/jobRunService.ts', jobRunService);
 addProjectFile('api/src/controllers/jobRunsController.ts', jobRunsController);
@@ -596,6 +621,6 @@ if (written.length === 0) {
         console.log('this template (no mine endpoint in jobRunsController.ts, no job option on useJobRun), copy the');
         console.log('newer version out of scripts/addJobs.mjs by hand.');
     }
-    console.log('\nNext: `npm run generate`, then write a job under api/src/jobs (the nspJob snippet, or HOW-TO-USE.md, "Adding a job").');
+    console.log('\nNext: `npm run generate`, then write a job in its own folder under api/src/jobs (the nspJob snippet, or HOW-TO-USE.md, "Adding a job").');
     console.log('The run record and the cleanup script reach the account on the next `npm run deploy`.');
 }
