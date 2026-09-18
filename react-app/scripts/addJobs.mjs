@@ -446,7 +446,6 @@ export interface RunSummary {
     id: string;
     status: JobRunStatus;
     stage: JobRunStage | null;
-    stagePercentComplete: number;
 }
 
 export interface MineResponse {
@@ -477,7 +476,7 @@ export const jobRunsEndpoints = defineEndpoints({
     mine: (request: MineRequest): MineResponse => {
         if (typeof request.job !== 'string' || request.job === '') throw ApiError.badRequest('job is required.', { job: request.job });
         const runs = listJobRunsForCaller(request.job, typeof request.limit === 'number' ? request.limit : undefined);
-        return { runs: runs.map((run) => ({ id: run.id, status: run.status, stage: run.stage, stagePercentComplete: run.stagePercentComplete })) };
+        return { runs: runs.map((run) => ({ id: run.id, status: run.status, stage: run.stage })) };
     },
 });
 
