@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@amerilux/netsuite-api": "^0.5.0",
+    "@amerilux/netsuite-api": "^0.5.2",
     "@amerilux/netsuite-repository": "^1.2.0",
     "@amerilux/netsuite-wrapper": "^0.4.0"
   },
