@@ -20,7 +20,7 @@
  * so the scaffold is left as it was found.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -443,7 +443,7 @@ const scenario = [
     {
         snippet: 'nspJobReduce',
         file: 'api/src/jobs/closeOldOrders/reduce.ts',
-        values: { 1: 'CloseOldOrdersOutcome', 2: 'Which outcome of a key stands', 3: 'CloseOldOrdersOutcome', 4: 'at(0) ?? { orderId: 0, closed: false }' },
+        values: { 1: 'CloseOldOrdersOutcome', 2: 'Which outcome of a key stands', 3: 'CloseOldOrdersOutcome', 4: 'values[0] ?? { orderId: 0, closed: false }' },
     },
     { snippet: 'nspJobParameter', into: 'api/src/jobs/closeOldOrders/closeOldOrders.ts', beforeLine: /^\s+runs: jobRuns,$/, values: { 1: 'batchSize', 2: 'batch_size', 3: 'integer' } },
     // What the reduce snippet's description says to do by hand: wire the stage, and export it for NetSuite to run.
@@ -638,10 +638,18 @@ function regenerateRouteTree() {
 }
 
 function restore() {
+    const emptiedDirectories = new Set();
     for (const [relativePath, original] of originals) {
         const absolutePath = path.join(projectDir, relativePath);
-        if (original === undefined) rmSync(absolutePath, { force: true });
-        else writeFileSync(absolutePath, original);
+        if (original === undefined) {
+            rmSync(absolutePath, { force: true });
+            emptiedDirectories.add(path.dirname(absolutePath));
+        } else writeFileSync(absolutePath, original);
+    }
+    // A folder the scenario made goes with its files: an empty job folder is a job with no job in it, which
+    // `npm run generate` reports, so leaving one behind would fail the check on its way out.
+    for (const directory of [...emptiedDirectories].sort((left, right) => right.length - left.length)) {
+        if (existsSync(directory) && readdirSync(directory).length === 0) rmSync(directory, { recursive: true, force: true });
     }
     if (originals.has('client/src/routes/orders.tsx') && existsSync(routeTreePath)) regenerateRouteTree();
     run('npm', ['run', 'generate'], projectDir);

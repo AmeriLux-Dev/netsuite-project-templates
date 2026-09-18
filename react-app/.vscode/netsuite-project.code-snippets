@@ -280,7 +280,7 @@
             "",
             "/** ${2:What one key comes to} once every item under it has been written. */",
             "export const reduceFunction = (key: string, values: ${1}[], job: { write: (key: string, value: ${3:number}) => void }): void => {",
-            "    job.write(key, values.${4:length});",
+            "    job.write(key, ${4:values.length});",
             "};",
             ""
         ]
