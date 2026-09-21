@@ -1,6 +1,6 @@
 # {{appTitle}}
 
-Suitelet-hosted React application for NetSuite. How to build, run, test and extend it is in [HOW-TO-USE.md](./HOW-TO-USE.md); this file is the record of what the application is for, who owns it, and why it looks the way it does.
+Suitelet-hosted React application for NetSuite. How it is laid out and how to extend it is in [how-to-use/](./how-to-use/folder-structure.md): the folder structure, and worked examples of a repository, a controller and a job; this file is the record of what the application is for, who owns it, and why it looks the way it does.
 
 ## Purpose
 
@@ -27,7 +27,7 @@ _What business process this serves, and for whom. Name the roles that use it and
 
 - **Environments:** _which sandbox and production accounts this deploys to, by name, and how to get access. Account ids, authentication ids and `project.json` stay out of the repository._
 - `npx suitecloud account:setup` once per account, then `npm run deploy` (full SDF deploy) or `npm run deploy:files` (File Cabinet only).
-- Everything else about the scripts, the build output and the SDF project is in [HOW-TO-USE.md](./HOW-TO-USE.md#deploy).
+- Everything else about the scripts, the build output and the SDF project is in [how-to-use/folder-structure.md](./how-to-use/folder-structure.md#netsuite).
 - **Roles:** the `home` Suitelet and the `user` Restlet are deployed to the Administrator role only (`audslctrole` in `netsuite/Objects/`); widen the audience there when other roles use the application. The `userRoles` Suitelet is already deployed to all roles and runs as Administrator, and answers for any employee id: before widening the audience, give it an `authorize` option that rejects an employee id other than the caller's.
 - _Anything not covered by the scripts: manual steps, script parameters to set, records to seed._
 

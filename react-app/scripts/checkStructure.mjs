@@ -272,7 +272,7 @@ function checkJobObject(job, folder) {
         report(`${objectPath}: must open with <mapreducescript scriptid="${job.scriptId}"> to match ${job.jobPath}.`);
     }
     for (const deployment of job.deployments) {
-        if (!object.deployIds.includes(deployment)) report(`${objectPath}: declares no <scriptdeployment scriptid="${deployment}">; the job's declaration says it may run there.`);
+        if (!object.deployIds.includes(deployment)) report(`${objectPath}: declares no <scriptdeployment scriptid="${deployment}">; the job's ids in netsuite.ts say it may run there.`);
     }
     for (const parameter of [job.runParameter, ...job.parameters]) {
         if (!object.parameterIds.includes(parameter)) report(`${objectPath}: declares no <scriptcustomfield scriptid="${parameter}">; the job reads that parameter.`);
@@ -385,9 +385,9 @@ checkObjectsAndSources(app.folder);
 if (problems.length > 0) {
     console.error(`Structure check found ${problems.length} problem(s):`);
     for (const problem of problems) console.error(`  - ${problem}`);
-    console.error('\nHOW-TO-USE.md ("Adding a controller", "Adding a job") lists every piece a script needs.');
+    console.error('\nhow-to-use/controllers/restlet-controller.md and how-to-use/jobs/map-reduce-job.md list every piece a script needs.');
     console.error('If this project no longer follows the template\'s controller layout, remove this check: delete scripts/checkStructure.mjs');
-    console.error('and drop `&& node scripts/checkStructure.mjs` from the lint script in package.json (HOW-TO-USE.md, "Removing a rule you have outgrown").');
+    console.error('and drop `&& node scripts/checkStructure.mjs` from the lint script in package.json.');
     process.exit(1);
 }
 console.log(`Structure check passed: ${controllers.length} controller(s), ${jobs.length} job(s), ${eventCount} event(s).`);

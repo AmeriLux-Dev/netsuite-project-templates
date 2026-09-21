@@ -290,55 +290,43 @@ export { map } from './map';
 export { summarize } from './summarize';
 `;
 
-const cleanupGetInputData = `import type { EntryPoints } from 'N/types';
-import { jobs } from '../../../../netsuite';
-import { openJobRun, readJobRunRetentionDays } from '../../repositories/jobRunRepository';
+const cleanupGetInputData = `import { jobs } from '../../../../netsuite';
+import { jobGetInputData, readJobRunRetentionDays } from '../../repositories/jobRunRepository';
 import { listExpiredJobRuns } from '../../services/jobRunService';
 
 /**
  * The run records old enough to remove: everything past the retention parameter on this job's
- * deployment. The run is opened here, as every job opens its own; this one is started by its schedule
- * rather than by a page, so opening it is what creates the run to report to.
+ * deployment. This job is started by its schedule rather than by a page, so a run of it carries
+ * nothing: opening the run is what creates the row the run reports to.
  */
-export function getInputData(_context: EntryPoints.MapReduce.getInputDataContext): string[] {
-    openJobRun(jobs.jobRunCleanup);
-    return listExpiredJobRuns(readJobRunRetentionDays());
-}
+export const getInputData = jobGetInputData<void, string>(jobs.jobRunCleanup, () => listExpiredJobRuns(readJobRunRetentionDays()));
 `;
 
-const cleanupMap = `import type { EntryPoints } from 'N/types';
+const cleanupMap = `import { jobs } from '../../../../netsuite';
+import { jobMap } from '../../repositories/jobRunRepository';
 import { removeJobRun } from '../../services/jobRunService';
 
 /** Removes one run record, and writes a one so summarize can count what went. */
-export function map(context: EntryPoints.MapReduce.mapContext): void {
-    const runId = JSON.parse(context.value) as string;
+export const map = jobMap<string, number>(jobs.jobRunCleanup, (runId, job) => {
     removeJobRun(runId);
-    context.write({ key: runId, value: JSON.stringify(1) });
-}
+    job.write(runId, 1);
+});
 `;
 
-const cleanupSummarize = `import type { EntryPoints } from 'N/types';
-import { jobs } from '../../../../netsuite';
-import { closeJobRun } from '../../repositories/jobRunRepository';
+const cleanupSummarize = `import { jobs } from '../../../../netsuite';
+import { jobSummarize } from '../../repositories/jobRunRepository';
 
 /** What the run leaves behind: how many records it removed. */
 export interface CleanupResult {
     removed: number;
 }
 
-export function summarize(context: EntryPoints.MapReduce.summarizeContext): void {
-    let removed = 0;
-    context.output.iterator().each(() => {
-        removed += 1;
-        return true;
-    });
-    closeJobRun<CleanupResult>(jobs.jobRunCleanup, context, { removed });
-}
+export const summarize = jobSummarize<number, CleanupResult>(jobs.jobRunCleanup, (summary) => ({ removed: summary.output.length }));
 `;
 
 const jobRunRepository = `import * as runtime from 'N/runtime';
 import type { EntryPoints } from 'N/types';
-import { createJobRunStore } from '@amerilux/netsuite-api/server';
+import { createJobRunStore, createJobStages } from '@amerilux/netsuite-api/server';
 import type { JobRef, JobRun, JobRunListEntry, JobRunQuery } from '@amerilux/netsuite-api/server';
 import { jobs } from '../../../netsuite';
 import { jobRuns } from '../scripts.gen';
@@ -349,13 +337,22 @@ import { jobRuns } from '../scripts.gen';
  * which is what tells a run that died from one still working. A repository, because both are NetSuite
  * calls; a service decides whether a job should start and who may look at a run.
  *
- * The three calls a stage makes are here too, for the same reason: a job is an ordinary Map/Reduce
- * script and may not touch \`N/*\` itself, so it opens and closes its run through this file.
+ * The stage builders are here too, for the same reason: a job is an ordinary Map/Reduce script and may
+ * not touch \`N/*\` itself, so it reaches its run through this file. A stage written as the entry point
+ * NetSuite calls, rather than built, uses openJobRun and closeJobRun instead.
  *
  * The ids come from the generated \`jobRuns\`, written from the jobRuns block of netsuite-api.config.json.
  */
 
 const jobRunStore = createJobRunStore(jobRuns);
+
+/**
+ * How a stage is written: \`export const map = jobMap<Item, Outcome>(jobs.<name>, (item, job) => …)\`.
+ * The types are the stage's own claim about what it is handed and what it hands on, so the JSON between
+ * the stages is not its business; getInputData is given what the run was started with, and what
+ * summarize answers becomes the run's result and closes it.
+ */
+export const { jobGetInputData, jobMap, jobReduce, jobSummarize } = createJobStages(jobRunStore);
 
 /** Starts a job and answers the run id. Throws a 409 when every deployment of it is already running. */
 export function startJobRun(job: JobRef, input: unknown): string {
@@ -692,6 +689,6 @@ if (written.length === 0) {
         console.log('this template (no mine endpoint in jobRunsController.ts, no job option on useJobRun), copy the');
         console.log('newer version out of scripts/addJobs.mjs by hand.');
     }
-    console.log('\nNext: `npm run generate`, then write a job in its own folder under api/src/jobs (the nspJob snippet, or HOW-TO-USE.md, "Adding a job").');
+    console.log('\nNext: `npm run generate`, then write a job in its own folder under api/src/jobs (the nspJob snippet, or how-to-use/jobs/map-reduce-job.md).');
     console.log('The run record and the cleanup script reach the account on the next `npm run deploy`.');
 }

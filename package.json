@@ -9,6 +9,7 @@
   "scripts": {
     "e2e": "node scripts/e2e.mjs",
     "check:snippets": "node scripts/checkSnippets.mjs",
+    "check:how-to-use": "node scripts/checkHowToUse.mjs",
     "check:private-refs": "node scripts/check-no-private-refs.mjs",
     "check:pins": "node scripts/checkDependencyPins.mjs"
   }

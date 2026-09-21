@@ -14,6 +14,8 @@ The CLI downloads one template folder from this repository at a git ref (`main` 
 react-app/            Suitelet-hosted React application: Vite client, webpack AMD API, one script per controller, job or event
 scripts/e2e.mjs       renders react-app with the CLI, then installs, generates, typechecks, lints, tests and builds the result
 scripts/checkSnippets.mjs   expands every VS Code snippet of react-app into the e2e scaffold and typechecks the result (run by e2e.mjs)
+scripts/checkHowToUse.mjs   writes every worked example of react-app/how-to-use into the e2e scaffold, then generates, typechecks, lints, tests and builds it (run by e2e.mjs)
+scripts/snippetExpansion.mjs   VS Code snippet expansion, shared by the two checks above
 scripts/check-no-private-refs.mjs   fails when anything account-specific leaks in
 .github/workflows/    CI: the end-to-end check on Linux and Windows against the CLI's main branch, plus a secret scan
 ```

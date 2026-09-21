@@ -273,5 +273,9 @@ assertBanner(path.join(fileCabinet, 'api', 'jobs', 'jobRunCleanup', 'jobRunClean
 // the structure check (scripts/checkSnippets.mjs); the check restores the scaffold afterwards.
 run('node', [path.join(templatesRoot, 'scripts', 'checkSnippets.mjs'), '--project', projectDir], templatesRoot);
 
+// Every worked example under react-app/how-to-use/, written into this scaffold in the order they build on one another,
+// must generate, typecheck, lint, test and build (scripts/checkHowToUse.mjs); the check restores the scaffold afterwards.
+run('node', [path.join(templatesRoot, 'scripts', 'checkHowToUse.mjs'), '--project', projectDir], templatesRoot);
+
 if (!keep) rmSync(projectDir, { recursive: true, force: true });
 console.log('\nEnd-to-end scaffold check passed.');
