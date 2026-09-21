@@ -152,7 +152,7 @@
     "nspJob": {
         "scope": "typescript",
         "prefix": "nspJob",
-        "description": "api/src/jobs/<name>/<name>.ts: the file NetSuite loads for a job. Declares the script — ids from the folder name — and wires the stages beside it. Next: nspJobGetInputData, nspJobMap, nspJobSummarize and nspJobStart in the same folder, nspObjectMapReduce in netsuite/Objects, then npm run generate.",
+        "description": "api/src/jobs/<name>/<name>.ts: the file NetSuite loads for a job. Carries the script's header and says which stages there are. Next: nspJobIds in netsuite.ts, nspJobGetInputData, nspJobMap, nspJobSummarize and nspJobStart in the same folder, nspObjectMapReduce in netsuite/Objects, then npm run generate.",
         "body": [
             "/**",
             " * @NApiVersion 2.1",
@@ -160,39 +160,41 @@
             " * @NModuleScope SameAccount",
             " */",
             "",
-            "import { defineJob } from '@amerilux/netsuite-api/server';",
-            "import { jobRuns } from '../../scripts.gen';",
-            "import { getInputDataFunction } from './getInputData';",
-            "import { mapFunction } from './map';",
-            "import { summarizeFunction } from './summarize';",
-            "",
             "/**",
             " * The ${TM_FILENAME_BASE} job: ${1:what a run of it does}.",
             " *",
-            " * This file declares the script and wires the stages; each stage file beside it holds what that stage does,",
-            " * and the shapes on either end of a run are declared where the stage that names them is. Nothing imports",
-            " * this file: NetSuite loads it.",
+            " * This is the file NetSuite loads: it says which stages there are, and each stage file beside it holds",
+            " * what that stage does, with the shapes on either end of a run declared where the stage that names them",
+            " * is. The job's ids are in netsuite.ts, under `jobs`. Nothing imports this file.",
             " */",
             "",
-            "export const { getInputData, map, summarize } = defineJob({",
-            "    name: '${TM_FILENAME_BASE}',",
-            "    scriptId: 'customscript_{{prefix}}_${TM_FILENAME_BASE/([A-Z])/_${1:/downcase}/g}_mr',",
-            "    deployments: ['customdeploy_{{prefix}}_${TM_FILENAME_BASE/([A-Z])/_${1:/downcase}/g}_mr'],",
-            "    runParameter: 'custscript_{{prefix}}_${TM_FILENAME_BASE/([A-Z])/_${1:/downcase}/g}_run',",
-            "    runs: jobRuns,",
-            "}, {",
-            "    getInputData: getInputDataFunction,",
-            "    map: mapFunction,",
-            "    summarize: summarizeFunction,",
-            "});",
+            "export { getInputData } from './getInputData';",
+            "export { map } from './map';",
+            "export { summarize } from './summarize';",
             ""
+        ]
+    },
+    "nspJobIds": {
+        "scope": "typescript",
+        "prefix": "nspJobIds",
+        "description": "One job's entry in the `jobs` object of netsuite.ts: the ids its SDF object gives it. A stage passes the entry to openJobRun and closeJobRun, and a start passes it to startJobRun.",
+        "body": [
+            "${1:closeOldOrders}: {",
+            "    name: '${1}',",
+            "    scriptId: 'customscript_{{prefix}}_${2:close_old_orders}_mr',",
+            "    deployments: ['customdeploy_{{prefix}}_${2}_mr'],",
+            "    runParameter: 'custscript_{{prefix}}_${2}_run',",
+            "},"
         ]
     },
     "nspJobGetInputData": {
         "scope": "typescript",
         "prefix": "nspJobGetInputData",
-        "description": "api/src/jobs/<job>/getInputData.ts: the stage that answers the work, and the shapes a run is started with and works through. The generator reads the run's input from this function's first parameter.",
+        "description": "api/src/jobs/<job>/getInputData.ts: the stage that opens the run and answers the work, with the shapes a run is started with and works through. The generator reads the run's input from the type on openJobRun.",
         "body": [
+            "import type { EntryPoints } from 'N/types';",
+            "import { jobs } from '../../../../netsuite';",
+            "import { openJobRun } from '../../repositories/jobRunRepository';",
             "import { ${1:listWork} } from '../../${2|services,repositories|}/${3:subject}${4|Service,Repository|}';",
             "",
             "/** What a run of this job is asked to do; whatever starts a run builds this. */",
@@ -206,15 +208,19 @@
             "}",
             "",
             "/** ${10:What the work is, and in what order.} */",
-            "export const getInputDataFunction = (input: ${5}): ${8}[] => ${1}(input.${6}).map((${9}) => ({ ${9} }));",
+            "export function getInputData(_context: EntryPoints.MapReduce.getInputDataContext): ${8}[] {",
+            "    const input = openJobRun<${5}>(jobs.${11:closeOldOrders});",
+            "    return ${1}(input.${6}).map((${9}) => ({ ${9} }));",
+            "}",
             ""
         ]
     },
     "nspJobMap": {
         "scope": "typescript",
         "prefix": "nspJobMap",
-        "description": "api/src/jobs/<job>/map.ts: the stage that does one item and writes what it came to. Names only what it uses of the run, so a test calls it with a plain object.",
+        "description": "api/src/jobs/<job>/map.ts: the stage that does one item and writes what it came to, as NetSuite calls it. A test calls it with mapContextFor and reads what it wrote.",
         "body": [
+            "import type { EntryPoints } from 'N/types';",
             "import { ${1:doOneThing} } from '../../${2|services,repositories|}/${3:subject}${4|Service,Repository|}';",
             "import type { ${5:WorkItem} } from './getInputData';",
             "",
@@ -224,19 +230,23 @@
             "    ${8:closed}: boolean;",
             "}",
             "",
-            "/** ${9:What one item does}; nothing thrown leaves a stage, so a failure here is one item, not the run. */",
-            "export const mapFunction = (item: ${5}, job: { write: (key: string, value: ${6}) => void }): void => {",
-            "    job.write(String(item.${7}), { ${7}: item.${7}, ${8}: ${1}(item.${7}) });",
-            "};",
+            "/** ${9:What one item does}; a failure here is one item, not the run: NetSuite collects it and the run carries it. */",
+            "export function map(context: EntryPoints.MapReduce.mapContext): void {",
+            "    const item = JSON.parse(context.value) as ${5};",
+            "    const outcome: ${6} = { ${7}: item.${7}, ${8}: ${1}(item.${7}) };",
+            "    context.write({ key: String(item.${7}), value: JSON.stringify(outcome) });",
+            "}",
             ""
         ]
     },
     "nspJobSummarize": {
         "scope": "typescript",
         "prefix": "nspJobSummarize",
-        "description": "api/src/jobs/<job>/summarize.ts: the stage that closes the run, and the result shape the page reads. The generator reads the run's result from this function's return type.",
+        "description": "api/src/jobs/<job>/summarize.ts: the stage that builds the result and closes the run. The generator reads the run's result from the type on closeJobRun.",
         "body": [
-            "import type { JobSummary } from '@amerilux/netsuite-api/server';",
+            "import type { EntryPoints } from 'N/types';",
+            "import { jobs } from '../../../../netsuite';",
+            "import { closeJobRun } from '../../repositories/jobRunRepository';",
             "import type { ${1:WorkOutcome} } from './map';",
             "",
             "/** What a finished run leaves behind; the page reads it as jobs.<name>.Result. */",
@@ -245,10 +255,14 @@
             "    ${4:outcomes}: ${1}[];",
             "}",
             "",
-            "export const summarizeFunction = (summary: JobSummary<${1}>): ${2} => {",
-            "    const ${4} = summary.output.map((entry) => entry.value);",
-            "    return { ${3}: ${4}.length, ${4} };",
-            "};",
+            "export function summarize(context: EntryPoints.MapReduce.summarizeContext): void {",
+            "    const ${4}: ${1}[] = [];",
+            "    context.output.iterator().each((_key, value) => {",
+            "        ${4}.push(JSON.parse(value) as ${1});",
+            "        return true;",
+            "    });",
+            "    closeJobRun<${2}>(jobs.${5:closeOldOrders}, context, { ${3}: ${4}.length, ${4} });",
+            "}",
             ""
         ]
     },
@@ -257,8 +271,8 @@
         "prefix": "nspJobStart",
         "description": "api/src/jobs/<job>/start.ts: how a run of the job is started. The one file of the folder that is not a stage, and the one a controller calls.",
         "body": [
+            "import { jobs } from '../../../../netsuite';",
             "import { startJobRun } from '../../repositories/jobRunRepository';",
-            "import { jobs } from '../../scripts.gen';",
             "import type { ${1:WorkRequest} } from './getInputData';",
             "",
             "/**",
@@ -274,23 +288,25 @@
     "nspJobReduce": {
         "scope": "typescript",
         "prefix": "nspJobReduce",
-        "description": "api/src/jobs/<job>/reduce.ts: the stage that gathers what map wrote under one key. Add it to the job's declaration and to the stages it exports.",
+        "description": "api/src/jobs/<job>/reduce.ts: the stage that gathers what map wrote under one key. Export it from the job's file as well, beside the other stages.",
         "body": [
+            "import type { EntryPoints } from 'N/types';",
             "import type { ${1:WorkOutcome} } from './map';",
             "",
             "/** ${2:What one key comes to} once every item under it has been written. */",
-            "export const reduceFunction = (key: string, values: ${1}[], job: { write: (key: string, value: ${3:number}) => void }): void => {",
-            "    job.write(key, ${4:values.length});",
-            "};",
+            "export function reduce(context: EntryPoints.MapReduce.reduceContext): void {",
+            "    const ${3:outcomes} = context.values.map((value) => JSON.parse(value) as ${1});",
+            "    context.write({ key: context.key, value: JSON.stringify(${4:${3}.length}) });",
+            "}",
             ""
         ]
     },
     "nspJobParameter": {
         "scope": "typescript",
         "prefix": "nspJobParameter",
-        "description": "One more script parameter on a job's declaration, typed for the stages that read it. Add the matching <scriptcustomfield> to the job's SDF object and a value on the deployment; a stage names what it reads as job: { parameters: { <name>: <type> } }.",
+        "description": "One more script parameter on a job's entry in netsuite.ts. Add the matching <scriptcustomfield> to the job's SDF object and a value on the deployment; a repository function reads it, as it reads anything else NetSuite holds.",
         "body": [
-            "parameters: { ${1:batchSize}: { id: 'custscript_{{prefix}}_${2:batch_size}', type: '${3|integer,text,decimal,checkbox,date,select|}' } },"
+            "parameters: { ${1:batchSize}: 'custscript_{{prefix}}_${2:batch_size}' },"
         ]
     },
     "nspUserEvent": {

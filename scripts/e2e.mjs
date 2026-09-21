@@ -256,8 +256,12 @@ const addJobsAgain = spawnSync('npm', ['run', 'add:jobs'], { cwd: projectDir, en
 assertEqual(/already set up/.test(addJobsAgain.stdout), true, 'add:jobs run a second time adds nothing');
 run('npm', ['run', 'generate'], projectDir);
 const scriptsModuleWithJobs = readFileSync(path.join(projectDir, 'api', 'src', 'scripts.gen.ts'), 'utf8');
-assertEqual(scriptsModuleWithJobs.includes("jobRunCleanup: { kind: 'mapreduce', name: 'jobRunCleanup', scriptId: 'customscript_demo_job_cleanup_mr'"), true, 'generate writes the job into the scripts map');
+// A job's own ids are written by hand in netsuite.ts, so the generated scripts map carries the run record and no job.
+assertEqual(scriptsModuleWithJobs.includes('customscript_demo_job_cleanup_mr'), false, 'the scripts map carries no job ids');
 assertEqual(scriptsModuleWithJobs.includes("recordType: 'customrecord_demo_job_run',"), true, 'generate writes the run record ids next to the scripts');
+const netsuiteModuleWithJobs = readFileSync(path.join(projectDir, 'netsuite.ts'), 'utf8');
+assertEqual(netsuiteModuleWithJobs.includes("scriptId: 'customscript_demo_job_cleanup_mr',"), true, 'add:jobs writes the cleanup job\'s ids into netsuite.ts');
+assertEqual(netsuiteModuleWithJobs.includes("runParameter: 'custscript_demo_job_cleanup_run',"), true, 'a job\'s run parameter is written with its ids');
 assertEqual(readFileSync(path.join(projectDir, 'client', 'src', 'api', 'jobs.gen.ts'), 'utf8').includes("export * as jobRunCleanup from './jobRunCleanupJob.gen';"), true, 'generate re-exports every job module under jobs');
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);

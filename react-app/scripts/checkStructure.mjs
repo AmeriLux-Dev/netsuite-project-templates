@@ -11,9 +11,10 @@
  *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching the entry point, declares the
  *     deployment, and points at api/controllers/<name>Controller.js
  * For every job (api/src/jobs/<name>/<name>.ts):
- *   - its defineJob declaration names a script whose ids share the prefix and the name, end in _mr, and fit the cap
+ *   - it exports its stages from the files beside it, and netsuite.ts gives it ids that share the prefix and the
+ *     name, end in _mr, and fit the cap
  *   - netsuite/Objects/<scriptId>.xml is a <mapreducescript> declaring every deployment the job may run on and every
- *     script parameter it reads, and points at api/jobs/<name>.js
+ *     script parameter it reads, and points at api/jobs/<name>/<name>.js
  *
  * And the other way round: every SDF script object points at an existing source whose @NScriptType matches, and
  * every server-side @NScriptType file has an object (a ClientScript attached to a form has no script record).
@@ -161,56 +162,87 @@ function checkControllerObject(controller, folder) {
 }
 
 /**
- * The job a file declares in its defineJob call, read from the source as text. The generator reads the
- * same call with a real parser and fails first on anything malformed; what is checked here is only
- * what it cannot see: the ids against the SDF object.
+ * Every job's ids, read from the `jobs` object of netsuite.ts as text: the one place they are written,
+ * beside the SDF object that deploys them. Read once, because every job of the project is in there.
  */
-function readJob(name) {
-    const jobPath = `api/src/jobs/${name}/${name}.ts`;
-    if (!projectFileExists(jobPath)) {
-        report(`api/src/jobs/${name}: there is no ${name}.ts here; a job is declared by the file of its folder's own name.`);
-        return undefined;
+function readDeclaredJobIds() {
+    const source = readProjectFile('netsuite.ts');
+    const block = source.match(/export const jobs = \{\n([\s\S]*?)\n\} as const;/)?.[1];
+    const byName = new Map();
+    if (block === undefined) return byName;
+    for (const [, name, entry] of block.matchAll(/^ {4}(\w+): \{\n([\s\S]*?)\n {4}\},/gm)) {
+        byName.set(name, {
+            declaredName: entry.match(/\bname:\s*'([^']*)'/)?.[1],
+            scriptId: entry.match(/\bscriptId:\s*'([^']*)'/)?.[1],
+            runParameter: entry.match(/\brunParameter:\s*'([^']*)'/)?.[1],
+            deployments: Array.from(entry.match(/\bdeployments:\s*\[([^\]]*)\]/)?.[1]?.matchAll(/'([^']*)'/g) ?? [], (match) => match[1]),
+            parameters: Array.from(entry.matchAll(/'(custscript_[^']*)'/g), (match) => match[1]).filter((id) => id !== entry.match(/\brunParameter:\s*'([^']*)'/)?.[1]),
+        });
     }
-    const source = readProjectFile(jobPath);
-    checkJobDefinitionImports(jobPath, source, name);
-    const declaration = source.match(/=\s*defineJob\(\s*\{([\s\S]*?)\}\s*,/)?.[1];
-    if (!declaration) {
-        report(`${jobPath}: must declare its script with \`export const { getInputData, map, summarize } = defineJob({ ... }, { ... })\`; see HOW-TO-USE.md ("Adding a job").`);
-        return undefined;
-    }
-    const declaredType = readDeclaredScriptType(source);
-    if (declaredType !== 'MapReduceScript') report(`${jobPath}: @NScriptType must be MapReduceScript (found "${declaredType ?? 'none'}").`);
-    const scriptId = declaration.match(/\bscriptId:\s*'([^']*)'/)?.[1];
-    const runParameter = declaration.match(/\brunParameter:\s*'([^']*)'/)?.[1];
-    const deployments = Array.from(declaration.match(/\bdeployments:\s*\[([^\]]*)\]/)?.[1]?.matchAll(/'([^']*)'/g) ?? [], (match) => match[1]);
-    const parameters = Array.from(declaration.matchAll(/\bid:\s*'(custscript_[^']*)'/g), (match) => match[1]);
-    if (scriptId === undefined || runParameter === undefined || deployments.length === 0) {
-        report(`${jobPath}: the job declaration needs scriptId, runParameter and a non-empty deployments array, all as string literals.`);
-        return undefined;
-    }
-    return { name, jobPath, scriptId, deployments, runParameter, parameters };
+    return byName;
 }
 
 /**
- * The file NetSuite loads declares the script and wires its stages, and nothing else: whatever a stage needs, the
- * stage imports. That is what keeps a job readable stage by stage, and what makes it the one file nothing imports.
+ * One job: the script NetSuite loads, and the ids netsuite.ts gives it. The generator reads the stages
+ * with a real parser and fails first on anything malformed; what is checked here is what it cannot
+ * see — the ids, against the SDF object that has to agree with them.
  */
-function checkJobDefinitionImports(jobPath, source, name) {
-    const allowed = ['@amerilux/netsuite-api/server', '../../scripts.gen'];
-    for (const [, specifier] of source.matchAll(/^import\s[^']*'([^']*)';$/gm)) {
-        if (allowed.includes(specifier)) continue;
-        if (specifier.startsWith('./')) {
-            const stagePath = `api/src/jobs/${name}/${specifier.slice('./'.length)}.ts`;
-            if (!projectFileExists(stagePath)) report(`${jobPath}: imports '${specifier}', but ${stagePath} does not exist.`);
+function readJob(name, declaredJobIds) {
+    const jobPath = `api/src/jobs/${name}/${name}.ts`;
+    if (!projectFileExists(jobPath)) {
+        report(`api/src/jobs/${name}: there is no ${name}.ts here; a job's own file is what NetSuite loads for it.`);
+        return undefined;
+    }
+    const source = readProjectFile(jobPath);
+    checkJobStageExports(jobPath, source, name);
+    const declaredType = readDeclaredScriptType(source);
+    if (declaredType !== 'MapReduceScript') report(`${jobPath}: @NScriptType must be MapReduceScript (found "${declaredType ?? 'none'}").`);
+    const ids = declaredJobIds.get(name);
+    if (!ids) {
+        report(`${jobPath}: netsuite.ts has no \`jobs.${name}\` entry; a job's script, deployment and parameter ids are written there (the nspJobIds snippet).`);
+        return undefined;
+    }
+    if (ids.declaredName !== name) {
+        report(`netsuite.ts: jobs.${name} says name: '${ids.declaredName ?? ''}'; the name is the job's folder, and the run record records it.`);
+    }
+    if (ids.scriptId === undefined || ids.runParameter === undefined || ids.deployments.length === 0) {
+        report(`netsuite.ts: jobs.${name} needs scriptId, runParameter and a non-empty deployments array, all as string literals.`);
+        return undefined;
+    }
+    return { name, jobPath, idsPath: `netsuite.ts (jobs.${name})`, ...ids };
+}
+
+/**
+ * The file NetSuite loads says which stages there are, and nothing else: it exports each stage from the file
+ * beside it that holds the work. That is what keeps a job readable stage by stage, and what makes it the one
+ * file nothing imports.
+ */
+function checkJobStageExports(jobPath, source, name) {
+    const stageNames = ['getInputData', 'map', 'reduce', 'summarize'];
+    const exported = [];
+    for (const [, names, specifier] of source.matchAll(/^export\s*\{([^}]*)\}\s*from\s*'([^']*)';$/gm)) {
+        if (!specifier.startsWith('./')) {
+            report(`${jobPath}: exports from '${specifier}'; a stage comes from the file beside the job that holds it, such as './map'.`);
             continue;
         }
-        report(`${jobPath}: imports '${specifier}'; the file NetSuite loads declares the script and wires its stages, so it imports only defineJob, the scripts map and the stage files beside it. Whatever it needs belongs in a stage.`);
+        const stagePath = `api/src/jobs/${name}/${specifier.slice('./'.length)}.ts`;
+        if (!projectFileExists(stagePath)) report(`${jobPath}: exports from '${specifier}', but ${stagePath} does not exist.`);
+        for (const exportedName of names.split(',').map((part) => part.trim()).filter(Boolean)) {
+            if (!stageNames.includes(exportedName)) report(`${jobPath}: NetSuite has no entry point called '${exportedName}'; a job exports ${stageNames.join(', ')}.`);
+            else exported.push(exportedName);
+        }
     }
+    for (const [, specifier] of source.matchAll(/^import\s[^']*'([^']*)';$/gm)) {
+        report(`${jobPath}: imports '${specifier}'; the file NetSuite loads carries the header and the stages it exports, and nothing else. Whatever it needs belongs in a stage.`);
+    }
+    if (!exported.includes('getInputData')) report(`${jobPath}: exports no getInputData; it is what NetSuite asks for the run's work.`);
+    if (!exported.includes('map') && !exported.includes('reduce')) report(`${jobPath}: exports neither map nor reduce; NetSuite has nothing to run.`);
+    if (!exported.includes('summarize')) report(`${jobPath}: exports no summarize; it is where the run is closed and its result written.`);
 }
 
 /** A job's ids: the prefix and the name they share, the _mr suffix, and NetSuite's 40-character cap. */
 function checkJobIds(job, prefix) {
-    const where = job.jobPath;
+    const where = job.idsPath;
     const ids = [['scriptId', job.scriptId, `customscript_${prefix}_`], ['runParameter', job.runParameter, `custscript_${prefix}_`], ...job.deployments.map((deployment) => ['deployment', deployment, `customdeploy_${prefix}_`])];
     for (const [label, id, expectedPrefix] of ids) {
         if (id.length > SCRIPT_ID_MAX_LENGTH) report(`${where}: ${label} "${id}" is ${id.length} characters; NetSuite caps ids at ${SCRIPT_ID_MAX_LENGTH}.`);
@@ -317,14 +349,15 @@ for (const controllerFile of listFilesRecursively('api/src/controllers')) {
 const jobs = [];
 // A job is a folder of its own name; nothing sits in api/src/jobs itself.
 for (const strayFile of listFilesRecursively('api/src/jobs').filter((jobFile) => jobFile.split('/').length === 4)) {
-    report(`${strayFile}: a job lives in a folder of its own, declared by the file of that name; nothing sits in api/src/jobs itself.`);
+    report(`${strayFile}: a job lives in a folder of its own, whose own file NetSuite loads; nothing sits in api/src/jobs itself.`);
 }
+const declaredJobIds = readDeclaredJobIds();
 for (const jobName of listDirectories('api/src/jobs')) {
     if (!/^[a-z][A-Za-z0-9]*$/.test(jobName)) {
         report(`api/src/jobs/${jobName}: a job folder is named for its job, in camelCase.`);
         continue;
     }
-    const job = readJob(jobName);
+    const job = readJob(jobName, declaredJobIds);
     if (!job) continue;
     jobs.push(job);
     checkJobIds(job, app.prefix);

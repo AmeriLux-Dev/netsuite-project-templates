@@ -40,8 +40,9 @@ const recordAccessImports = [
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
 // A job's folder decides and calls a repository, as a service does; its stages are handed what NetSuite gave them.
+// `N/types` stays available as types, because a stage is a Map/Reduce entry point and its context is typed by them.
 const jobRecordAccessImports = [
-    { group: ['N/*'], message: 'A job decides and calls a repository; only a repository touches NetSuite (N/*).' },
+    { group: ['N/*', '!N/types'], allowTypeImports: true, message: 'A job decides and calls a repository; only a repository touches NetSuite (N/*).' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
 // A client event runs in the browser, on a NetSuite record page rather than in this app: it calls N/* itself,
@@ -211,9 +212,9 @@ export default defineConfig([
         },
     },
     {
-        // A job is a folder: <name>/<name>.ts declares the script NetSuite loads and wires the stages, and a file per
-        // stage beside it does the work, calling services and repositories as a service would. A job declares its own
-        // script, deployment and parameter ids, so the id rule does not apply to it; the log rules still do.
+        // A job is a folder: <name>/<name>.ts is the script NetSuite loads and says which stages there are, and a file
+        // per stage beside it does the work, calling services and repositories as a service would. A job's ids are in
+        // netsuite.ts, so the id rule does not apply to it; the log rules still do.
         files: ['api/src/jobs/**/*.ts'],
         rules: {
             'no-restricted-syntax': ['error', ...logEntryShape],
