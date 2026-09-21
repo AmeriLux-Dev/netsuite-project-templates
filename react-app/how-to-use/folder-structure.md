@@ -266,36 +266,30 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 
 ### .vscode/
 
-`netsuite-project.code-snippets`: VS Code snippets that emit each layer's file in the shape this project expects. In a new file type the prefix and accept the completion, then tab through the placeholders. Names and ids are derived from the file name wherever the layout fixes them.
+`netsuite-project.code-snippets`: VS Code snippets that each write one whole file in the shape this project expects, with every option that file can take: a model with every decorator, a repository with every read and write, a controller with every kind of endpoint and `authorize`, a client event with every entry point. Keep what the file needs and delete the rest. In a new file type the prefix and accept the completion, then tab through the placeholders. Names and ids are derived from the file name wherever the layout fixes them.
 
 `settings.json`: puts snippets first in the suggest list and keeps the list closed while you tab through placeholders. An inline suggestion from an AI completion extension is a separate channel: press Escape to dismiss it, or Ctrl+Space to open the suggest list explicitly.
 
 | Prefix | File |
 |---|---|
-| `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts` |
-| `nspControllerShapes`, `nspControllerEndpoint` | one more endpoint: its request and response shapes above `defineEndpoints`, the handler inside it |
-| `nspControllerParse`, `nspControllerAuthorize` | a guard for an id that comes off the wire; the `authorize` option after the endpoints |
-| `nspJobIds`, `nspJobParameter` | a job's ids in the `jobs` object of `netsuite.ts`; one more script parameter id on them |
-| `nspJob` | `api/src/jobs/<name>/<name>.ts`: the file NetSuite loads, the header and the stages it exports |
+| `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts`: a filtered list, `byId`, `create`, `update` and `remove`, a guard for what comes off the wire, `authorize`; the Suitelet adds a CSV download and `browser: false` to uncomment |
+| `nspJob` | `api/src/jobs/<name>/<name>.ts`: the file NetSuite loads, the header and all four stages it exports |
 | `nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize` | one stage file each, with the shapes on that stage's own boundary |
 | `nspJobStart` | `api/src/jobs/<name>/start.ts`: starts a run and answers the id a page follows |
-| `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript |
-| `nspService` | `api/src/services/<subject>Service.ts`, with its `build<Model>Summary` function |
-| `nspRepository`, `nspRepositoryCreate`, `nspRepositoryUpdate` | `api/src/repositories/<set>Repository.ts` over `dbContext`; one more create or update through `withTracking()` |
+| `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript with every entry point of its kind |
+| `nspService` | `api/src/services/<subject>Service.ts`: `<Model>Summary` and `build<Model>Summary`, a list, a single read, a create, a change, a removal and a permission check |
+| `nspRepository` | `api/src/repositories/<set>Repository.ts` over `dbContext`: every read the set offers, every write through `withTracking()`, several records saved at once |
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
-| `nspSpecification` | `api/src/specifications/<set>Specifications.ts` |
-| `nspModel`, `nspHelpModel`, `nspModelSubrecordClass`, `nspModelBase` | `api/src/models/<Record>.ts`: a record (a native type through `NetsuiteRecordType`, a custom record by its id string); the same with every decorator once and a comment on each, to trim down; a subrecord class (no `@RecordType` unless it has a table of its own); an abstract base. A sublist line is a record like any other: `nspModel` with `nspModelInternalId` and `nspModelParentId` |
-| `nspModelField`, `nspModelFieldText`, `nspModelFieldSelect`, `nspModelFieldSplit`, `nspModelReadOnly`, `nspModelInternalId`, `nspModelParentId`, `nspModelReference`, `nspModelSubrecord`, `nspModelSublist`, `nspModelTransform`, `nspModelNotMapped`, `nspModelSetFirst`, `nspModelExcludeFromDefaultSelect` | one more property on a model, one snippet per decorator; type `nspModel` to see every option |
-| `nspRepositoryLog` | a log line in the shape the lint rule accepts (repositories and `_host`) |
-| `nspNetsuiteIds` | one more `as const` export in `netsuite.ts` |
-| `nspTestController`, `nspTestService`, `nspTestRepository`, `nspTestRepositorySuitelet` | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below |
+| `nspSpecification` | `api/src/specifications/<set>Specifications.ts`: one builder per kind of condition, `include`, an order and a page |
+| `nspModel`, `nspModelBase` | `api/src/models/<Record>.ts`: a record with every decorator and option, commented, and a subrecord class and a sublist line class in the same file (a line usually moves to a file of its own); an abstract base a record class extends |
+| `nspTestController`, `nspTestService`, `nspTestRepository`, `nspTestRepositorySuitelet` | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below, one `describe` per function the matching snippet writes |
 | `nspTestHook` | `client/__tests__/<controller>Query.test.ts` |
-| `nspHookQuery`, `nspHookQueryWith`, `nspHookMutation` | `client/src/hooks/use<Name>.ts`: a query for an endpoint without a request, one with a request, a mutation |
+| `nspHookQuery`, `nspHookMutation` | `client/src/hooks/use<Name>.ts`: a query with its key and options (drop the argument for an endpoint without a request), a mutation |
 | `nspPage`, `nspRoute` (TSX) | `client/src/pages/<Name>Page.tsx`, `client/src/routes/<segment>.tsx` |
 | `nspObjectRestlet`, `nspObjectSuitelet`, `nspObjectMapReduce` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`; the Map/Reduce one carries the job's run parameter and its deployment |
 
-A prefix is `nsp`, the folder the file belongs in, then what the snippet emits. Typing `nspRepository` lists everything a repository can take. A `nspHelp<Folder>` snippet is a reference rather than a starting point: it shows every option there is (`nspHelpModel` emits a model with every decorator once, each commented) for you to trim down. The names that used to be shorter still work as aliases (`nspRepo`, `nspSpec`, `nspHook`, `nspLog`, `nspSdfRestlet`). A file snippet's description ends with the snippet that comes next in the recipe, so a chain can be followed from the suggest list. The template repository checks every snippet before a release: expanded together into a fresh scaffold, the set must generate, typecheck and pass the structure check.
+A prefix is `nsp`, the folder the file belongs in, then what the snippet emits. No snippet adds lines to a file that exists already: a job's ids go in `netsuite.ts` by hand, as [jobs/map-reduce-job.md](jobs/map-reduce-job.md) shows. The names that used to be shorter still work as aliases (`nspRepo`, `nspSpec`, `nspHook`, `nspHookWith`, `nspMutation`, `nspSdfRestlet`). A file snippet's description ends with the snippet that comes next in the recipe, so a chain can be followed from the suggest list. The template repository checks every snippet before a release: expanded together into a fresh scaffold with nothing deleted, the set must generate, typecheck and pass the structure check.
 
 ### .claude/
 

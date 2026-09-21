@@ -17,9 +17,10 @@ it ends.
    cleanup job that clears old runs daily, the repository and service that read a run, the `jobRuns` controller a
    page polls (its `status` and `mine` endpoints), the `useJobRun` hook, the `jobs` block in `netsuite.ts` and the
    `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
-2. **The job's ids in `netsuite.ts`**, under `jobs` (the `nspJobIds` snippet; `nspJobParameter` for a script
-   parameter of its own). They are written by hand, once, and the same ids go in the SDF object at step 6.
-3. **`api/src/jobs/<name>/<name>.ts`**, the file NetSuite loads (`nspJob`): the header, and the stages it exports.
+2. **The job's ids in `netsuite.ts`**, under `jobs`, as in the code below; `parameters` for a script parameter of its
+   own. They are written by hand, once, and the same ids go in the SDF object at step 6.
+3. **`api/src/jobs/<name>/<name>.ts`**, the file NetSuite loads (`nspJob`): the header, and the stages it exports;
+   the snippet exports all four, and a job without a reduce stage deletes that line.
 4. **A file per stage beside it** (`nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize`). Export
    `summarize` always: the run is closed there, and a job without it leaves every run looking unfinished.
 5. **`api/src/jobs/<name>/start.ts`** (`nspJobStart`): how a run is started, for a controller to call.

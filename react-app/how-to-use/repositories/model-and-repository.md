@@ -8,14 +8,14 @@ examples build on these functions.
 
 ## Steps
 
-1. **The model**, one class per record type under `api/src/models/` (the `nspModel` snippet; `nspHelpModel` shows
-   every decorator once, to trim down). A sublist line is a record type too, in a file of its own.
+1. **The model**, one class per record type under `api/src/models/` (the `nspModel` snippet: every decorator once,
+   to delete down to what the record needs). A sublist line is a record type too, in a file of its own.
 2. **`npm run generate`**, after every change to a model. It writes the entity types into
    `api/src/types/models.gen.ts` and the record set into `api/src/repositories/generated/`.
-3. **The specifications**, `api/src/specifications/<records>Specifications.ts` (the `nspSpecification` snippet):
-   one condition per builder.
-4. **The repository**, `api/src/repositories/<records>Repository.ts` (`nspRepository`, then `nspRepositoryCreate`
-   or `nspRepositoryUpdate` for each write): the only functions that touch the records.
+3. **The specifications**, `api/src/specifications/<records>Specifications.ts` (the `nspSpecification` snippet shows
+   every kind of condition): one condition per builder.
+4. **The repository**, `api/src/repositories/<records>Repository.ts` (`nspRepository`, every read and write the set
+   offers): the only functions that touch the records.
 5. **The test**, `api/__tests__/repositories/<records>Repository.test.ts` (`nspTestRepository`), against a fake
    `dbContext`.
 
@@ -324,7 +324,7 @@ sequenceDiagram
 - **A custom record** is named by its id, `@RecordType('customrecord_{{prefix}}_order_note')`, and has its own SDF
   object under `netsuite/Objects/`.
 - **A create** goes through the same tracker: `dbContext.withTracking().salesOrders.create(fields)` takes a
-  `SalesOrderCreate` (lines as an array) and answers the order with its new id (the `nspRepositoryCreate` snippet).
+  `SalesOrderCreate` (lines as an array) and answers the order with its new id (the `nspRepository` snippet writes one).
 - **A NetSuite module** rather than a record is read in a repository too: `activeUserRepository.ts` reads
   `N/runtime` for the session (the `nspRepositoryModule` snippet). No layer above the repository imports `N/*`.
 - **Another script of this application** is data for a repository as well:

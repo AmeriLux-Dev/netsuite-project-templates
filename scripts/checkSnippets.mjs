@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Snippet check for the react-app template. Every snippet in react-app/.vscode/netsuite-project.code-snippets is
- * expanded the way VS Code would expand it (the file name in, every tab stop filled with a sample value) and
- * written into an installed scaffold as one coherent addition: an `orders` Restlet and an `orderTotals` Suitelet,
- * the `SalesOrder` model, specification, repositories and service behind them, their tests, a hook, a mutation,
- * a page and a route. Then `npm run generate`, the route tree generator, `npm run typecheck` (tsc in every
- * workspace, tests included) and the structure check run over the result. ESLint is not run: the check proves
- * that the snippets compile and fit together, which is what a stale snippet breaks first.
+ * Snippet check for the react-app template. Every snippet in react-app/.vscode/netsuite-project.code-snippets writes
+ * a whole file with every option it offers, and is expanded the way VS Code would expand it (the file name in,
+ * every tab stop filled with a sample value, nothing deleted) into an installed scaffold as one coherent addition:
+ * an `orders` Restlet and an `orderTotals` Suitelet, the `SalesOrder` model, specification, repositories and
+ * service behind them, their tests, a hook, a mutation, a page and a route, a job and two events. Then
+ * `npm run generate`, the route tree generator, `npm run typecheck` (tsc in every workspace, tests included) and the
+ * structure check run over the result. ESLint is not run: the check proves that the snippets compile and fit
+ * together, which is what a stale snippet breaks first.
  *
  * Every snippet must have a step in the scenario below; a snippet without one fails the check, so a snippet
  * cannot be added without saying what it is supposed to produce.
@@ -31,91 +32,54 @@ const isWindows = process.platform === 'win32';
 // ── the scenario: what a developer would type ─────────────────────────────────────────────────────────────────────
 
 /**
- * One coherent addition to the scaffold, built from every snippet. A `file` step expands a snippet into a new
- * file (its name is what VS Code derives the names from). An `into` step expands a fragment snippet and inserts it
- * into a file written earlier: before the first line matching `beforeLine` (or the last one matching
- * `beforeLastLine`, indented one level further when `indent` says so), at the first match of `at` (a
- * zero-width regex, with `prefix` written first), or appended. An `edit` step is what the snippet's description
- * tells the developer to do by hand (extend an import, call the guard). A `run` step runs one of the project's
- * npm scripts, for a setup step the snippets assume has happened (`add:jobs`); what it creates is named in
- * `creates`, so the restore takes those files away again. Paths and values may carry the template tokens
- * {{prefix}}, {{appName}} and {{appTitle}}; they are rendered from the scaffold's netsuite.ts.
+ * One coherent addition to the scaffold, built from every snippet. Every snippet writes a whole file, and a `file`
+ * step expands one into a new file (its name is what VS Code derives the names from), keeping everything it offers:
+ * the check proves the full page compiles as written, and a developer deletes what the file does not need. An
+ * `edit` step is what the developer would write by hand (a job's ids in netsuite.ts, the service functions a job
+ * calls). A `run` step runs one of the project's npm scripts, for a setup step the snippets assume has happened
+ * (`add:jobs`); what it creates is named in `creates`, so the restore takes those files away again. Paths and values
+ * may carry the template tokens {{prefix}}, {{appName}} and {{appTitle}}; they are rendered from the scaffold's
+ * netsuite.ts. The defaults line up across the chain (model, specifications, repository, service, controller, tests),
+ * so most steps give only what the file name cannot say.
  */
 const scenario = [
-    // The record behind everything: a sales order with its transaction number and customer.
-    { snippet: 'nspModel', file: 'api/src/models/SalesOrder.ts', values: { 5: 'One sales order: its transaction number and customer' } },
-    { snippet: 'nspModelField', into: 'api/src/models/SalesOrder.ts', beforeLine: /^}$/, indent: '    ', values: { 1: 'entity', 2: 'customerId', 3: 'number' } },
-    // A custom record with every decorator fragment, its subrecord class and its line class (nspModel plus the key and parent-id fragments); a model with every decorator at once; an abstract base.
-    { snippet: 'nspModelSubrecordClass', file: 'api/src/models/FulfillmentContentAddress.ts', values: { 1: 'Where the content ships' } },
-    // A sublist line is a record type like any other: nspModel, then the key and the parent id from the two fragments.
-    { snippet: 'nspModel', file: 'api/src/models/FulfillmentContentLine.ts', values: { 1: "'customrecord_fulfillment_content_line'", 2: 'custrecord_line_item', 3: 'itemId', 4: 'number', 5: 'One line of a fulfillment content' } },
-    { edit: 'api/src/models/FulfillmentContentLine.ts', find: "import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';", replace: "import { Field, InternalId, ParentId, ReadOnly, RecordType } from '@amerilux/netsuite-repository';" },
-    { edit: 'api/src/models/FulfillmentContentLine.ts', find: '    id!: number;\n\n', replace: '' },
-    { snippet: 'nspModelInternalId', into: 'api/src/models/FulfillmentContentLine.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_line_id', 2: 'id', 3: 'lineId' } },
-    { snippet: 'nspModelParentId', into: 'api/src/models/FulfillmentContentLine.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_line_content', 2: 'fulfillmentContentId' } },
+    // The record behind everything, with every decorator. Its reference points at the scaffold's own EmployeeRole,
+    // so the scenario needs no second record; an abstract base beside it.
+    { snippet: 'nspModel', file: 'api/src/models/SalesOrder.ts', values: { 1: 'EmployeeRole', 7: 'roleId', 8: 'roleName', 9: 'one sales order' } },
     { snippet: 'nspModelBase', file: 'api/src/models/TransactionBase.ts' },
-    { snippet: 'nspHelpModel', file: 'api/src/models/Invoice.ts', values: { 1: 'SalesOrder', 5: 'createdfrom', 6: 'salesOrder', 7: 'id', 8: 'tranId' } },
-    { snippet: 'nspModel', file: 'api/src/models/FulfillmentContent.ts', values: { 1: "'customrecord_fulfillment_content'", 2: 'custrecord_content_sku', 3: 'sku', 4: 'string', 5: 'One content line of a fulfillment' } },
-    { edit: 'api/src/models/FulfillmentContent.ts', find: "import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';", replace: "import { ExcludeFromDefaultSelect, Field, NotMapped, ReadOnly, RecordType, SetFirst, Sublist, Subrecord, Transform } from '@amerilux/netsuite-repository';\nimport type { EmployeeRole } from './EmployeeRole';\nimport type { FulfillmentContentAddress } from './FulfillmentContentAddress';\nimport type { FulfillmentContentLine } from './FulfillmentContentLine';\n\nexport function trimText(value: unknown): string {\n    return String(value ?? '').trim();\n}" },
-    { snippet: 'nspModelFieldText', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_status' } },
-    { snippet: 'nspModelFieldSelect', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_location', 2: 'locationId' } },
-    { snippet: 'nspModelFieldSplit', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_state', 2: 'custrecord_content_status', 3: 'state' } },
-    { snippet: 'nspModelReadOnly', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_total', 2: 'total' } },
-    { snippet: 'nspModelReference', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_packer', 2: 'packer', 3: 'EmployeeRole', 4: 'roleId', 5: 'roleName' } },
-    { snippet: 'nspModelSubrecord', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'shipaddresslist', 2: 'shippingAddress', 3: 'Where the content ships', 4: 'FulfillmentContentAddress' } },
-    { snippet: 'nspModelSublist', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'recmachcustrecord_line_content', 2: 'customrecord_fulfillment_content', 3: 'recmachcustrecord_line_content', 5: 'FulfillmentContentLine' } },
-    { snippet: 'nspModelTransform', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 2: 'custrecord_content_po' } },
-    { snippet: 'nspModelNotMapped', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ' },
-    { snippet: 'nspModelSetFirst', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_carrier', 2: 'string | null' } },
-    { snippet: 'nspModelExcludeFromDefaultSelect', into: 'api/src/models/FulfillmentContent.ts', beforeLastLine: /^}$/, indent: '    ', values: { 1: 'custrecord_content_notes' } },
 
-    { snippet: 'nspSpecification', file: 'api/src/specifications/salesOrdersSpecifications.ts', values: { 2: 'forCustomer', 3: 'customerId', 5: 'customerId', 6: 'sales orders' } },
-    { snippet: 'nspRepository', file: 'api/src/repositories/salesOrdersRepository.ts', values: { 3: 'forCustomer', 4: 'sales orders', 5: 'Every sales order of the customer, in no particular order', 6: 'customerId' } },
-    { edit: 'api/src/repositories/salesOrdersRepository.ts', find: "import type { SalesOrder } from '../types/models.gen';", replace: "import type { SalesOrder, SalesOrderCreate, SalesOrderPatch } from '../types/models.gen';" },
-    { snippet: 'nspRepositoryCreate', into: 'api/src/repositories/salesOrdersRepository.ts', append: true, values: { 1: 'Creates a sales order' } },
-    { snippet: 'nspRepositoryUpdate', into: 'api/src/repositories/salesOrdersRepository.ts', append: true, values: { 1: 'Changes the fields of one sales order', 2: 'amend' } },
+    // Its query vocabulary and its repository over dbContext, every builder and every set method; a repository over a
+    // NetSuite module.
+    { snippet: 'nspSpecification', file: 'api/src/specifications/salesOrdersSpecifications.ts', values: { 2: 'sales orders' } },
+    { snippet: 'nspRepository', file: 'api/src/repositories/salesOrdersRepository.ts', values: { 5: 'sales orders' } },
+    { snippet: 'nspRepositoryModule', file: 'api/src/repositories/currentScriptRepository.ts', values: { 2: 'the running script', 3: 'CurrentScript', 4: 'id', 5: 'string', 6: 'readCurrentScript', 7: 'script', 8: 'getCurrentScript()', 9: 'script.id' } },
 
     // The service both controllers call.
-    { snippet: 'nspService', file: 'api/src/services/ordersService.ts', values: { 1: 'SalesOrder', 2: 'listSalesOrdersByCustomerId', 3: 'salesOrders', 4: 'sales orders', 5: 'tranId', 7: 'Every sales order of the customer, summarized', 8: 'getOrdersByCustomer', 9: 'customerId' } },
+    { snippet: 'nspService', file: 'api/src/services/ordersService.ts', values: { 1: 'SalesOrder', 5: 'sales orders' } },
 
-    // The orders Restlet: a byCustomer endpoint from the file snippet, a create endpoint added with the fragments, a guard and authorize.
-    { snippet: 'nspControllerRestlet', file: 'api/src/controllers/ordersController.ts', values: { 1: 'byCustomer', 2: 'getOrdersByCustomer', 3: 'SalesOrderSummary', 5: 'customerId', 7: 'orders', 8: 'a customer\'s sales orders' } },
-    { edit: 'api/src/controllers/ordersController.ts', find: "import { defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';", replace: "import { ApiError, defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';" },
-    { snippet: 'nspControllerParse', into: 'api/src/controllers/ordersController.ts', beforeLine: /^export const ordersEndpoints = defineEndpoints\(\{$/, values: { 1: 'customerId' } },
-    { edit: 'api/src/controllers/ordersController.ts', find: 'const customerId = request.customerId;', replace: 'const customerId = parseCustomerId(request.customerId);' },
-    { snippet: 'nspControllerShapes', into: 'api/src/controllers/ordersController.ts', beforeLine: /^export const ordersEndpoints = defineEndpoints\(\{$/, values: { 1: 'Create', 2: 'customerId', 4: 'orders', 5: 'SalesOrderSummary' } },
-    { snippet: 'nspControllerEndpoint', into: 'api/src/controllers/ordersController.ts', beforeLine: /^\}\);$/, indent: '    ', values: { 1: 'create', 4: 'customerId', 5: 'orders', 6: 'getOrdersByCustomer', 7: 'Creates nothing yet: answers the customer\'s orders' } },
-    { snippet: 'nspControllerAuthorize', into: 'api/src/controllers/ordersController.ts', at: /(?<=, ordersEndpoints)(?=\);)/, prefix: ', ', values: { 1: "endpoint === 'create' && typeof request.customerId !== 'number'" } },
+    // The orders Restlet, every kind of endpoint and authorize.
+    { snippet: 'nspControllerRestlet', file: 'api/src/controllers/ordersController.ts', values: { 2: 'SalesOrder', 5: 'a customer\'s sales orders' } },
     { snippet: 'nspObjectRestlet', file: 'netsuite/Objects/customscript_{{prefix}}_orders.xml', values: { 1: 'Orders', 2: 'Lists a customer\'s sales orders' } },
 
-    // The orderTotals Suitelet (server-only), read by a repository through its Suitelet client.
-    { snippet: 'nspControllerSuitelet', file: 'api/src/controllers/orderTotalsController.ts', values: { 1: 'byCustomer', 2: 'getOrdersByCustomer', 3: 'SalesOrderSummary', 4: 'orders', 5: 'customerId', 7: 'orders', 8: 'order totals per customer' } },
+    // The orderTotals Suitelet, with a file download, read by a repository through its Suitelet client.
+    { snippet: 'nspControllerSuitelet', file: 'api/src/controllers/orderTotalsController.ts', values: { 1: 'orders', 2: 'SalesOrder', 5: 'order totals per customer' } },
     { snippet: 'nspObjectSuitelet', file: 'netsuite/Objects/customscript_{{prefix}}_order_totals.xml', values: { 1: 'Order Totals', 2: 'Totals per customer' } },
-    { snippet: 'nspRepositorySuitelet', file: 'api/src/repositories/orderTotalsRepository.ts', values: { 1: 'ByCustomerResponse', 4: 'Order totals', 5: 'listOrderTotalsForCustomer', 6: 'customerId', 8: 'orders', 9: 'byCustomer' } },
-
-    // A repository over a NetSuite module, with a log line.
-    { snippet: 'nspRepositoryModule', file: 'api/src/repositories/currentScriptRepository.ts', values: { 2: 'the running script', 3: 'CurrentScript', 4: 'id', 5: 'string', 6: 'readCurrentScript', 7: 'script', 8: 'getCurrentScript()', 9: 'script.id' } },
-    { edit: 'api/src/repositories/currentScriptRepository.ts', find: "import * as runtime from 'N/runtime';", replace: "import * as log from 'N/log';\nimport * as runtime from 'N/runtime';" },
-    { snippet: 'nspRepositoryLog', into: 'api/src/repositories/currentScriptRepository.ts', beforeLine: /^\s+return \{ id: script\.id \};$/, values: { 2: 'script read', 3: 'id: script.id' } },
-
-    // Ids no controller or model owns.
-    { snippet: 'nspNetsuiteIds', into: 'netsuite.ts', append: true, values: { 1: 'Saved searches the reports read', 2: 'savedSearches', 3: 'openOrders', 4: 'customsearch_{{prefix}}_open_orders' } },
+    { snippet: 'nspRepositorySuitelet', file: 'api/src/repositories/orderTotalsRepository.ts', values: { 1: 'ByCustomerResponse', 4: 'Order totals', 5: 'listOrderTotalsForCustomer', 6: 'customerId', 8: 'orderTotals', 9: 'byCustomer' } },
 
     // Tests, one per layer.
-    { snippet: 'nspTestController', file: 'api/__tests__/controllers/ordersController.test.ts', values: { 1: 'SalesOrderSummary', 3: 'getOrdersByCustomer', 4: 'customerId', 6: 'byCustomer', 7: "{ tranId: 'SO1' }", 9: 'orders' } },
-    { snippet: 'nspTestService', file: 'api/__tests__/services/ordersService.test.ts', values: { 1: 'SalesOrder', 2: 'listSalesOrdersByCustomerId', 3: 'customerId', 5: 'salesOrders', 6: 'getOrdersByCustomer', 7: 'the transaction number', 8: "{ id: 1, tranId: 'SO1', customerId: 7 }", 9: "{ tranId: 'SO1' }" } },
-    { snippet: 'nspTestRepository', file: 'api/__tests__/repositories/salesOrdersRepository.test.ts', values: { 3: 'listSalesOrdersByCustomerId', 4: "[{ id: 1, tranId: 'SO1', customerId: 7 }]", 6: 'the customer', 7: 'customerId' } },
-    { snippet: 'nspTestRepositorySuitelet', file: 'api/__tests__/repositories/orderTotalsRepository.test.ts', values: { 2: 'byCustomer', 3: 'listOrderTotalsForCustomer', 4: 'customerId', 5: 'orders', 6: "[{ tranId: 'SO1' }]" } },
+    { snippet: 'nspTestController', file: 'api/__tests__/controllers/ordersController.test.ts', values: { 2: 'SalesOrder' } },
+    { snippet: 'nspTestService', file: 'api/__tests__/services/ordersService.test.ts', values: { 1: 'SalesOrder' } },
+    { snippet: 'nspTestRepository', file: 'api/__tests__/repositories/salesOrdersRepository.test.ts' },
+    { snippet: 'nspTestRepositorySuitelet', file: 'api/__tests__/repositories/orderTotalsRepository.test.ts', values: { 2: 'byCustomer', 3: 'listOrderTotalsForCustomer', 4: 'customerId', 5: 'orderTotals', 6: '[{ id: 1, customerId: 7, memo: null }]' } },
     { snippet: 'nspTestHook', file: 'client/__tests__/ordersQuery.test.ts', values: { 2: 'byCustomer', 3: '{ customerId: 7, orders: [] }', 4: 'ordersByCustomer', 8: '{ customerId: 7 }' } },
 
-    // The client: two query hooks, a mutation, a page and its route.
-    { snippet: 'nspHookQueryWith', file: 'client/src/hooks/useOrdersByCustomer.ts', values: { 1: 'orders', 2: 'byCustomer', 3: 'customerId', 5: 'Every sales order of the customer' } },
-    { snippet: 'nspHookQuery', file: 'client/src/hooks/useSignedInUserRoles.ts', values: { 1: 'user', 2: 'roles', 3: 'The caller and every role assigned to them' } },
+    // The client: a query hook, a mutation, a page and its route.
+    { snippet: 'nspHookQuery', file: 'client/src/hooks/useOrdersByCustomer.ts', values: { 1: 'orders', 2: 'byCustomer', 3: 'customerId', 5: 'Every sales order of the customer' } },
     { snippet: 'nspHookMutation', file: 'client/src/hooks/useCreateOrder.ts', values: { 1: 'orders', 2: 'create', 3: 'Creates a sales order' } },
-    { snippet: 'nspPage', file: 'client/src/pages/OrdersPage.tsx', values: { 1: 'useOrdersByCustomer', 2: 'The customer\'s sales orders', 4: '7', 5: 'Orders' } },
-    { snippet: 'nspRoute', file: 'client/src/routes/orders.tsx' },
+    { snippet: 'nspPage', file: 'client/src/pages/OrdersPage.tsx', values: { 1: 'useOrdersByCustomer', 2: 'useCreateOrder', 3: 'customerId', 5: "{ customerId, memo: '' }", 6: 'Orders', 7: 'The customer\'s sales orders' } },
+    { snippet: 'nspRoute', file: 'client/src/routes/orders.$customerId.tsx' },
 
-    // Jobs: the run machinery a project adds once, then a job, its object, and the repository that starts it.
+    // Jobs: the run machinery a project adds once, then a job, its object, and the file that starts it.
     {
         run: 'add:jobs',
         creates: [
@@ -137,9 +101,9 @@ const scenario = [
     // that names them, so the service holds only the work.
     {
         edit: 'api/src/services/ordersService.ts',
-        find: "export type SalesOrderSummary = Pick<SalesOrder, 'tranId'>;",
+        find: "export type SalesOrderSummary = Pick<SalesOrder, 'id' | 'customerId' | 'memo'>;",
         replace: [
-            "export type SalesOrderSummary = Pick<SalesOrder, 'tranId'>;",
+            "export type SalesOrderSummary = Pick<SalesOrder, 'id' | 'customerId' | 'memo'>;",
             '',
             '/** The ids of the orders old enough to close. */',
             'export function listOldOrderIds(olderThanDays: number): number[] {',
@@ -154,13 +118,20 @@ const scenario = [
         ].join('\n'),
     },
     // A job's ids are written by hand in netsuite.ts, beside the cleanup job add:jobs put there.
-    { snippet: 'nspJobIds', into: 'netsuite.ts', beforeLine: /^ {4}jobRunCleanup: \{$/, values: { 1: 'closeOldOrders', 2: 'close_old_orders' } },
-    { snippet: 'nspJobParameter', into: 'netsuite.ts', beforeLine: /^ {8}runParameter: 'custscript_[a-z0-9_]*_close_old_orders_run',$/, values: { 1: 'batchSize', 2: 'batch_size' } },
     {
-        snippet: 'nspJob',
-        file: 'api/src/jobs/closeOldOrders/closeOldOrders.ts',
-        values: { 1: 'closes sales orders older than a cutoff' },
+        edit: 'netsuite.ts',
+        find: '    jobRunCleanup: {',
+        replace: [
+            '    closeOldOrders: {',
+            "        name: 'closeOldOrders',",
+            "        scriptId: 'customscript_{{prefix}}_close_old_orders_mr',",
+            "        deployments: ['customdeploy_{{prefix}}_close_old_orders_mr'],",
+            "        runParameter: 'custscript_{{prefix}}_close_old_orders_run',",
+            '    },',
+            '    jobRunCleanup: {',
+        ].join('\n'),
     },
+    { snippet: 'nspJob', file: 'api/src/jobs/closeOldOrders/closeOldOrders.ts', values: { 1: 'closes sales orders older than a cutoff' } },
     {
         snippet: 'nspJobGetInputData',
         file: 'api/src/jobs/closeOldOrders/getInputData.ts',
@@ -171,51 +142,18 @@ const scenario = [
         file: 'api/src/jobs/closeOldOrders/map.ts',
         values: { 1: 'closeOrder', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'orderId', 8: 'closed', 9: 'Closes one order', 10: 'closeOldOrders' },
     },
-    {
-        snippet: 'nspJobSummarize',
-        file: 'api/src/jobs/closeOldOrders/summarize.ts',
-        values: { 1: 'CloseOldOrdersOutcome', 2: 'CloseOldOrdersResult', 3: 'closed', 4: 'outcomes', 5: 'closeOldOrders' },
-    },
     // A reduce gathers what map wrote under one key, so what it writes is what summarize then reads.
     {
         snippet: 'nspJobReduce',
         file: 'api/src/jobs/closeOldOrders/reduce.ts',
-        values: {
-            1: 'CloseOldOrdersOutcome',
-            2: 'Which outcome of a key stands',
-            3: 'CloseOldOrdersOutcome',
-            4: 'closeOldOrders',
-            5: 'outcomes',
-            6: 'outcomes[0] ?? { orderId: 0, closed: false }',
-        },
+        values: { 1: 'CloseOldOrdersOutcome', 2: 'CloseOldOrdersTally', 3: 'handled', 4: 'How many orders of one key were handled', 5: 'closeOldOrders' },
     },
-    // What the reduce snippet's description says to do by hand: hand the stage to NetSuite as well.
     {
-        edit: 'api/src/jobs/closeOldOrders/closeOldOrders.ts',
-        find: "export { map } from './map';",
-        replace: ["export { map } from './map';", "export { reduce } from './reduce';"].join('\n'),
+        snippet: 'nspJobSummarize',
+        file: 'api/src/jobs/closeOldOrders/summarize.ts',
+        values: { 1: 'CloseOldOrdersTally', 3: 'CloseOldOrdersResult', 4: 'handled', 5: 'tallies', 6: 'closeOldOrders' },
     },
     { snippet: 'nspObjectMapReduce', file: 'netsuite/Objects/customscript_{{prefix}}_close_old_orders_mr.xml', values: { 1: 'Close Old Orders', 2: 'Closes sales orders older than a cutoff' } },
-    // Every parameter the job declares needs its field on the object; the structure check says so otherwise.
-    {
-        edit: 'netsuite/Objects/customscript_{{prefix}}_close_old_orders_mr.xml',
-        find: '  </scriptcustomfields>',
-        replace: [
-            '    <scriptcustomfield scriptid="custscript_{{prefix}}_batch_size">',
-            '      <accesslevel>2</accesslevel>',
-            '      <defaultvalue>100</defaultvalue>',
-            '      <description>How many orders one run closes.</description>',
-            '      <displaytype>NORMAL</displaytype>',
-            '      <fieldtype>INTEGER</fieldtype>',
-            '      <isformula>F</isformula>',
-            '      <ismandatory>F</ismandatory>',
-            '      <label>Batch Size</label>',
-            '      <searchlevel>2</searchlevel>',
-            '      <storevalue>T</storevalue>',
-            '    </scriptcustomfield>',
-            '  </scriptcustomfields>',
-        ].join('\n'),
-    },
     {
         snippet: 'nspJobStart',
         file: 'api/src/jobs/closeOldOrders/start.ts',
@@ -226,9 +164,9 @@ const scenario = [
     {
         snippet: 'nspUserEvent',
         file: 'api/src/events/user/salesOrder.ts',
-        values: { 1: 'Sales Order', 2: 'memo', 3: 'memo', 4: 'listSalesOrdersByCustomerId', 5: 'salesOrders', 6: 'Stamps the memo when a sales order is saved' },
+        values: { 1: 'Sales Order', 2: 'memo', 3: 'memo', 4: 'countSalesOrdersByCustomer', 5: 'salesOrders', 6: 'Stamps the memo when a sales order is saved' },
     },
-    { snippet: 'nspClientEvent', file: 'api/src/events/client/salesOrder.ts', values: { 1: 'sales order', 2: 'quantity', 3: 'quantity', 4: 'Warns when the quantity is not a positive number' } },
+    { snippet: 'nspClientEvent', file: 'api/src/events/client/salesOrder.ts', values: { 1: 'sales order', 2: 'quantity', 3: 'quantity', 4: 'Checks the quantities on the lines' } },
 ];
 
 // ── running it ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -300,35 +238,6 @@ function expandStep(step, fileNameBase) {
     return expandSnippet(renderTokens(Array.isArray(snippet.body) ? snippet.body.join('\n') : snippet.body), { fileNameBase, values });
 }
 
-function insertFragment(source, fragment, step) {
-    const lineEnding = source.includes('\r\n') ? '\r\n' : '\n';
-    const normalized = source.replace(/\r\n/g, '\n');
-    const fragmentLines = fragment.split('\n');
-    let result;
-    if (step.beforeLine || step.beforeLastLine) {
-        const lines = normalized.split('\n');
-        const anchor = step.beforeLine ? lines.findIndex((line) => step.beforeLine.test(line)) : lines.findLastIndex((line) => step.beforeLastLine.test(line));
-        if (anchor === -1) throw new Error(`${step.into}: no line matches ${step.beforeLine ?? step.beforeLastLine} for ${step.snippet}.`);
-        // Where the developer would put the cursor: the anchor line's indentation, plus one level when the step says so.
-        const indentation = lines[anchor].match(/^\s*/)[0] + (step.indent ?? '');
-        lines.splice(anchor, 0, ...fragmentLines.map((line) => (line === '' ? line : indentation + line)));
-        result = lines.join('\n');
-    } else if (step.at) {
-        const match = step.at.exec(normalized);
-        if (!match) throw new Error(`${step.into}: nothing matches ${step.at} for ${step.snippet}.`);
-        const lineStart = normalized.lastIndexOf('\n', match.index) + 1;
-        const indentation = normalized.slice(lineStart).match(/^\s*/)[0];
-        const [first, ...rest] = fragmentLines;
-        const text = [first, ...rest.map((line) => (line === '' ? line : indentation + line))].join('\n');
-        result = normalized.slice(0, match.index) + (step.prefix ?? '') + text + normalized.slice(match.index);
-    } else if (step.append) {
-        result = `${normalized.replace(/\n*$/, '')}\n\n${fragment}`;
-    } else {
-        throw new Error(`Step for ${step.snippet} into ${step.into} says neither beforeLine, at nor append.`);
-    }
-    return result.replace(/\n/g, lineEnding);
-}
-
 function applyStep(step) {
     if (step.run) {
         // Everything the script writes is remembered first, so the restore takes it away again.
@@ -353,11 +262,7 @@ function applyStep(step) {
         writeProjectFile(relativePath, expandStep(step, fileNameBase));
         return `${step.snippet} -> ${relativePath}`;
     }
-    const relativePath = renderTokens(step.into);
-    rememberOriginal(relativePath);
-    const fileNameBase = path.basename(relativePath, path.extname(relativePath));
-    writeProjectFile(relativePath, insertFragment(readProjectFile(relativePath), expandStep(step, fileNameBase), step));
-    return `${step.snippet} -> into ${relativePath}`;
+    throw new Error(`A step names neither file, edit nor run: ${JSON.stringify(step)}. Every snippet writes a whole file.`);
 }
 
 /** With shell:true (needed for npm's .cmd shim on Windows) arguments with spaces must be quoted by hand. */
@@ -396,7 +301,7 @@ function restore() {
     for (const directory of [...emptiedDirectories].sort((left, right) => right.length - left.length)) {
         if (existsSync(directory) && readdirSync(directory).length === 0) rmSync(directory, { recursive: true, force: true });
     }
-    if (originals.has('client/src/routes/orders.tsx') && existsSync(routeTreePath)) regenerateRouteTree();
+    if ([...originals.keys()].some((relativePath) => relativePath.startsWith('client/src/routes/')) && existsSync(routeTreePath)) regenerateRouteTree();
     run('npm', ['run', 'generate'], projectDir);
     for (const generatedFile of existsSync(repositoryGeneratedDir) ? readdirSync(repositoryGeneratedDir) : []) {
         if (!repositoryGeneratedBefore.has(generatedFile)) rmSync(path.join(repositoryGeneratedDir, generatedFile), { force: true });

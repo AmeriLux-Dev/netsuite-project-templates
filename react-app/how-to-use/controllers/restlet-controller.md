@@ -8,14 +8,14 @@ repository functions of [repositories/model-and-repository.md](../repositories/m
 
 ## Steps
 
-1. **The service**, `api/src/services/<subject>Service.ts` (the `nspService` snippet): plain arguments in, a type the
-   service declares out.
-2. **The controller**, `api/src/controllers/<name>Controller.ts` (`nspControllerRestlet` or `nspControllerSuitelet`;
-   `nspControllerShapes` and `nspControllerEndpoint` for each more endpoint, `nspControllerParse` for a guard).
+1. **The service**, `api/src/services/<subject>Service.ts` (the `nspService` snippet, every kind of service function,
+   to delete down to what the controller calls): plain arguments in, a type the service declares out.
+2. **The controller**, `api/src/controllers/<name>Controller.ts` (`nspControllerRestlet` or `nspControllerSuitelet`:
+   every kind of endpoint, a guard and `authorize`, to delete down to what this controller serves).
 3. **The SDF object**, `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` (`nspObjectRestlet`).
 4. **`npm run generate`**: writes the client module `client/src/api/<name>.gen.ts` from the controller.
-5. **The hooks**, `client/src/hooks/use<What>.ts` (`nspHookQueryWith`, `nspHookQuery` for an endpoint without a
-   request, `nspHookMutation` for a write).
+5. **The hooks**, `client/src/hooks/use<What>.ts` (`nspHookQuery`, without its argument for an endpoint without a
+   request; `nspHookMutation` for a write).
 6. **The page and its route** (`nspPage`, `nspRoute`).
 7. **The tests** (`nspTestController`, `nspTestService`, `nspTestHook`), each against a fake of the layer below.
 
@@ -424,11 +424,11 @@ message when broken:
   can do. Under `npm run dev` only Restlets are reachable: the local proxy signs with an OAuth 2.0 token, which
   NetSuite accepts for Restlets and not for Suitelets.
 - **Only some callers may use an endpoint**: `authorize: ({ endpoint, request }) => void` after the endpoints runs
-  before every handler; throw `ApiError.forbidden()` to refuse (the `nspControllerAuthorize` snippet). It reads the
+  before every handler; throw `ApiError.forbidden()` to refuse (the controller snippets write one). It reads the
   session through a service, because an endpoint never imports a repository.
 - **A page that shows a failure in place** reads the query's `isError` and `error` (an `ApiClientError` carrying the
   status, the message and the `details` the handler gave its `ApiError`), and its hook passes
   `{ handleError: false }` as the call's second argument, so the banner stays out of it.
 - **An endpoint without a request** takes no parameter (`roles: (): RolesResponse => ...` in the shipped
   `userController.ts`), and its hook calls it as `user.api.roles(undefined, { signal })` (the `nspHookQuery`
-  snippet).
+  snippet without its argument).

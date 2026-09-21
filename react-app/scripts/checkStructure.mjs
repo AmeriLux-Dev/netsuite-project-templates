@@ -199,7 +199,7 @@ function readJob(name, declaredJobIds) {
     if (declaredType !== 'MapReduceScript') report(`${jobPath}: @NScriptType must be MapReduceScript (found "${declaredType ?? 'none'}").`);
     const ids = declaredJobIds.get(name);
     if (!ids) {
-        report(`${jobPath}: netsuite.ts has no \`jobs.${name}\` entry; a job's script, deployment and parameter ids are written there (the nspJobIds snippet).`);
+        report(`${jobPath}: netsuite.ts has no \`jobs.${name}\` entry; a job's script, deployment and parameter ids are written there (how-to-use/jobs/map-reduce-job.md shows the entry).`);
         return undefined;
     }
     if (ids.declaredName !== name) {
