@@ -313,13 +313,20 @@ export const map = jobMap<string, number>(jobs.jobRunCleanup, (runId, job) => {
 });
 `;
 
-const cleanupSummarize = `import { jobs } from '../../../../netsuite';
-import { jobSummarize } from '../../repositories/jobRunRepository';
+const cleanupContract = `/**
+ * What a run of the cleanup job carries. It is started by its schedule, so it takes nothing; the work is the ids of
+ * the runs to remove, map writes a one per run removed, and summarize counts them.
+ */
 
 /** What the run leaves behind: how many records it removed. */
 export interface CleanupResult {
     removed: number;
 }
+`;
+
+const cleanupSummarize = `import { jobs } from '../../../../netsuite';
+import { jobSummarize } from '../../repositories/jobRunRepository';
+import type { CleanupResult } from './contract';
 
 export const summarize = jobSummarize<number, CleanupResult>(jobs.jobRunCleanup, (summary) => ({ removed: summary.output.length }));
 `;
@@ -626,6 +633,7 @@ addProjectFile(`netsuite/Objects/${recordType}.xml`, runRecordObject);
 addProjectFile(`netsuite/Objects/${cleanupScriptId}.xml`, cleanupObject);
 addProjectFile(`netsuite/Objects/${controllerScriptId}.xml`, controllerObject);
 addProjectFile('api/src/jobs/jobRunCleanup/jobRunCleanup.ts', cleanupJob);
+addProjectFile('api/src/jobs/jobRunCleanup/contract.ts', cleanupContract);
 addProjectFile('api/src/jobs/jobRunCleanup/getInputData.ts', cleanupGetInputData);
 addProjectFile('api/src/jobs/jobRunCleanup/map.ts', cleanupMap);
 addProjectFile('api/src/jobs/jobRunCleanup/summarize.ts', cleanupSummarize);

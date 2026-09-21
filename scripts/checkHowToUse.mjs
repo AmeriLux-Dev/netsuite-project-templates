@@ -86,6 +86,7 @@ const examples = [
                     'netsuite/Objects/customscript_{{prefix}}_job_cleanup_mr.xml',
                     'netsuite/Objects/customscript_{{prefix}}_job_runs.xml',
                     'api/src/jobs/jobRunCleanup/jobRunCleanup.ts',
+                    'api/src/jobs/jobRunCleanup/contract.ts',
                     'api/src/jobs/jobRunCleanup/getInputData.ts',
                     'api/src/jobs/jobRunCleanup/map.ts',
                     'api/src/jobs/jobRunCleanup/summarize.ts',

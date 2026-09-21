@@ -84,16 +84,17 @@ One folder per Map/Reduce script, and the folder is everything about that job. T
 ```
 api/src/jobs/closeOldOrders/
   closeOldOrders.ts    the script NetSuite loads: which stages there are, and nothing else
-  getInputData.ts      what the work is, and the shape a run is started with
-  map.ts               what one item does, and the value it writes
+  contract.ts          every shape the run carries: what it is started with, what the stages hand each other, the result
+  getInputData.ts      what the work is
+  map.ts               what one item does
   reduce.ts            what everything written under one key comes to
-  summarize.ts         what the run leaves behind: the result shape
+  summarize.ts         what the run leaves behind
   start.ts             how a run is started, for a controller to call
 ```
 
 A job is background work: NetSuite runs it in stages, and it answers nothing to whoever started it. What stands in for an answer is a **run**: a row in this application's own run record. Starting a job writes the run and hands back its id; the stages read the run's input from it and write the result to it; a page follows the run by that id until it ends.
 
-Each stage is NetSuite's own entry point, in a file of its own name, built by the builder of that stage (`jobMap`, from the jobRunRepository `npm run add:jobs` writes), which handles the run and the JSON between the stages. The job's ids are in `netsuite.ts`, under `jobs`, beside its SDF object.
+Each stage is NetSuite's own entry point, in a file of its own name, built by the builder of that stage (`jobMap`, from the jobRunRepository `npm run add:jobs` writes), which handles the run and the JSON between the stages. The shapes the run carries are all in `contract.ts`, and every stage imports its types from there, so the chain reads in one place and two stages naming the same value name the one declaration. The job's ids are in `netsuite.ts`, under `jobs`, beside its SDF object.
 
 A job's folder is a service's peer: it calls services and repositories, and touches no `N/*` beyond the context types, no model, specification or controller. Nothing below it may import it; only a controller reaches in, for the `start<Name>` its `start.ts` declares.
 

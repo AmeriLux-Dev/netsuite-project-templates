@@ -11,7 +11,7 @@ Two rules from `CLAUDE.md`, applied to the layers of [folder-structure.md](folde
 | Repository | a type of its own only for what no model declares | `ActiveUser` |
 | Service | what it hands up: a `Pick` of an entity type is `<Model>Summary`; a composition is named for what it composes | `RoleSummary`, `ActiveUserRoles` |
 | Controller | the wire, one pair per endpoint, no controller prefix | `ByEmployeeRequest`, `ByEmployeeResponse` |
-| Job | the run's input, one piece of the work, and the result, prefixed with the job's name; what a stage writes, named for what it is | `CloseOldOrdersRequest`, `CloseOldOrdersItem`, `CloseOldOrdersResult`, `RepTally` |
+| Job | in the job's `contract.ts`: the run's input, one piece of the work, and the result, prefixed with the job's name; what a stage writes, named for what it is | `CloseOldOrdersRequest`, `CloseOldOrdersItem`, `CloseOldOrdersResult`, `RepTally` |
 
 **A function is named for what it does, with a verb.** A function that produces a value of a type is `build<Type>`: `buildRoleSummary(role)` says what comes out, its parameter says what goes in, and it sits next to the type it builds. When a second source for the same type appears, the source joins the name (`buildRoleSummaryFromRole`). `to<Type>` is not used: that name belongs to the type, and a function's name is a verb.
 

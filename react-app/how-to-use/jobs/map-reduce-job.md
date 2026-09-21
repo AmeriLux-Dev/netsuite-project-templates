@@ -18,17 +18,19 @@ it ends.
    page polls (its `status` and `mine` endpoints), the `useJobRun` hook, the `jobs` block in `netsuite.ts` and the
    `jobRuns` block in `netsuite-api.config.json`. It adds nothing that is already there, so running it again is safe.
 2. **The job's ids in `netsuite.ts`**, under `jobs`, as in the code below; `parameters` for a script parameter of its
-   own. They are written by hand, once, and the same ids go in the SDF object at step 6.
+   own. They are written by hand, once, and the same ids go in the SDF object at step 7.
 3. **`api/src/jobs/<name>/<name>.ts`**, the file NetSuite loads (`nspJob`): the header, and the stages it exports;
    the snippet exports all four, and a job without a reduce stage deletes that line.
-4. **A file per stage beside it** (`nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize`). Export
+4. **`api/src/jobs/<name>/contract.ts`** (`nspJobContract`): every shape the run carries, hop by hop, in one file.
+   Every stage imports its types from here.
+5. **A file per stage beside it** (`nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize`). Export
    `summarize` always: the run is closed there, and a job without it leaves every run looking unfinished.
-5. **`api/src/jobs/<name>/start.ts`** (`nspJobStart`): how a run is started, for a controller to call.
-6. **The SDF object**, `netsuite/Objects/customscript_{{prefix}}_<snake_name>_mr.xml` (`nspObjectMapReduce`).
-7. **`npm run generate`**: writes `client/src/api/<name>Job.gen.ts`, the result's type, reached as
+6. **`api/src/jobs/<name>/start.ts`** (`nspJobStart`): how a run is started, for a controller to call.
+7. **The SDF object**, `netsuite/Objects/customscript_{{prefix}}_<snake_name>_mr.xml` (`nspObjectMapReduce`).
+8. **`npm run generate`**: writes `client/src/api/<name>Job.gen.ts`, the result's type, reached as
    `jobs.<name>.Result` from `@/api/index.gen`.
-8. **An endpoint that starts it, a mutation hook that calls it, and a page that follows the run** with `useJobRun`.
-9. **Tests**, one per stage, with the contexts `@amerilux/netsuite-api/testing` builds.
+9. **An endpoint that starts it, a mutation hook that calls it, and a page that follows the run** with `useJobRun`.
+10. **Tests**, one per stage, with the contexts `@amerilux/netsuite-api/testing` builds.
 
 ## The code
 
@@ -123,23 +125,51 @@ export { reduce } from './reduce';
 export { summarize } from './summarize';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// api/src/jobs/closeOldOrders/getInputData.ts              1. what the work is
+// api/src/jobs/closeOldOrders/contract.ts                  every shape the run carries, hop by hop;
+//                                                          the stages import from here
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-import { jobs } from '../../../../netsuite';
-import { jobGetInputData } from '../../repositories/jobRunRepository';
-import { listOldOrders } from '../../services/ordersService';
 
 /** What a run of this job is asked to do; whatever starts a run builds this. */
 export interface CloseOldOrdersRequest {
     olderThanDays: number;
 }
 
-/** One piece of the work: what the map stage is handed. */
+/** One piece of the work: what getInputData answers and the map stage is handed. */
 export interface CloseOldOrdersItem {
     orderId: number;
     salesRepId: number | null;
 }
+
+/** What closing one order came to: what map writes, and what reduce gathers under one rep. */
+export interface CloseOutcome {
+    orderId: number;
+    salesRepId: number | null;
+    closed: boolean;
+    reason: string;
+}
+
+/** One rep's share of the run, as reduce writes it; a null rep is the orders nobody is assigned to. */
+export interface RepTally {
+    salesRepId: number | null;
+    closed: number;
+    failed: number;
+}
+
+/** What a finished run leaves behind; the page reads it as `jobs.closeOldOrders.Result`. */
+export interface CloseOldOrdersResult {
+    closed: number;
+    failed: number;
+    byRep: RepTally[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// api/src/jobs/closeOldOrders/getInputData.ts              1. what the work is
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+import { jobs } from '../../../../netsuite';
+import { jobGetInputData } from '../../repositories/jobRunRepository';
+import { listOldOrders } from '../../services/ordersService';
+import type { CloseOldOrdersItem, CloseOldOrdersRequest } from './contract';
 
 // The two types are the stage's claim: a run is started with a CloseOldOrdersRequest, and the work is a list of
 // CloseOldOrdersItem. The builder opens the run first, so `input` is what it was started with, already parsed off
@@ -154,15 +184,7 @@ export const getInputData = jobGetInputData<CloseOldOrdersRequest, CloseOldOrder
 import { jobs } from '../../../../netsuite';
 import { jobMap } from '../../repositories/jobRunRepository';
 import { closeOrder } from '../../services/ordersService';
-import type { CloseOldOrdersItem } from './getInputData';
-
-/** What closing one order came to; declared here because this is where it is written. */
-export interface CloseOutcome {
-    orderId: number;
-    salesRepId: number | null;
-    closed: boolean;
-    reason: string;
-}
+import type { CloseOldOrdersItem, CloseOutcome } from './contract';
 
 export const map = jobMap<CloseOldOrdersItem, CloseOutcome>(jobs.closeOldOrders, (item, job) => {
     // `item` arrives parsed, and what `job.write` is given travels on as JSON: neither is this stage's business.
@@ -181,18 +203,11 @@ export const map = jobMap<CloseOldOrdersItem, CloseOutcome>(jobs.closeOldOrders,
 
 import { jobs } from '../../../../netsuite';
 import { jobReduce } from '../../repositories/jobRunRepository';
-import type { CloseOutcome } from './map';
+import type { CloseOutcome, RepTally } from './contract';
 
-/** One rep's share of the run; a null rep is the orders nobody is assigned to. */
-export interface RepTally {
-    salesRepId: number | null;
-    closed: number;
-    failed: number;
-}
-
-// Reads what map wrote (CloseOutcome), writes what summarize will read (RepTally). The first type is imported from
-// map.ts rather than restated: that is what keeps the two files honest, since nothing compares a claim in one file
-// against a claim in another.
+// Reads what map wrote (CloseOutcome), writes what summarize will read (RepTally). Both come from contract.ts, so
+// map, reduce and summarize name the one declaration of each: nothing compares a claim in one stage file against a
+// claim in another, and that is what keeps them together.
 export const reduce = jobReduce<CloseOutcome, RepTally>(jobs.closeOldOrders, (key, outcomes, job) => {
     const closed = outcomes.filter((outcome) => outcome.closed).length;
     job.write(key, { salesRepId: outcomes[0]?.salesRepId ?? null, closed, failed: outcomes.length - closed });
@@ -204,14 +219,7 @@ export const reduce = jobReduce<CloseOutcome, RepTally>(jobs.closeOldOrders, (ke
 
 import { jobs } from '../../../../netsuite';
 import { jobSummarize } from '../../repositories/jobRunRepository';
-import type { RepTally } from './reduce';
-
-/** What a finished run leaves behind; the page reads it as `jobs.closeOldOrders.Result`. */
-export interface CloseOldOrdersResult {
-    closed: number;
-    failed: number;
-    byRep: RepTally[];
-}
+import type { CloseOldOrdersResult, RepTally } from './contract';
 
 // What this answers is written onto the run as its result and closes the run, which is what a page polling the
 // run is waiting for. `summary` also carries everything NetSuite collected: `errors` (every key that failed, and
@@ -232,7 +240,7 @@ export const summarize = jobSummarize<RepTally, CloseOldOrdersResult>(jobs.close
 
 import { jobs } from '../../../../netsuite';
 import { startJobRun } from '../../repositories/jobRunRepository';
-import type { CloseOldOrdersRequest } from './getInputData';
+import type { CloseOldOrdersRequest } from './contract';
 
 /**
  * Starts a run and answers its id; the page follows the run by that id. Throws a 409 when every deployment is
@@ -382,14 +390,15 @@ sequenceDiagram
 ## What `npm run generate` reads
 
 The run's contract is the builders' type arguments: the first type of `jobGetInputData` is what a run is started
-with, and the second of `jobSummarize` is what a finished run leaves behind. `npm run generate` copies the second
-into `client/src/api/closeOldOrdersJob.gen.ts` as `Result`, with the shapes it names (`RepTally` here), so it must be
-something the browser can carry: no `Date`, no class. The input stays on the server: nothing in the browser says it,
-and nothing callable is generated for a job, because a page starts one through a controller.
+with, and the second of `jobSummarize` is what a finished run leaves behind. `npm run generate` follows them into
+contract.ts and copies the second into `client/src/api/closeOldOrdersJob.gen.ts` as `Result`, with the shapes it
+names (`RepTally` here), so it must be something the browser can carry: no `Date`, no class. The rest of contract.ts
+stays on the server: nothing in the browser says what a run is started with or what the stages hand each other, and
+nothing callable is generated for a job, because a page starts one through a controller.
 
-Between two stage files the types are not compared: map saying it writes one shape and reduce expecting another are
-two statements about a value neither file shares. Name the shape where it is written and import it where it is read,
-as reduce.ts imports `CloseOutcome` from map.ts, and TypeScript keeps them together.
+Why contract.ts: TypeScript does not compare the types of two stage files, so map saying it writes one shape and
+reduce expecting another would be two statements about a value neither file shares. With every shape in one file
+there is one `CloseOutcome` for both to import, so they cannot drift apart, and the whole chain reads in one place.
 
 A job's folder is a service's peer: its stages call services and repositories, and touch no `N/*` beyond the
 context types, no model, specification or controller. Nothing below a job may import it; only a controller reaches

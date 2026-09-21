@@ -87,6 +87,7 @@ const scenario = [
             'netsuite/Objects/customscript_{{prefix}}_job_cleanup_mr.xml',
             'netsuite/Objects/customscript_{{prefix}}_job_runs.xml',
             'api/src/jobs/jobRunCleanup/jobRunCleanup.ts',
+            'api/src/jobs/jobRunCleanup/contract.ts',
             'api/src/jobs/jobRunCleanup/getInputData.ts',
             'api/src/jobs/jobRunCleanup/map.ts',
             'api/src/jobs/jobRunCleanup/summarize.ts',
@@ -132,26 +133,44 @@ const scenario = [
         ].join('\n'),
     },
     { snippet: 'nspJob', file: 'api/src/jobs/closeOldOrders/closeOldOrders.ts', values: { 1: 'closes sales orders older than a cutoff' } },
+    // Every shape the run carries, in one file the stages all import from.
+    {
+        snippet: 'nspJobContract',
+        file: 'api/src/jobs/closeOldOrders/contract.ts',
+        values: {
+            1: 'CloseOldOrdersRequest',
+            2: 'olderThanDays',
+            3: 'number',
+            4: 'CloseOldOrdersItem',
+            5: 'orderId',
+            6: 'CloseOldOrdersOutcome',
+            7: 'closed',
+            8: 'CloseOldOrdersTally',
+            9: 'handled',
+            10: 'CloseOldOrdersResult',
+            11: 'tallies',
+        },
+    },
     {
         snippet: 'nspJobGetInputData',
         file: 'api/src/jobs/closeOldOrders/getInputData.ts',
-        values: { 1: 'listOldOrderIds', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersRequest', 6: 'olderThanDays', 7: 'number', 8: 'CloseOldOrdersItem', 9: 'orderId', 10: 'The ids of the orders old enough to close', 11: 'closeOldOrders' },
+        values: { 1: 'listOldOrderIds', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersRequest', 7: 'The ids of the orders old enough to close', 8: 'closeOldOrders', 9: 'olderThanDays', 10: 'orderId' },
     },
     {
         snippet: 'nspJobMap',
         file: 'api/src/jobs/closeOldOrders/map.ts',
-        values: { 1: 'closeOrder', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'orderId', 8: 'closed', 9: 'Closes one order', 10: 'closeOldOrders' },
+        values: { 1: 'closeOrder', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'Closes one order', 8: 'closeOldOrders', 9: 'orderId', 10: 'closed' },
     },
     // A reduce gathers what map wrote under one key, so what it writes is what summarize then reads.
     {
         snippet: 'nspJobReduce',
         file: 'api/src/jobs/closeOldOrders/reduce.ts',
-        values: { 1: 'CloseOldOrdersOutcome', 2: 'CloseOldOrdersTally', 3: 'handled', 4: 'How many orders of one key were handled', 5: 'closeOldOrders' },
+        values: { 1: 'CloseOldOrdersOutcome', 2: 'CloseOldOrdersTally', 3: 'How many orders of one key were handled', 4: 'closeOldOrders', 5: 'outcomes', 6: 'handled' },
     },
     {
         snippet: 'nspJobSummarize',
         file: 'api/src/jobs/closeOldOrders/summarize.ts',
-        values: { 1: 'CloseOldOrdersTally', 3: 'CloseOldOrdersResult', 4: 'handled', 5: 'tallies', 6: 'closeOldOrders' },
+        values: { 1: 'CloseOldOrdersResult', 2: 'CloseOldOrdersTally', 3: 'closeOldOrders', 4: 'tallies', 5: 'handled' },
     },
     { snippet: 'nspObjectMapReduce', file: 'netsuite/Objects/customscript_{{prefix}}_close_old_orders_mr.xml', values: { 1: 'Close Old Orders', 2: 'Closes sales orders older than a cutoff' } },
     {
