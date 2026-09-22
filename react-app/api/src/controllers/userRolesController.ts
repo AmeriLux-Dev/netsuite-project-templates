@@ -5,7 +5,7 @@
  */
 
 import { ApiError, defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
-import { getRolesByEmployee, type RoleSummary } from '../services/userRolesService';
+import { getRolesByEmployee, type RoleSummary } from '../services/userService';
 
 /**
  * The userRoles controller, and the reason it is a Suitelet: its deployment runs as Administrator

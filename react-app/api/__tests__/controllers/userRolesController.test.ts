@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RoleSummary } from '../../src/services/userRolesService';
+import type { RoleSummary } from '../../src/services/userService';
 
 // The controller is tested against a mocked service, so the test sees only what the endpoint does with the wire.
 const { getRolesByEmployee } = vi.hoisted(() => ({
     getRolesByEmployee: vi.fn<(employeeId: number) => RoleSummary[]>(),
 }));
-vi.mock('../../src/services/userRolesService', () => ({ getRolesByEmployee }));
+vi.mock('../../src/services/userService', () => ({ getRolesByEmployee }));
 
 import { userRolesEndpoints } from '../../src/controllers/userRolesController';
 

@@ -77,7 +77,7 @@ export function startJobRun(job: JobRef, input: unknown): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// api/src/services/ordersService.ts                        adds the two decisions the job calls to the
+// api/src/services/salesOrderService.ts                    adds the two decisions the job calls to the
 //                                                          service of controllers/restlet-controller.md
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ export interface CloseOldOrdersResult {
 
 import { jobs } from '../../../../netsuite';
 import { jobGetInputData } from '../../repositories/jobRunRepository';
-import { getOldOrders } from '../../services/ordersService';
+import { getOldOrders } from '../../services/salesOrderService';
 import type { CloseOldOrdersItem, CloseOldOrdersRequest } from './contract';
 
 // The two types are the stage's claim: a run is started with a CloseOldOrdersRequest, and the work is a list of
@@ -183,7 +183,7 @@ export const getInputData = jobGetInputData<CloseOldOrdersRequest, CloseOldOrder
 
 import { jobs } from '../../../../netsuite';
 import { jobMap } from '../../repositories/jobRunRepository';
-import { updateOrderClosed } from '../../services/ordersService';
+import { updateOrderClosed } from '../../services/salesOrderService';
 import type { CloseOldOrdersItem, CloseOutcome } from './contract';
 
 export const map = jobMap<CloseOldOrdersItem, CloseOutcome>(jobs.closeOldOrders, (item, job) => {
@@ -319,7 +319,7 @@ import { expect, it, vi } from 'vitest';
 
 // The stage is tested against a mocked service: what it hands the reduce stage, not how an order is closed.
 const { updateOrderClosed } = vi.hoisted(() => ({ updateOrderClosed: vi.fn() }));
-vi.mock('../../../src/services/ordersService', () => ({ updateOrderClosed }));
+vi.mock('../../../src/services/salesOrderService', () => ({ updateOrderClosed }));
 
 import { map } from '../../../src/jobs/closeOldOrders/map';
 

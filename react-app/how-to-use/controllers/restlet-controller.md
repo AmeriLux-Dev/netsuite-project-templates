@@ -8,7 +8,7 @@ repository functions of [repositories/model-and-repository.md](../repositories/m
 
 ## Steps
 
-1. **The service**, `api/src/services/<subject>Service.ts` (the `nspService` snippet, every kind of service function,
+1. **The service**, `api/src/services/<domain>Service.ts` (the `nspService` snippet, every kind of service function,
    to delete down to what the controller calls): plain arguments in, a type the service declares out. What it
    exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check), and it imports
    each repository as a namespace.
@@ -38,7 +38,7 @@ because they are not TypeScript:
 
 ```typescript
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// api/src/services/ordersService.ts                        the decisions: plain arguments in, a type of
+// api/src/services/salesOrderService.ts                    the decisions: plain arguments in, a type of
 //                                                          the service's own out
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -91,7 +91,7 @@ export function updateOrderMemo(orderId: number, memo: string): SalesOrderSummar
  */
 
 import { ApiError, defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
-import { getOrdersByCustomer, updateOrderMemo, type SalesOrderSummary } from '../services/ordersService';
+import { getOrdersByCustomer, updateOrderMemo, type SalesOrderSummary } from '../services/salesOrderService';
 
 // The shapes are the wire: one request and one response per endpoint, named without the controller's name,
 // because the generated module is scoped by controller already. Every one is exported: `npm run generate`
@@ -314,13 +314,13 @@ export const Route = createFileRoute('/orders/$customerId')({
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SalesOrderSummary } from '../../src/services/ordersService';
+import type { SalesOrderSummary } from '../../src/services/salesOrderService';
 
 const { getOrdersByCustomer, updateOrderMemo } = vi.hoisted(() => ({
     getOrdersByCustomer: vi.fn<(customerId: number) => SalesOrderSummary[]>(),
     updateOrderMemo: vi.fn<(orderId: number, memo: string) => SalesOrderSummary | null>(),
 }));
-vi.mock('../../src/services/ordersService', () => ({ getOrdersByCustomer, updateOrderMemo }));
+vi.mock('../../src/services/salesOrderService', () => ({ getOrdersByCustomer, updateOrderMemo }));
 
 import { ordersEndpoints } from '../../src/controllers/ordersController';
 
@@ -376,7 +376,7 @@ sequenceDiagram
     participant Hook as useUpdateOrderMemo
     participant Client as orders.api
     participant Restlet as ordersController
-    participant Service as ordersService
+    participant Service as salesOrderService
     participant Repository as salesOrdersRepository
     Page->>Hook: mutate(orderId, memo)
     Hook->>Client: updateMemo(request)

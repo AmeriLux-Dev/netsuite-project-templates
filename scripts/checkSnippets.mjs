@@ -54,21 +54,21 @@ const scenario = [
     { snippet: 'nspRepository', file: 'api/src/repositories/salesOrdersRepository.ts', values: { 5: 'sales orders' } },
     { snippet: 'nspRepositoryModule', file: 'api/src/repositories/currentScriptRepository.ts', values: { 2: 'the running script', 3: 'CurrentScript', 4: 'id', 5: 'string', 6: 'readCurrentScript', 7: 'script', 8: 'getCurrentScript()', 9: 'script.id' } },
 
-    // The service both controllers call.
-    { snippet: 'nspService', file: 'api/src/services/ordersService.ts', values: { 1: 'SalesOrder', 5: 'sales orders' } },
+    // The service both controllers call: the sales order's domain, whichever controller serves it.
+    { snippet: 'nspService', file: 'api/src/services/salesOrderService.ts', values: { 1: 'SalesOrder', 5: 'sales orders' } },
 
     // The orders Restlet, every kind of endpoint and authorize.
-    { snippet: 'nspControllerRestlet', file: 'api/src/controllers/ordersController.ts', values: { 2: 'SalesOrder', 5: 'a customer\'s sales orders' } },
+    { snippet: 'nspControllerRestlet', file: 'api/src/controllers/ordersController.ts', values: { 1: 'salesOrder', 2: 'SalesOrder', 5: 'a customer\'s sales orders' } },
     { snippet: 'nspObjectRestlet', file: 'netsuite/Objects/customscript_{{prefix}}_orders.xml', values: { 1: 'Orders', 2: 'Lists a customer\'s sales orders' } },
 
     // The orderTotals Suitelet, with a file download, read by a repository through its Suitelet client.
-    { snippet: 'nspControllerSuitelet', file: 'api/src/controllers/orderTotalsController.ts', values: { 1: 'orders', 2: 'SalesOrder', 5: 'order totals per customer' } },
+    { snippet: 'nspControllerSuitelet', file: 'api/src/controllers/orderTotalsController.ts', values: { 1: 'salesOrder', 2: 'SalesOrder', 5: 'order totals per customer' } },
     { snippet: 'nspObjectSuitelet', file: 'netsuite/Objects/customscript_{{prefix}}_order_totals.xml', values: { 1: 'Order Totals', 2: 'Totals per customer' } },
     { snippet: 'nspRepositorySuitelet', file: 'api/src/repositories/orderTotalsRepository.ts', values: { 1: 'ByCustomerResponse', 4: 'Order totals', 5: 'listOrderTotalsForCustomer', 6: 'customerId', 8: 'orderTotals', 9: 'byCustomer' } },
 
     // Tests, one per layer.
-    { snippet: 'nspTestController', file: 'api/__tests__/controllers/ordersController.test.ts', values: { 2: 'SalesOrder' } },
-    { snippet: 'nspTestService', file: 'api/__tests__/services/ordersService.test.ts', values: { 1: 'SalesOrder' } },
+    { snippet: 'nspTestController', file: 'api/__tests__/controllers/ordersController.test.ts', values: { 1: 'salesOrder', 2: 'SalesOrder' } },
+    { snippet: 'nspTestService', file: 'api/__tests__/services/salesOrderService.test.ts', values: { 1: 'SalesOrder' } },
     { snippet: 'nspTestRepository', file: 'api/__tests__/repositories/salesOrdersRepository.test.ts' },
     { snippet: 'nspTestRepositorySuitelet', file: 'api/__tests__/repositories/orderTotalsRepository.test.ts', values: { 2: 'byCustomer', 3: 'listOrderTotalsForCustomer', 4: 'customerId', 5: 'orderTotals', 6: '[{ id: 1, customerId: 7, memo: null }]' } },
     { snippet: 'nspTestHook', file: 'client/__tests__/ordersQuery.test.ts', values: { 2: 'byCustomer', 3: '{ customerId: 7, orders: [] }', 4: 'ordersByCustomer', 6: '{ customerId: 7 }' } },
@@ -101,7 +101,7 @@ const scenario = [
     // What the job's stages call. The shapes on either end of a run are the job's own, declared in the stage
     // that names them, so the service holds only the work.
     {
-        edit: 'api/src/services/ordersService.ts',
+        edit: 'api/src/services/salesOrderService.ts',
         find: "export type SalesOrderSummary = Pick<SalesOrder, 'id' | 'customerId' | 'memo'>;",
         replace: [
             "export type SalesOrderSummary = Pick<SalesOrder, 'id' | 'customerId' | 'memo'>;",
@@ -154,12 +154,12 @@ const scenario = [
     {
         snippet: 'nspJobGetInputData',
         file: 'api/src/jobs/closeOldOrders/getInputData.ts',
-        values: { 1: 'getOldOrderIds', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersRequest', 7: 'The ids of the orders old enough to close', 8: 'closeOldOrders', 9: 'olderThanDays', 10: 'orderId' },
+        values: { 1: 'getOldOrderIds', 2: 'services', 3: 'salesOrder', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersRequest', 7: 'The ids of the orders old enough to close', 8: 'closeOldOrders', 9: 'olderThanDays', 10: 'orderId' },
     },
     {
         snippet: 'nspJobMap',
         file: 'api/src/jobs/closeOldOrders/map.ts',
-        values: { 1: 'updateOrderClosed', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'Closes one order', 8: 'closeOldOrders', 9: 'orderId', 10: 'closed' },
+        values: { 1: 'updateOrderClosed', 2: 'services', 3: 'salesOrder', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'Closes one order', 8: 'closeOldOrders', 9: 'orderId', 10: 'closed' },
     },
     // A reduce gathers what map wrote under one key, so what it writes is what summarize then reads.
     {

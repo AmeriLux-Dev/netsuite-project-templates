@@ -5,8 +5,7 @@
  */
 
 import { defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
-import type { RoleSummary } from '../services/userRolesService';
-import { getActiveUserRoles } from '../services/userService';
+import { getActiveUserRoles, type RoleSummary } from '../services/userService';
 
 /**
  * The user controller: what it sends and receives, the endpoints that do it, and the script that

@@ -116,17 +116,64 @@ Events have no SDF object here: **you create their script record and deployments
 
 ### src/services/
 
-One file per subject, `<subject>Service.ts`.
+One file per domain, `<domain>Service.ts`.
 
 The decisions: plain arguments in (an id, a filter, the fields of a create), repository functions called by their domain names, a type the service declares itself out. A service never names a controller, so any controller can call it and shape its own reply. What it exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check); a `build<Type>` stays inside it. Each repository is imported as a namespace (`salesOrdersRepository.findSalesOrder(id)`), so a service function can share a name with the repository function it calls ([naming.md](naming.md)).
 
-Services may import one another, in one direction only. A service that others share sits below them and imports none of them. [src/lib/](#srclib) says where code that several parts share goes.
+**A domain** is a NetSuite record type with everything that exists only as part of it, or an outside party or capability with no record of its own:
+
+| Domain | Its service holds | Never a service of its own |
+|---|---|---|
+| a transaction type: sales order, item fulfillment, purchase order, invoice | the record, its lines, its subrecords, the custom records that exist only under it | `salesOrderLineService`, `transactionLineService`, `salesOrderLabelsService` |
+| any other record type: customer, item, employee | the record, its sublists and subrecords | `customerCreditService`, `userRolesService` |
+| an outside party or capability: carriers, EDI, documents | every provider of it, behind one set of functions | `fedExService`, `upsService` |
+
+A page, a job, a document or a step is never a domain: a page's list, a job's steps and a document's request go in the service of the domain they are about, so a change to one rule opens one service. Transactions of different types are different domains; what they share at the data level (lines, links) is one repository, not a `transactionService`.
+
+A function that touches two records belongs to the domain of the record it creates or changes; a read belongs to the domain of the records it reads or lists. Creating a fulfillment from a sales order is `fulfillmentService`'s; a customer's credit is `customerService`'s, whichever page shows it ([controllers/suitelet-controller.md](controllers/suitelet-controller.md)).
+
+Services may import one another, in one direction only, following NetSuite's transaction flow: the later record's service imports the earlier one's (`fulfillmentService` imports `salesOrderService`, `invoiceService` imports `fulfillmentService`), never back. `npm run lint` fails on an import cycle. A service that others share sits below them and imports none of them. [src/lib/](#srclib) says where code that several parts share goes.
+
+A service grows as its domain does. Split it when two halves change for different reasons, not because the file is long; its tests may be one file per concern under `__tests__/services/<service>/`.
+
+Which role a function needs is its script's concern, not the service's. `userService.getRolesByEmployee` reads role assignments directly, so it works only in the `userRoles` Suitelet, whose deployment runs as Administrator; `userService.getActiveUserRoles` reads them through that Suitelet, so it works in any script. Say so in the function's comment.
+
+**Several providers of one operation.** FedEx and UPS both create a shipping label. The controller asks one service for a label and the service decides which carrier makes it: the carrier is the domain, and each provider is a repository.
+
+```typescript
+// api/src/repositories/carrierRepository.ts: the shape every carrier answers to. It is declared among the
+// repositories because a repository never imports a service.
+export interface CarrierRepository {
+    createShipment(shipment: CarrierShipment): CarrierLabel[];
+}
+
+// api/src/repositories/fedExRepository.ts and upsRepository.ts each export createShipment: the shipment written
+// as its carrier's request, and the carrier's answer read back as labels. Neither decides anything.
+
+// api/src/services/carrierService.ts
+import * as fedExRepository from '../repositories/fedExRepository';
+import * as upsRepository from '../repositories/upsRepository';
+
+const carrierRepositories = { fedEx: fedExRepository, ups: upsRepository } satisfies Record<CarrierName, CarrierRepository>;
+
+export function createLabel(salesOrderId: number): LabelOutcome {
+    // Reads the order and its cartons, chooses the carrier from the order's ship method, checks what every carrier
+    // needs, then calls carrierRepositories[carrier].createShipment(shipment) and files the labels.
+}
+```
+
+- The choice is the service's. It starts from what NetSuite already records, the order's ship method, so sending one order with another carrier means changing its Ship Via, not passing a flag to an endpoint. The outcome says which carrier was used.
+- The rules every carrier shares (whether an order can ship, a minimum weight) are the service's too. What differs by carrier is how the request is written and the answer read, and that is each repository's.
+- `satisfies` makes the typecheck fail when a carrier is missing a function. No class and no registry: each repository module is the implementation, and a service test mocks each one under its own name.
+- The shared shape holds only what every carrier does. A carrier's extra step (a UPS pickup, a FedEx customs form) happens inside its own `createShipment`.
+- A new carrier is one repository and one entry in the map. With a single carrier, call its repository directly and add the map when the second arrives.
+- An operation that only looks alike is not another provider: the carton labels an EDI partner requires are a document for that partner, not a shipment, and stay in that partner's service.
 
 ### src/repositories/
 
-One file per subject, `<subject>Repository.ts`.
+One file per record type or outside system, `<subject>Repository.ts`, never one per page or per service: a service reads from as many repositories as its domain spans.
 
-The only code that touches NetSuite: records, queries, the session, other scripts.
+The only code that touches NetSuite: records, queries, the session, other scripts, outside systems. An outside system with several providers of one operation is one repository per provider, each exporting the same functions, with the shape they share in a repository file of its own ([src/services/](#srcservices), "Several providers of one operation").
 
 `generated/` is written by `npm run generate`. [repositories/model-and-repository.md](repositories/model-and-repository.md) walks from a model to its repository functions.
 
@@ -298,7 +345,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize` | one stage file each, with the shapes on that stage's own boundary |
 | `nspJobStart` | `api/src/jobs/<name>/start.ts`: starts a run and answers the id a page follows |
 | `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript with every entry point of its kind |
-| `nspService` | `api/src/services/<subject>Service.ts`: `<Model>Summary` and the `build<Model>Summary` it maps with, a list, a single read, a create, an update, a removal and a permission check |
+| `nspService` | `api/src/services/<domain>Service.ts`: `<Model>Summary` and the `build<Model>Summary` it maps with, a list, a single read, a create, an update, a removal and a permission check |
 | `nspRepository` | `api/src/repositories/<set>Repository.ts` over `dbContext`: every read the set offers, every write through `withTracking()`, several records saved at once |
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
@@ -319,6 +366,7 @@ Claude Code settings, for an AI coding agent working in this project:
 - `settings.json`: the commands the agent may run without asking, and the hooks.
 - `rules/`: one file per folder, which Claude Code reads when the agent opens a file in that folder. `CLAUDE.md` holds only what every task needs.
 - `hooks/checkWrittenFile.mjs`: runs after every file the agent writes, and hands back what `npm run lint` would fail on in it, plus the standards ESLint does not check.
+- `skills/convert-project/`: the procedure the agent follows when asked to bring an existing project into this one. It groups the old code into domains, and shows you the merges before it moves anything. Run it yourself with `/convert-project`.
 {{#unless probity}}
 - `hooks/guardrails.mjs`: runs before every command and write, and refuses destructive commands and writes to generated output, secret files or a test next to its source; it asks you before a deploy.
 {{/unless}}

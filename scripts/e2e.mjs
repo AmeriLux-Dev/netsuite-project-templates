@@ -159,6 +159,7 @@ assertEqual(probitySettings.hooks.PreToolUse[0].hooks[0].command, 'npx @nizos/pr
 assertEqual(probitySettings.hooks.PostToolUse[0].hooks[0].command, 'node .claude/hooks/checkWrittenFile.mjs', 'every scaffold checks each file Claude writes');
 assertEqual(existsSync(path.join(projectDir, '.claude', 'hooks', 'guardrails.mjs')), false, '--probity leaves out the guardrails hook Probity replaces');
 assertEqual(readdirSync(path.join(projectDir, '.claude', 'rules')).sort(), ['api.md', 'client.md', 'controllers.md', 'data-access.md', 'events.md', 'jobs.md', 'lib.md', 'services.md', 'tests.md'], 'the folder rules Claude Code loads per folder are scaffolded');
+assertEqual(/^---\r?\nname: convert-project\r?\n/.test(readFileSync(path.join(projectDir, '.claude', 'skills', 'convert-project', 'SKILL.md'), 'utf8')), true, 'the convert-project skill is scaffolded');
 assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: true, probity: true }, 'features recorded with both flags on');
 const wrapperConfigSource = readFileSync(path.join(projectDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
 assertEqual(wrapperConfigSource.includes("integration: 'performance-tracker'") && wrapperConfigSource.includes("scopeKey: 'app:demo-app'") && wrapperConfigSource.includes('instrumentation: true'), true, '--performance-tracker renders the wrapper config with the app scope key');

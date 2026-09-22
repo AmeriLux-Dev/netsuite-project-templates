@@ -18,7 +18,7 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 - `api/src/` is flat per layer and the file name carries the layer (`userController.ts`, `userService.ts`, `activeUserRepository.ts`). A request goes endpoint → service → repository → specification.
   - `controllers/<name>Controller.ts`: one deployed Restlet or Suitelet, with its wire shapes, its endpoints and its script declaration.
   - `jobs/<name>/`: one Map/Reduce job per folder. `events/user/`, `events/client/`: self-contained record scripts, deployed by hand.
-  - `services/` decide; `repositories/` are the only code that touches NetSuite; `specifications/` are query filters for repositories; `models/` are the `@RecordType` classes.
+  - `services/` decide, one per domain: a record type with everything that exists only as part of it (`salesOrderService` holds the lines; there is no `salesOrderLineService`), or an outside party (`carrierService` chooses between one repository per carrier). `repositories/` are the only code that touches NetSuite; `specifications/` are query filters for repositories; `models/` are the `@RecordType` classes.
   - `lib/`: plain helpers any layer may call, named for what they hold (`errors.ts`). They import only other `lib/` files; code that needs a record is a service, and a business rule stays in its domain's service.
   - `_host/`: the Suitelet that serves the app. Boilerplate; add nothing to it.
 - `client/src/`: `routes/` render `pages/`, pages call `hooks/`, hooks call the generated `api/`. The client never imports from `api/`.
@@ -34,7 +34,7 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 - **Packages** go in the workspace that imports them: `npm install -w api <package>` (or `-w client`), never a bare install at the root.
 - **Secrets and account selection are a person's:** never write `project.json`, `client/.env`, keys or certificates, or an account value under Vite's `VITE_` prefix (Vite inlines it into the uploaded bundle). Add a new variable to `client/.env.example`.
 - **The tooling holds the rest.** `npm run lint` enforces what each layer may import, where ids and logs go, what a service exports and declared dependencies; the structure check ties each script to its ids and SDF object; `npm run generate` rejects a controller or job it cannot read. Their messages name the fix: fix the cause, never work around it. A project that has outgrown a template convention deletes it (its commented block in `eslint.config.mjs`, or the structure check and its call in the `lint` script) and updates the docs and snippets that describe it.
-- **Folder rules** in `.claude/rules/` load when you read a file in their folder. Before creating a file in a folder you have not read, read an existing file there or its rule; before adding a model, a controller or a job, read its example in `how-to-use/`.
+- **Folder rules** in `.claude/rules/` load when you read a file in their folder. Before creating a file in a folder you have not read, read an existing file there or its rule; before adding a model, a controller or a job, read its example in `how-to-use/`. Bringing an existing project's code into this one follows the `convert-project` skill.
 
 ## Guardrails
 

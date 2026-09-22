@@ -11,7 +11,9 @@ Two things only a Suitelet can do, on the orders page of [restlet-controller.md]
   downloads. A Restlet can only answer JSON.
 
 It reads through the repository functions of [repositories/model-and-repository.md](../repositories/model-and-repository.md)
-and adds to the orders controller and service of [restlet-controller.md](restlet-controller.md).
+and adds an endpoint to the orders controller of [restlet-controller.md](restlet-controller.md). A customer's credit
+is the Customer record's, so its decisions go in a `customerService`, not in the sales order's: the orders controller
+calls it as it would any service.
 
 ## Steps
 
@@ -83,11 +85,18 @@ export function findCustomer(customerId: number): Customer | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// api/src/services/customerCreditService.ts                what the credit is, and who may see it
+// api/src/services/customerService.ts                      the Customer's domain: where it stands on credit,
+//                                                          and who may see it
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import * as activeUserRepository from '../repositories/activeUserRepository';
 import * as customersRepository from '../repositories/customersRepository';
+
+/**
+ * Decisions about customers. Which role a function needs is its script's concern, not the service's: the functions
+ * here read the customer directly, so they work in the customerCredit Suitelet, which runs as Administrator;
+ * `getCreditLeft`, added below, reads through that Suitelet, so it works in any script.
+ */
 
 /** Where a customer stands on credit. */
 export interface CustomerCredit {
@@ -128,7 +137,7 @@ export function isSalesRepOfCustomer(customerId: number): boolean {
  */
 
 import { ApiError, defineEndpoints, defineSuitelet } from '@amerilux/netsuite-api/server';
-import { getCustomerCredit, isSalesRepOfCustomer, type CustomerCredit } from '../services/customerCreditService';
+import { getCustomerCredit, isSalesRepOfCustomer, type CustomerCredit } from '../services/customerService';
 
 export interface ByCustomerRequest {
     customerId: number;
@@ -198,13 +207,13 @@ export function readCustomerCredit(customerId: number): ByCustomerResponse['cred
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// api/src/services/ordersService.ts                        adds one decision to the service of
-//                                                          restlet-controller.md
+// api/src/services/customerService.ts                      adds what the orders Restlet asks: the credit left,
+//                                                          read through the Suitelet
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import * as customerCreditRepository from '../repositories/customerCreditRepository';
 
-/** What the customer may still order on credit; null when no limit is set. */
+/** What the customer may still order on credit; null when no limit is set. Any script may call it. */
 export function getCreditLeft(customerId: number): number | null {
     return customerCreditRepository.readCustomerCredit(customerId).creditLeft;
 }
@@ -214,7 +223,7 @@ export function getCreditLeft(customerId: number): number | null {
 //                                                          restlet-controller.md
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { getCreditLeft } from '../services/ordersService';
+import { getCreditLeft } from '../services/customerService';
 
 export interface CreditLeftRequest {
     customerId: number;
@@ -244,7 +253,7 @@ export const ordersEndpoints = defineEndpoints({
  */
 
 import { ApiError, defineEndpoints, defineSuitelet, rawResponse, type RawResponse } from '@amerilux/netsuite-api/server';
-import { getOrdersByCustomer } from '../services/ordersService';
+import { getOrdersByCustomer } from '../services/salesOrderService';
 
 export interface CsvByCustomerRequest {
     customerId: number;
@@ -419,8 +428,8 @@ sequenceDiagram
     Restlet-->>Page: creditLeft
 ```
 
-1. **The credit.** The page asks the `orders` Restlet, which runs as the caller's role. Its service asks
-   `readCustomerCredit`, and the repository's Suitelet client POSTs to the `customerCredit` Suitelet through
+1. **The credit.** The page asks the `orders` Restlet, which runs as the caller's role. It calls
+   `customerService.getCreditLeft`, which asks `readCustomerCredit`, and the repository's Suitelet client POSTs to the `customerCredit` Suitelet through
    `https.requestSuitelet`, on the caller's session. NetSuite runs the Suitelet as Administrator, as its deployment
    says. `defineSuitelet` finds the endpoint and runs `authorize` first: the session still says who the caller is,
    so the check is on the user, not the role. The handler reads the customer with the Administrator's rights and
