@@ -10,11 +10,11 @@
       "Bash(npx tsc *)",
       "Bash(npx eslint *)"
     ]
-{{#if probity}}
   },
   "hooks": {
     "PreToolUse": [
       {
+{{#if probity}}
         "matcher": "Bash|Write|Edit|NotebookEdit",
         "hooks": [
           {
@@ -22,11 +22,29 @@
             "command": "npx @nizos/probity --agent claude-code"
           }
         ]
+{{/if}}
+{{#unless probity}}
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guardrails.mjs"
+          }
+        ]
+{{/unless}}
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/checkWrittenFile.mjs",
+            "timeout": 60
+          }
+        ]
       }
     ]
   }
-{{/if}}
-{{#unless probity}}
-  }
-{{/unless}}
 }

@@ -294,7 +294,14 @@ A prefix is `nsp`, the folder the file belongs in, then what the snippet emits. 
 
 ### .claude/
 
-Claude Code settings.
+Claude Code settings, for an AI coding agent working in this project:
+
+- `settings.json`: the commands the agent may run without asking, and the hooks.
+- `rules/`: one file per folder, which Claude Code reads when the agent opens a file in that folder. `CLAUDE.md` holds only what every task needs.
+- `hooks/checkWrittenFile.mjs`: runs after every file the agent writes, and hands back what `npm run lint` would fail on in it, plus the standards ESLint does not check.
+{{#unless probity}}
+- `hooks/guardrails.mjs`: runs before every command and write, and refuses destructive commands and writes to generated output, secret files or a test next to its source; it asks you before a deploy.
+{{/unless}}
 
 ### README.md
 

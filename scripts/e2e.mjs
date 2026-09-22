@@ -154,7 +154,11 @@ runCli([
     '--probity', '--performance-tracker', '--yes', '--no-install', '--no-git',
 ], templatesRoot);
 assertEqual(existsSync(path.join(projectDir, 'probity.config.ts')), true, '--probity emits probity.config.ts');
-assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.claude', 'settings.json'), 'utf8')).hooks !== undefined, true, '--probity wires the Claude Code hook');
+const probitySettings = JSON.parse(readFileSync(path.join(projectDir, '.claude', 'settings.json'), 'utf8'));
+assertEqual(probitySettings.hooks.PreToolUse[0].hooks[0].command, 'npx @nizos/probity --agent claude-code', '--probity wires Probity as the Claude Code guardrail');
+assertEqual(probitySettings.hooks.PostToolUse[0].hooks[0].command, 'node .claude/hooks/checkWrittenFile.mjs', 'every scaffold checks each file Claude writes');
+assertEqual(existsSync(path.join(projectDir, '.claude', 'hooks', 'guardrails.mjs')), false, '--probity leaves out the guardrails hook Probity replaces');
+assertEqual(readdirSync(path.join(projectDir, '.claude', 'rules')).sort(), ['api.md', 'client.md', 'controllers.md', 'data-access.md', 'events.md', 'jobs.md', 'services.md', 'tests.md'], 'the folder rules Claude Code loads per folder are scaffolded');
 assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: true, probity: true }, 'features recorded with both flags on');
 const wrapperConfigSource = readFileSync(path.join(projectDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
 assertEqual(wrapperConfigSource.includes("integration: 'performance-tracker'") && wrapperConfigSource.includes("scopeKey: 'app:demo-app'") && wrapperConfigSource.includes('instrumentation: true'), true, '--performance-tracker renders the wrapper config with the app scope key');
@@ -175,7 +179,18 @@ assertEqual(existsSync(path.join(plainDir, 'client', 'src', 'hooks', 'useJobRun.
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'netsuite-api.config.json'), 'utf8')).jobRuns, { recordType: 'customrecord_plain_job_run', fieldPrefix: 'custrecord_plain_jr', extraFields: {} }, '--jobs names the run record in the generator config');
 assertEqual(existsSync(path.join(plainDir, 'probity.config.ts')), false, 'default scaffold has no probity.config.ts');
 const plainSettings = JSON.parse(readFileSync(path.join(plainDir, '.claude', 'settings.json'), 'utf8'));
-assertEqual(plainSettings.hooks, undefined, 'default scaffold has no hook');
+assertEqual(plainSettings.hooks.PreToolUse[0].hooks[0].command, 'node .claude/hooks/guardrails.mjs', 'default scaffold wires the guardrails hook in place of Probity');
+assertEqual(plainSettings.hooks.PostToolUse[0].hooks[0].command, 'node .claude/hooks/checkWrittenFile.mjs', 'default scaffold checks each file Claude writes');
+// The guardrails hook needs no install: it reads the tool call in front of it and answers.
+const askGuardrails = (toolInput) => {
+    const hookRun = spawnSync('node', ['.claude/hooks/guardrails.mjs'], { cwd: plainDir, input: JSON.stringify({ tool_input: toolInput }), encoding: 'utf8' });
+    return hookRun.stdout ? JSON.parse(hookRun.stdout).hookSpecificOutput.permissionDecision : `allow (exit ${hookRun.status})`;
+};
+assertEqual(askGuardrails({ file_path: path.join(plainDir, 'client', 'src', 'api', 'user.gen.ts'), content: '' }), 'deny', 'guardrails refuses a write to generated output');
+assertEqual(askGuardrails({ file_path: path.join(plainDir, 'api', 'src', 'services', 'user.test.ts'), content: '' }), 'deny', 'guardrails refuses a test beside its source');
+assertEqual(askGuardrails({ command: 'git push --force origin main' }), 'deny', 'guardrails refuses a force push without lease');
+assertEqual(askGuardrails({ command: 'npm run deploy' }), 'ask', 'guardrails asks the person before a deploy');
+assertEqual(askGuardrails({ file_path: path.join(plainDir, 'api', 'src', 'services', 'userService.ts'), content: 'export {};' }), 'allow (exit 0)', 'guardrails lets an ordinary write through');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'package.json'), 'utf8')).devDependencies['@nizos/probity'], undefined, 'default scaffold does not depend on probity');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: false, probity: false }, 'features recorded');
 const plainWrapperConfigSource = readFileSync(path.join(plainDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
@@ -205,6 +220,16 @@ const scriptsModule = readFileSync(path.join(projectDir, 'api', 'src', 'scripts.
 assertEqual(scriptsModule.includes("userRoles: { kind: 'suitelet', scriptId: 'customscript_demo_user_roles', deployId: 'customdeploy_demo_user_roles', browser: false },"), true, 'generate writes the scripts map into api/src');
 run('npm', ['run', 'typecheck'], projectDir);
 run('npm', ['run', 'lint'], projectDir);
+// The hook that checks each file Claude writes: silent on a file that meets the standards, and naming both an
+// ESLint rule and an agent standard in one that breaks them.
+const checkWrittenFile = (relativePath) => spawnSync('node', ['.claude/hooks/checkWrittenFile.mjs'], { cwd: projectDir, input: JSON.stringify({ tool_input: { file_path: path.join(projectDir, relativePath) } }), encoding: 'utf8' });
+assertEqual(checkWrittenFile('api/src/services/userService.ts').status, 0, 'checkWrittenFile passes a service that meets the standards');
+const strayServicePath = path.join(projectDir, 'api', 'src', 'services', 'strayService.ts');
+writeFileSync(strayServicePath, "import * as record from 'N/record';\nimport { readActiveUser } from '../repositories/activeUserRepository';\n\nexport function getStray(): unknown {\n    return [record, readActiveUser];\n}\n");
+const strayCheck = checkWrittenFile('api/src/services/strayService.ts');
+rmSync(strayServicePath);
+assertEqual(strayCheck.status, 2, 'checkWrittenFile hands the problems back to Claude');
+assertEqual([/Only a repository touches NetSuite/.test(strayCheck.stderr), /Import a repository as a namespace/.test(strayCheck.stderr)], [true, true], 'checkWrittenFile reports the ESLint rule and the agent standard');
 run('npm', ['test'], projectDir);
 run('npm', ['run', 'build'], projectDir);
 

@@ -10,7 +10,7 @@ import {
 
 /*
  * Guardrails for AI coding agents working in this repository (Claude Code, Codex, Copilot CLI).
- * Wired through the PreToolUse hook in .claude/settings.json. See CLAUDE.md for the rules in prose.
+ * Wired through the PreToolUse hook in .claude/settings.json. See CLAUDE.md and .claude/rules/ for the rules in prose.
  *
  * Hard rules block an action; advisory rules pass with feedback. Keep advisory rules rare, or the
  * agent learns to ignore every warning. Anything needing judgement belongs in enforceTdd's

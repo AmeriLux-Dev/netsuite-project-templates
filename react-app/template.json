@@ -1,5 +1,6 @@
 {
   "conditionalPaths": {
-    "probity.config.ts": "probity"
+    "probity.config.ts": "probity",
+    ".claude/hooks/guardrails.mjs": "!probity"
   }
 }

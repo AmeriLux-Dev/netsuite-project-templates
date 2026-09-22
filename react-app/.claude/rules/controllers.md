@@ -1,0 +1,15 @@
+---
+paths:
+  - "api/src/controllers/**"
+---
+
+# Controllers
+
+- One file per deployed script, in this order: the `@NScriptType` header; the request and response shapes; `<name>Endpoints = defineEndpoints({ ... })`, one function per endpoint whose parameter is the request and whose return value is the response; `export type <Name>Endpoints = typeof <name>Endpoints`; the entry point with the script declaration, `export const post = defineRestlet({ name: '<name>', scriptId, deployId }, <name>Endpoints)` for a Restlet or `export const onRequest = defineSuitelet({ ..., browser: false }, <name>Endpoints)` for a Suitelet. `defineEndpoints`, `defineRestlet`, `defineSuitelet` and `ApiError` come from `@amerilux/netsuite-api/server`.
+- Every call is a POST whose JSON body carries the request and an `endpoint` property; there is no HTTP method to choose. The endpoint's name is the operation (`list`, `byId`, `create`, `update`, `remove`).
+- The shapes are the wire, not the record: an entity type from `../types/models.gen`, a type a service returns, a `Pick` of one, or a composition of several. A shape's name carries no controller prefix (`RolesResponse`, not `UserRolesResponse`).
+- An endpoint is the only code that knows the wire: it unpacks the request, calls a service with plain arguments, and writes the response out field by field from what the service returns. A wire-level check, such as coercing an id sent as a string (`parse<Field>`, `ApiError.badRequest`), lives here, not in the service.
+- Options follow the endpoints: `authorize` runs before every handler and throws `ApiError.forbidden()` to reject, reading the session through a service. A Suitelet handler may return `rawResponse(...)`, typed `RawResponse`, to answer with a document (CSV, PDF, a File Cabinet file) that the generated client resolves to a `Blob`; a Restlet cannot.
+- The declaration creates nothing: its ids can be changed to match the record and deployment in NetSuite, and the generated client follows. The SDF object `netsuite/Objects/<scriptId>.xml` repeats them. Switching transport touches the header, the entry point and the SDF object, nothing else.
+- `npm run generate` reads the file as source: handlers inline with both types annotated, every type exported, types imported only from `../types/models.gen`, `../services/` or another controller, the declaration an object literal with literal ids, script ids unique across controllers, no request shape carrying a `Date`. The full list with its reasons: `how-to-use/controllers/restlet-controller.md`, "What `npm run generate` needs from the file".
+- Worked examples: `how-to-use/controllers/restlet-controller.md`; `how-to-use/controllers/suitelet-controller.md` for a Suitelet that runs as another role, `authorize` and document downloads.
