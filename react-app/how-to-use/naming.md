@@ -23,7 +23,7 @@ Two rules from `CLAUDE.md`, applied to the layers of [folder-structure.md](folde
 |---|---|---|
 | Repository | `list`, `find`, `read`, `create`, `update`, `remove`, then the set and the filter | `listEmployeeRolesByEmployee`, `readActiveUser`, `createSalesOrder` |
 | Service | `get`, `create`, `update`, `remove`, then the data; `is` or `has` for a check | `getRolesByEmployee`, `updateOrderMemo`, `isSalesRepOfCustomer` |
-| Endpoint | the operation, short; the controller scopes it | `list`, `byId`, `byEmployee`, `create` |
+| Endpoint | read with the controller in front of it, so it never repeats it: what the call answers, or how its rows are chosen; a verb when the call changes something | `roles`, `labels`, `list`, `byId`, `byEmployee`, `create`, `approve` |
 | Specification | the condition, as a predicate | `forEmployee`, `pendingFulfillment` |
 | Guard | `parse<Field>` | `parseEmployeeId` |
 | Hook | `use<What>`, with `<what>QueryKey` and `<what>QueryOptions` beside it; a mutation is `use<Verb><What>` | `useActiveUserRoles`, `useCreateOrder` |
