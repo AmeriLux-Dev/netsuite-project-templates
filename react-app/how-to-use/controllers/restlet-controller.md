@@ -169,12 +169,14 @@ export interface SalesOrder {
     lines: SalesOrderLine[];
 }
 
-export type Endpoints = {
-    byCustomer: (request: ByCustomerRequest) => ByCustomerResponse;
-    updateMemo: (request: UpdateMemoRequest) => UpdateMemoResponse;
-};
+// The client: the script the controller declares, and one function per endpoint that posts to it through the
+// package's callEndpoint. A hook calls `orders.api.byCustomer(request, options)`.
+const ordersScriptRef: ScriptRef = { kind: 'restlet', scriptId: 'customscript_{{prefix}}_orders', deployId: 'customdeploy_{{prefix}}_orders' };
 
-export const api = createApiClient<Endpoints>({ kind: 'restlet', scriptId: 'customscript_{{prefix}}_orders', deployId: 'customdeploy_{{prefix}}_orders' });
+export const api = {
+    byCustomer: (request: ByCustomerRequest, options?: ApiCallOptions): Promise<ByCustomerResponse> => callEndpoint<ByCustomerResponse>(ordersScriptRef, 'byCustomer', request, options),
+    updateMemo: (request: UpdateMemoRequest, options?: ApiCallOptions): Promise<UpdateMemoResponse> => callEndpoint<UpdateMemoResponse>(ordersScriptRef, 'updateMemo', request, options),
+};
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // client/src/hooks/useOrdersByCustomer.ts                  a query hook: the only code that calls the
@@ -386,9 +388,10 @@ sequenceDiagram
     Hook->>Page: every orders query refetched
 ```
 
-1. The page calls `updateOrderMemo.mutate(...)`. The hook calls `orders.api.updateMemo(request)`, which POSTs the
-   request to the Restlet with an `endpoint` property naming `updateMemo`. Every call is a POST: the operation is
-   the endpoint's name, so there is no HTTP method to choose.
+1. The page calls `updateOrderMemo.mutate(...)`. The hook calls `orders.api.updateMemo(request)`, the generated
+   function, which hands the orders script, the endpoint's name and the request to the package's `callEndpoint`.
+   That POSTs the request to the Restlet with an `endpoint` property naming `updateMemo`. Every call is a POST: the
+   operation is the endpoint's name, so there is no HTTP method to choose.
 2. `defineRestlet` reads the body, finds the endpoint, runs `authorize` when the controller has one, and calls the
    handler with the request.
 3. The handler checks what came off the wire, calls the service with plain arguments, and shapes the response. The
@@ -396,7 +399,7 @@ sequenceDiagram
 4. `defineRestlet` wraps what the handler answers in the envelope (`status`, `error`, `data`) and logs the call
    under a constant title (`endpoint completed`, `endpoint rejected`, `endpoint failed`). An `ApiError` becomes its
    status and message; anything else thrown is a 500.
-5. The client unwraps the envelope. A failure is reported to the error banner (`reportApiError`, wired in
+5. `callEndpoint` unwraps the envelope. A failure is reported to the error banner (`reportApiError`, wired in
    `main.tsx`) and then thrown as an `ApiClientError`, so the page shows nothing of its own. On success the
    mutation refetches every query whose key starts with `orders`, and the table redraws.
 
@@ -412,7 +415,7 @@ message when broken:
   module with the entity types it is built on), or from another controller.
 - The declaration is an object literal with literal ids, and its `name` is the file name without `Controller`.
   Script ids are unique across controllers.
-- No shape is named `Endpoints`: the generated module uses that name for the endpoint signatures.
+- No shape is named `ApiCallOptions` or `ScriptRef`: the generated module imports those names for its client.
 - A request shape carries no `Date`. A response may: it reaches the browser as an ISO string, and the generated
   module types it as `string`.
 
@@ -430,5 +433,5 @@ message when broken:
   status, the message and the `details` the handler gave its `ApiError`), and its hook passes
   `{ handleError: false }` as the call's second argument, so the banner stays out of it.
 - **An endpoint without a request** takes no parameter (`roles: (): RolesResponse => ...` in the shipped
-  `userController.ts`), and its hook calls it as `user.api.roles(undefined, { signal })` (the `nspHookQuery`
-  snippet without its argument).
+  `userController.ts`). Its generated function takes the call options alone, so its hook calls it as
+  `user.api.roles({ signal })` (the `nspHookQuery` snippet without its argument).

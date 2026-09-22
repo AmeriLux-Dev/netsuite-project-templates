@@ -6,8 +6,8 @@ export const activeUserRolesQueryKey = ['user', 'roles'] as const;
 export function activeUserRolesQueryOptions() {
     return queryOptions({
         queryKey: activeUserRolesQueryKey,
-        // The endpoint takes no request; the second argument carries the abort signal.
-        queryFn: ({ signal }) => user.api.roles(undefined, { signal }),
+        // The endpoint takes no request, so the call options, with the abort signal, are its only argument.
+        queryFn: ({ signal }) => user.api.roles({ signal }),
     });
 }
 

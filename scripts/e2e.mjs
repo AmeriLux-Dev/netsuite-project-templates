@@ -193,10 +193,11 @@ assertEqual(existsSync(path.join(projectDir, 'api', 'src', 'repositories', 'gene
 const clientIndex = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'index.gen.ts'), 'utf8');
 assertEqual(clientIndex.includes("export * as user from './user.gen';") && clientIndex.includes("export * as userRoles from './userRoles.gen';"), true, 'generate re-exports every controller module from the client index');
 const userModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'user.gen.ts'), 'utf8');
-assertEqual(/export const api = createApiClient<Endpoints>\(\{ kind: 'restlet', scriptId: 'customscript_demo_user', deployId: 'customdeploy_demo_user' \}\);/.test(userModule), true, 'generate writes the user client from the controller\'s declaration');
+assertEqual(userModule.includes("const userScriptRef: ScriptRef = { kind: 'restlet', scriptId: 'customscript_demo_user', deployId: 'customdeploy_demo_user' };"), true, 'generate writes the user script from the controller\'s declaration');
+assertEqual(userModule.includes("    roles: (options?: ApiCallOptions): Promise<RolesResponse> => callEndpoint<RolesResponse>(userScriptRef, 'roles', {}, options),"), true, 'generate writes one client function per endpoint, calling callEndpoint with the user script');
 assertEqual(userModule.includes("export type RoleSummary = Pick<EmployeeRole, 'roleId' | 'roleName'>;") && userModule.includes('export interface EmployeeRole {'), true, 'generate copies the service type the controller names, and the entity type it is built on, into its module');
 const userRolesModule = readFileSync(path.join(projectDir, 'client', 'src', 'api', 'userRoles.gen.ts'), 'utf8');
-assertEqual(userRolesModule.includes('createApiClient'), false, 'generate writes no client for the server-only userRoles Suitelet');
+assertEqual(userRolesModule.includes('export const api'), false, 'generate writes no client for the server-only userRoles Suitelet');
 assertEqual(userRolesModule.includes('export interface EmployeeRole {'), true, 'generate copies the entity type the controller names into its module');
 assertEqual(existsSync(path.join(projectDir, 'client', 'src', 'app.gen.ts')), false, 'generate writes no copy of netsuite.ts; the client imports the root file directly');
 assertEqual(readdirSync(path.join(projectDir, 'client', 'src', 'api')).sort(), ['index.gen.ts', 'user.gen.ts', 'userRoles.gen.ts'], 'the client api directory holds the controller modules and the index only');
