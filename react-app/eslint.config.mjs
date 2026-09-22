@@ -127,10 +127,10 @@ export default defineConfig([
         },
     },
     {
-        // Tests need literal ids to stand in for real ones; a model declares its own record and field ids; the
-        // structure check names the id prefixes it verifies, and the job setup script writes the run record's own.
-        // (A controller and a job declare their script ids too: see their blocks.)
-        files: ['**/__tests__/**', 'api/src/models/**', 'scripts/checkStructure.mjs', 'scripts/addJobs.mjs'],
+        // Tests need literal ids to stand in for real ones; the structure check names the id prefixes it verifies, and
+        // the job setup script writes the run record's own. (A model, a controller and a job declare ids too: see their
+        // blocks, which come after the api/src block because the later block wins.)
+        files: ['**/__tests__/**', 'scripts/checkStructure.mjs', 'scripts/addJobs.mjs'],
         rules: { 'no-restricted-syntax': 'off' },
     },
     {
@@ -200,6 +200,12 @@ export default defineConfig([
             'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape],
             '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide] }],
         },
+    },
+    {
+        // A model is where a record's type and field ids are declared, so the id rule does not apply to it; the log
+        // rules still do.
+        files: ['api/src/models/**/*.ts'],
+        rules: { 'no-restricted-syntax': ['error', ...logEntryShape] },
     },
     {
         // An endpoint speaks the shapes declared next to it (built from an entity type, a service's type, a Pick of one,
