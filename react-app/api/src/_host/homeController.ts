@@ -9,6 +9,7 @@ import * as log from 'N/log';
 import * as serverWidget from 'N/ui/serverWidget';
 import { app } from '../../../netsuite';
 import { getFileUrlByName } from '@amerilux/netsuite-api/server';
+import { describeErrorMessage } from '../lib/errors';
 
 /**
  * Serves the single-page app: a NetSuite form (so the session, roles and navigation apply)
@@ -72,7 +73,7 @@ export const onRequest = (context: EntryPoints.Suitelet.onRequestContext): void 
             log.audit('home: serving bundle', { bundleUrl, version: __APP_VERSION__, buildId: __BUILD_ID__ });
         }
     } catch (error) {
-        log.error('home: failed to build the page', { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+        log.error('home: failed to build the page', { message: describeErrorMessage(error), stack: error instanceof Error ? error.stack : undefined });
     }
 
     context.response.writePage(form);

@@ -26,3 +26,4 @@ Two rules from `CLAUDE.md`, applied to the layers of [folder-structure.md](folde
 | Guard | `parse<Field>` | `parseEmployeeId` |
 | Hook | `use<What>`, with `<what>QueryKey` and `<what>QueryOptions` beside it; a mutation is `use<Verb><What>` | `useActiveUserRoles`, `useCreateOrder` |
 | Job start | `start<Doing what>`, in `start.ts` | `startClosingOldOrders` |
+| Lib | what it does to its input; no fixed verb, and the file is named for what it holds | `describeErrorMessage` in `errors.ts` |

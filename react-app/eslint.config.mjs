@@ -39,6 +39,13 @@ const recordAccessImports = [
     { group: ['N/*'], message: 'Endpoints parse and reply, services decide. Only a repository touches NetSuite (N/*).' },
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
 ];
+// lib/ is plain TypeScript every layer may import, so it knows nothing of NetSuite or of this application: code that
+// needs a record is a service, placed below the services that share it, and code that needs a NetSuite module is a
+// repository. The zone in the layers block keeps it off this application's own files.
+const libImports = [
+    { group: ['N/*'], message: 'lib/ never touches NetSuite. Code that needs a record is a service calling a repository; code that needs a NetSuite module is a repository.' },
+    { group: ['@amerilux/*'], message: 'lib/ is plain TypeScript any layer can call; the AmeriLux packages belong to the layers that use them.' },
+];
 // A job's folder decides and calls a repository, as a service does; its stages are handed what NetSuite gave them.
 // `N/types` stays available as types, because a stage is a Map/Reduce entry point and its context is typed by them.
 const jobRecordAccessImports = [
@@ -174,6 +181,10 @@ export default defineConfig([
                     { target: ['./api/src/services', './api/src/repositories', './api/src/specifications'], from: './api/src/jobs', message: "A job is above a service: the shapes on either end of a run are the job's own, and only a controller reaches into a job's folder, for its start." },
                     { target: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], from: './api/src/events', message: 'An event is an entry point: NetSuite calls it, this application does not.' },
                     { target: './api/src/events/client', from: ['./api/src/events/user', './api/src/jobs'], message: 'A client event is self-contained; nothing of the server side belongs in a page script.' },
+                    // Every layer imports lib/, so lib/ imports none of them: a lib/ file that reached a repository would
+                    // let a controller query through it. Entity types and netsuite.ts are this application's too.
+                    { target: './api/src/lib', from: './api/src', except: ['./lib'], message: 'lib/ imports only other lib/ files. Code that needs a record is a service, placed below the services that share it; a business rule stays in the service of its domain.' },
+                    { target: './api/src/lib', from: './netsuite.ts', message: 'lib/ knows nothing of this application, so it never needs its ids. A rule that does belongs to a service.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
                     { target: './client', from: './api', message: 'The client never imports from api/; its view of the backend is the generated client module.' },
                     { target: './api', from: './client', message: 'The api never imports from client/.' },
@@ -277,6 +288,11 @@ export default defineConfig([
             'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape, ...serviceFunctionNames],
             '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...controllerImportsInServices] }],
         },
+    },
+    {
+        // lib/: plain TypeScript every layer may call. It imports no NetSuite module and no AmeriLux package.
+        files: ['api/src/lib/**/*.ts'],
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...libImports] }] },
     },
     {
         // The data-access layers inside api/: Specification in specifications, the package's decorators in models.

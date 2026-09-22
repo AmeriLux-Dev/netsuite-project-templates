@@ -158,7 +158,7 @@ const probitySettings = JSON.parse(readFileSync(path.join(projectDir, '.claude',
 assertEqual(probitySettings.hooks.PreToolUse[0].hooks[0].command, 'npx @nizos/probity --agent claude-code', '--probity wires Probity as the Claude Code guardrail');
 assertEqual(probitySettings.hooks.PostToolUse[0].hooks[0].command, 'node .claude/hooks/checkWrittenFile.mjs', 'every scaffold checks each file Claude writes');
 assertEqual(existsSync(path.join(projectDir, '.claude', 'hooks', 'guardrails.mjs')), false, '--probity leaves out the guardrails hook Probity replaces');
-assertEqual(readdirSync(path.join(projectDir, '.claude', 'rules')).sort(), ['api.md', 'client.md', 'controllers.md', 'data-access.md', 'events.md', 'jobs.md', 'services.md', 'tests.md'], 'the folder rules Claude Code loads per folder are scaffolded');
+assertEqual(readdirSync(path.join(projectDir, '.claude', 'rules')).sort(), ['api.md', 'client.md', 'controllers.md', 'data-access.md', 'events.md', 'jobs.md', 'lib.md', 'services.md', 'tests.md'], 'the folder rules Claude Code loads per folder are scaffolded');
 assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: true, probity: true }, 'features recorded with both flags on');
 const wrapperConfigSource = readFileSync(path.join(projectDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
 assertEqual(wrapperConfigSource.includes("integration: 'performance-tracker'") && wrapperConfigSource.includes("scopeKey: 'app:demo-app'") && wrapperConfigSource.includes('instrumentation: true'), true, '--performance-tracker renders the wrapper config with the app scope key');
@@ -230,6 +230,17 @@ const strayCheck = checkWrittenFile('api/src/services/strayService.ts');
 rmSync(strayServicePath);
 assertEqual(strayCheck.status, 2, 'checkWrittenFile hands the problems back to Claude');
 assertEqual([/Only a repository touches NetSuite/.test(strayCheck.stderr), /Import a repository as a namespace/.test(strayCheck.stderr)], [true, true], 'checkWrittenFile reports the ESLint rule and the agent standard');
+// lib/ is imported by every layer, so it imports nothing of NetSuite or of this application.
+assertEqual(checkWrittenFile('api/src/lib/errors.ts').status, 0, 'checkWrittenFile passes a lib file that imports nothing');
+const strayLibPath = path.join(projectDir, 'api', 'src', 'lib', 'strayHelpers.ts');
+writeFileSync(strayLibPath, "import * as runtime from 'N/runtime';\nimport { readActiveUser } from '../repositories/activeUserRepository';\nimport { app } from '../../../netsuite';\n\nexport function describeStray(): unknown {\n    return [runtime, readActiveUser, app];\n}\n");
+const strayLibCheck = checkWrittenFile('api/src/lib/strayHelpers.ts');
+rmSync(strayLibPath);
+assertEqual(
+    [/lib\/ never touches NetSuite/.test(strayLibCheck.stderr), /lib\/ imports only other lib\/ files/.test(strayLibCheck.stderr), /lib\/ knows nothing of this application/.test(strayLibCheck.stderr)],
+    [true, true, true],
+    'ESLint keeps lib/ off NetSuite, the layers and netsuite.ts',
+);
 run('npm', ['test'], projectDir);
 run('npm', ['run', 'build'], projectDir);
 

@@ -138,7 +138,7 @@ export default defineConfig({
         },
         {
             // A model declares its record and field ids and a controller its script ids; nowhere else writes one.
-            files: ['api/src/services/**', 'api/src/repositories/**', 'api/src/specifications/**', 'api/src/_host/**', 'client/src/**'],
+            files: ['api/src/services/**', 'api/src/lib/**', 'api/src/repositories/**', 'api/src/specifications/**', 'api/src/_host/**', 'client/src/**'],
             rules: [
                 forbidContentPattern({
                     match: /['"`](customscript|customdeploy|customrecord|customlist|custentity|custbody|custitem|custrecord)_[a-z0-9_]+['"`]/,
@@ -147,9 +147,9 @@ export default defineConfig({
             ],
         },
 
-        /* Test-first for the pure logic the tests are designed around: controllers, job stages, services, repositories, and client hooks. */
+        /* Test-first for the pure logic the tests are designed around: controllers, job stages, services, lib, repositories, and client hooks. */
         {
-            files: ['api/src/controllers/**', 'api/src/jobs/**', 'api/src/services/**', 'api/src/repositories/**', 'client/src/hooks/**'],
+            files: ['api/src/controllers/**', 'api/src/jobs/**', 'api/src/services/**', 'api/src/lib/**', 'api/src/repositories/**', 'client/src/hooks/**'],
             rules: [
                 enforceTddExceptComponents({
                     instructions: (defaults) => `${defaults}
@@ -159,7 +159,7 @@ export default defineConfig({
 - Behaviour change (new or changed outputs, validation, side-effects, error handling): write or extend a test in the matching __tests__/ folder, see it fail, then implement the minimum.
 - Refactor with unchanged behaviour, configuration, documentation, generated files and .gitignore changes need no new test.
 - Test observable behaviour through the public surface: inputs to outputs, calls made to the record sets or the typed api client, envelope status and error. Never assert on DOM structure, CSS classes or internal state.
-- Repository functions use the generated dbContext; tests mock it with a fake whose sets record the specifications applied to them. Service tests mock the repository module.
+- Repository functions use the generated dbContext; tests mock it with a fake whose sets record the specifications applied to them. Service tests mock the repository module. A lib function is called with plain values; nothing is mocked.
 - Prefer extending an existing test file over a duplicate; prefer the lowest level that proves the behaviour.
 
 ### Refactor or behaviour: how to decide

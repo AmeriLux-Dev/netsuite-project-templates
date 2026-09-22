@@ -24,6 +24,7 @@ Every entry links to its section.
   <a href="#srcrepositories">src/repositories/</a>
   <a href="#srcspecifications">src/specifications/</a>
   <a href="#srcmodels">src/models/</a>
+  <a href="#srclib">src/lib/</a>
   <a href="#srctypes">src/types/</a>
   <a href="#srcscriptsgents">src/scripts.gen.ts</a>
   <a href="#src_host">src/_host/</a>
@@ -65,7 +66,7 @@ The backend. Webpack bundles it into one JavaScript file per deployed script.
 
 `npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. It writes `src/repositories/generated/` and `src/types/models.gen.ts` from the models, then reads the controllers and the jobs and writes `src/scripts.gen.ts` and the client's generated files. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
 
-Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller.
+Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller. `src/lib/` is not a layer, so its files are named for what they hold (`errors.ts`).
 
 There are four kinds of deployed script, one file each: a controller (an API the frontend calls), a job (background work), a user event (logic on a record being saved) and a client event (logic on a record page in the browser). A file becomes a script only when its leading JSDoc carries `@NScriptType`; everything else is bundled into the scripts that import it.
 
@@ -119,6 +120,8 @@ One file per subject, `<subject>Service.ts`.
 
 The decisions: plain arguments in (an id, a filter, the fields of a create), repository functions called by their domain names, a type the service declares itself out. A service never names a controller, so any controller can call it and shape its own reply. What it exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check); a `build<Type>` stays inside it. Each repository is imported as a namespace (`salesOrdersRepository.findSalesOrder(id)`), so a service function can share a name with the repository function it calls ([naming.md](naming.md)).
 
+Services may import one another, in one direction only. A service that others share sits below them and imports none of them. [src/lib/](#srclib) says where code that several parts share goes.
+
 ### src/repositories/
 
 One file per subject, `<subject>Repository.ts`.
@@ -138,6 +141,23 @@ Reusable query filters, used by repositories.
 One class per NetSuite record type: its record type id and the field ids the app uses. A native record type is named through `NetsuiteRecordType` from `@amerilux/netsuite-repository` (`@RecordType(NetsuiteRecordType.SALES_ORDER)`), a custom record by its id (`@RecordType('customrecord_{{prefix}}_x')`). A model imports nothing from `N/*`: `npm run generate` evaluates it outside NetSuite.
 
 Written once, here; `npm run generate` reads them.
+
+### src/lib/
+
+Plain helpers, one file per kind of value, named for what it holds: `errors.ts` (`describeErrorMessage`, the message of whatever was thrown). A file here knows nothing of NetSuite or of this application, so every layer may import it, and it imports nothing but other files in `lib/`: no `N/*`, no AmeriLux package, no `netsuite.ts`, no entity type. `npm run lint` fails on anything else. A function takes values and returns one, so its tests under `__tests__/lib/` call it with plain inputs and mock nothing.
+
+A domain's rules do not go here, even the ones that need no record: a partner's file layout, the earliest date a list may read, how a carton label is numbered. They stay in the service of their domain, so a change to one of them opens one service.
+
+**Where code that two parts share goes**, by what it touches:
+
+| The shared code | Goes in |
+|---|---|
+| computes from values it is handed, and states no business rule | `lib/` |
+| decides something and reads or writes records | a service below every service that uses it, named for its subject (never `sharedService` or `commonService`) |
+| reads or writes a record and decides nothing | a repository function, called directly by each service that needs it |
+| calls a NetSuite module (`N/runtime`, `N/file`) | a repository |
+
+A service two others share imports neither of them. `npm run lint` fails on an import cycle (`import-x/no-cycle`), because in a cycle one of the two modules is still loading when the other first calls it. A `lib/` function that would need a callback to read its data belongs in a service.
 
 ### src/types/
 

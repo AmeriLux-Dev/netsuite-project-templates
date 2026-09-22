@@ -19,6 +19,7 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
   - `controllers/<name>Controller.ts`: one deployed Restlet or Suitelet, with its wire shapes, its endpoints and its script declaration.
   - `jobs/<name>/`: one Map/Reduce job per folder. `events/user/`, `events/client/`: self-contained record scripts, deployed by hand.
   - `services/` decide; `repositories/` are the only code that touches NetSuite; `specifications/` are query filters for repositories; `models/` are the `@RecordType` classes.
+  - `lib/`: plain helpers any layer may call, named for what they hold (`errors.ts`). They import only other `lib/` files; code that needs a record is a service, and a business rule stays in its domain's service.
   - `_host/`: the Suitelet that serves the app. Boilerplate; add nothing to it.
 - `client/src/`: `routes/` render `pages/`, pages call `hooks/`, hooks call the generated `api/`. The client never imports from `api/`.
 - `netsuite.ts` at the root: `app`, every job's ids, and any id no model or controller owns. Exported constants and types, no imports: both halves bundle it.
@@ -39,7 +40,7 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 
 After every write, `.claude/hooks/checkWrittenFile.mjs` reports what `npm run lint` would fail on in that file, and the standards the folder rules state that ESLint does not check: responses written field by field, repositories imported as namespaces, no `N/*` in models or specifications, no focused or skipped tests.
 {{#if probity}}
-Probity (`probity.config.ts`, wired in `.claude/settings.json`) blocks destructive commands, commits without tests and typecheck, deploys without tests and writes that break the standards above, and wants a failing test first in controllers, job stages, services, repositories and client hooks. Its judge sees tool calls and their output, not prose: before a refactor (no existing assertion changes), run the affected test file, and run it again after; before a behaviour change, run the new or changed test and let it fail.
+Probity (`probity.config.ts`, wired in `.claude/settings.json`) blocks destructive commands, commits without tests and typecheck, deploys without tests and writes that break the standards above, and wants a failing test first in controllers, job stages, services, `lib/`, repositories and client hooks. Its judge sees tool calls and their output, not prose: before a refactor (no existing assertion changes), run the affected test file, and run it again after; before a behaviour change, run the new or changed test and let it fail.
 {{/if}}
 {{#unless probity}}
 `.claude/hooks/guardrails.mjs` blocks recursive force deletes, `--no-verify`, a force push without `--force-with-lease`, and writes to generated output, secret files or a test beside its source; it asks the person before a deploy.
