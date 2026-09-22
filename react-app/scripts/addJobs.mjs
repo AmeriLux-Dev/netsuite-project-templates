@@ -292,14 +292,14 @@ export { summarize } from './summarize';
 
 const cleanupGetInputData = `import { jobs } from '../../../../netsuite';
 import { jobGetInputData, readJobRunRetentionDays } from '../../repositories/jobRunRepository';
-import { listExpiredJobRuns } from '../../services/jobRunService';
+import { getExpiredJobRunIds } from '../../services/jobRunService';
 
 /**
  * The run records old enough to remove: everything past the retention parameter on this job's
  * deployment. This job is started by its schedule rather than by a page, so a run of it carries
  * nothing: opening the run is what creates the row the run reports to.
  */
-export const getInputData = jobGetInputData<void, string>(jobs.jobRunCleanup, () => listExpiredJobRuns(readJobRunRetentionDays()));
+export const getInputData = jobGetInputData<void, string>(jobs.jobRunCleanup, () => getExpiredJobRunIds(readJobRunRetentionDays()));
 `;
 
 const cleanupMap = `import { jobs } from '../../../../netsuite';
@@ -419,8 +419,8 @@ export function deleteJobRun(runId: string): void {
 `;
 
 const jobRunService = `import type { JobRun, JobRunListEntry } from '@amerilux/netsuite-api/server';
-import { readActiveUser } from '../repositories/activeUserRepository';
-import { deleteJobRun, findJobRun, listExpiredJobRunIds, listJobRuns } from '../repositories/jobRunRepository';
+import * as activeUserRepository from '../repositories/activeUserRepository';
+import * as jobRunRepository from '../repositories/jobRunRepository';
 
 /**
  * What may be known about a job run, and what the cleanup job removes. A run belongs to whoever
@@ -431,26 +431,26 @@ import { deleteJobRun, findJobRun, listExpiredJobRunIds, listJobRuns } from '../
 
 /** The run, if it is the caller's to see. Null covers both "no such run" and "not yours". */
 export function getJobRunForCaller(runId: string): JobRun | null {
-    const run = findJobRun(runId);
+    const run = jobRunRepository.findJobRun(runId);
     if (!run) return null;
-    return run.startedBy !== null && run.startedBy === readActiveUser().id ? run : null;
+    return run.startedBy !== null && run.startedBy === activeUserRepository.readActiveUser().id ? run : null;
 }
 
 /**
  * The caller's recent runs of one job, newest first. A page asks for these when it has no run id: after a
  * refresh, or when someone comes back to the page, this is how it picks up a run that is still going.
  */
-export function listJobRunsForCaller(job: string, limit = 5): JobRunListEntry[] {
-    return listJobRuns({ job, startedBy: readActiveUser().id, limit });
+export function getJobRunsForCaller(job: string, limit = 5): JobRunListEntry[] {
+    return jobRunRepository.listJobRuns({ job, startedBy: activeUserRepository.readActiveUser().id, limit });
 }
 
-/** The runs old enough to remove. */
-export function listExpiredJobRuns(olderThanDays: number): string[] {
-    return listExpiredJobRunIds(Math.max(1, olderThanDays));
+/** The ids of the runs old enough to remove. */
+export function getExpiredJobRunIds(olderThanDays: number): string[] {
+    return jobRunRepository.listExpiredJobRunIds(Math.max(1, olderThanDays));
 }
 
 export function removeJobRun(runId: string): void {
-    deleteJobRun(runId);
+    jobRunRepository.deleteJobRun(runId);
 }
 `;
 
@@ -462,7 +462,7 @@ const jobRunsController = `/**
 
 import { ApiError, defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
 import type { JobRunError, JobRunStage, JobRunStatus } from '@amerilux/netsuite-api/server';
-import { getJobRunForCaller, listJobRunsForCaller } from '../services/jobRunService';
+import { getJobRunForCaller, getJobRunsForCaller } from '../services/jobRunService';
 
 /**
  * What a run of a job is doing. Every job's page polls this one endpoint, and \`result\` is whatever
@@ -540,7 +540,7 @@ export const jobRunsEndpoints = defineEndpoints({
     /** The caller's own recent runs of one job, newest first: what a page with no run id asks for. */
     mine: (request: MineRequest): MineResponse => {
         if (typeof request.job !== 'string' || request.job === '') throw ApiError.badRequest('job is required.', { job: request.job });
-        const runs = listJobRunsForCaller(request.job, typeof request.limit === 'number' ? request.limit : undefined);
+        const runs = getJobRunsForCaller(request.job, typeof request.limit === 'number' ? request.limit : undefined);
         return { runs: runs.map((run) => ({ id: run.id, status: run.status, stage: run.stage })) };
     },
 });

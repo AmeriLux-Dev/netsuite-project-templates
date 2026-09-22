@@ -117,7 +117,7 @@ Events have no SDF object here: **you create their script record and deployments
 
 One file per subject, `<subject>Service.ts`.
 
-The decisions: plain arguments in (an id, a filter, the fields of a create), repository functions called by their domain names, a type the service declares itself out. A service never names a controller, so any controller can call it and shape its own reply.
+The decisions: plain arguments in (an id, a filter, the fields of a create), repository functions called by their domain names, a type the service declares itself out. A service never names a controller, so any controller can call it and shape its own reply. What it exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check); a `build<Type>` stays inside it. Each repository is imported as a namespace (`salesOrdersRepository.findSalesOrder(id)`), so a service function can share a name with the repository function it calls ([naming.md](naming.md)).
 
 ### src/repositories/
 
@@ -278,7 +278,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (ru
 | `nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize` | one stage file each, with the shapes on that stage's own boundary |
 | `nspJobStart` | `api/src/jobs/<name>/start.ts`: starts a run and answers the id a page follows |
 | `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript with every entry point of its kind |
-| `nspService` | `api/src/services/<subject>Service.ts`: `<Model>Summary` and `build<Model>Summary`, a list, a single read, a create, a change, a removal and a permission check |
+| `nspService` | `api/src/services/<subject>Service.ts`: `<Model>Summary` and the `build<Model>Summary` it maps with, a list, a single read, a create, an update, a removal and a permission check |
 | `nspRepository` | `api/src/repositories/<set>Repository.ts` over `dbContext`: every read the set offers, every write through `withTracking()`, several records saved at once |
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |

@@ -9,7 +9,9 @@ repository functions of [repositories/model-and-repository.md](../repositories/m
 ## Steps
 
 1. **The service**, `api/src/services/<subject>Service.ts` (the `nspService` snippet, every kind of service function,
-   to delete down to what the controller calls): plain arguments in, a type the service declares out.
+   to delete down to what the controller calls): plain arguments in, a type the service declares out. What it
+   exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check), and it imports
+   each repository as a namespace.
 2. **The controller**, `api/src/controllers/<name>Controller.ts` (`nspControllerRestlet` or `nspControllerSuitelet`:
    every kind of endpoint, a guard and `authorize`, to delete down to what this controller serves).
 3. **The SDF object**, `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` (`nspObjectRestlet`).
@@ -41,7 +43,7 @@ because they are not TypeScript:
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import type { SalesOrder } from '../types/models.gen';
-import { findSalesOrder, listSalesOrdersByCustomer, updateSalesOrderMemo } from '../repositories/salesOrdersRepository';
+import * as salesOrdersRepository from '../repositories/salesOrdersRepository';
 
 /**
  * Decisions about sales orders. The service takes plain arguments and returns types it declares itself: it knows
@@ -53,7 +55,7 @@ export interface SalesOrderSummary extends Pick<SalesOrder, 'id' | 'tranId' | 't
     openLineCount: number;
 }
 
-export function buildSalesOrderSummary(salesOrder: SalesOrder): SalesOrderSummary {
+function buildSalesOrderSummary(salesOrder: SalesOrder): SalesOrderSummary {
     return {
         id: salesOrder.id,
         tranId: salesOrder.tranId,
@@ -67,14 +69,14 @@ export function buildSalesOrderSummary(salesOrder: SalesOrder): SalesOrderSummar
 
 /** Every sales order of the customer, newest first. */
 export function getOrdersByCustomer(customerId: number): SalesOrderSummary[] {
-    return listSalesOrdersByCustomer(customerId).map(buildSalesOrderSummary);
+    return salesOrdersRepository.listSalesOrdersByCustomer(customerId).map(buildSalesOrderSummary);
 }
 
 /** Replaces an order's memo; a memo of nothing but spaces clears it. Answers null when there is no such order. */
-export function changeOrderMemo(orderId: number, memo: string): SalesOrderSummary | null {
-    if (findSalesOrder(orderId) === null) return null;
+export function updateOrderMemo(orderId: number, memo: string): SalesOrderSummary | null {
+    if (salesOrdersRepository.findSalesOrder(orderId) === null) return null;
     const trimmed = memo.trim();
-    return buildSalesOrderSummary(updateSalesOrderMemo(orderId, trimmed === '' ? null : trimmed));
+    return buildSalesOrderSummary(salesOrdersRepository.updateSalesOrderMemo(orderId, trimmed === '' ? null : trimmed));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -89,7 +91,7 @@ export function changeOrderMemo(orderId: number, memo: string): SalesOrderSummar
  */
 
 import { ApiError, defineEndpoints, defineRestlet } from '@amerilux/netsuite-api/server';
-import { changeOrderMemo, getOrdersByCustomer, type SalesOrderSummary } from '../services/ordersService';
+import { getOrdersByCustomer, updateOrderMemo, type SalesOrderSummary } from '../services/ordersService';
 
 // The shapes are the wire: one request and one response per endpoint, named without the controller's name,
 // because the generated module is scoped by controller already. Every one is exported: `npm run generate`
@@ -134,7 +136,7 @@ export const ordersEndpoints = defineEndpoints({
         const orderId = parseId(request.orderId, 'orderId');
         if (typeof request.memo !== 'string') throw ApiError.badRequest('memo must be text.', { memo: request.memo });
         // "No such order" is the service's answer; which HTTP status that is belongs to the wire, so here.
-        const order = changeOrderMemo(orderId, request.memo);
+        const order = updateOrderMemo(orderId, request.memo);
         if (order === null) throw ApiError.notFound('No sales order has that id.', { orderId });
         return { order };
     },
@@ -314,11 +316,11 @@ export const Route = createFileRoute('/orders/$customerId')({
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SalesOrderSummary } from '../../src/services/ordersService';
 
-const { getOrdersByCustomer, changeOrderMemo } = vi.hoisted(() => ({
+const { getOrdersByCustomer, updateOrderMemo } = vi.hoisted(() => ({
     getOrdersByCustomer: vi.fn<(customerId: number) => SalesOrderSummary[]>(),
-    changeOrderMemo: vi.fn<(orderId: number, memo: string) => SalesOrderSummary | null>(),
+    updateOrderMemo: vi.fn<(orderId: number, memo: string) => SalesOrderSummary | null>(),
 }));
-vi.mock('../../src/services/ordersService', () => ({ getOrdersByCustomer, changeOrderMemo }));
+vi.mock('../../src/services/ordersService', () => ({ getOrdersByCustomer, updateOrderMemo }));
 
 import { ordersEndpoints } from '../../src/controllers/ordersController';
 
@@ -334,7 +336,7 @@ const order: SalesOrderSummary = {
 
 beforeEach(() => {
     getOrdersByCustomer.mockReset();
-    changeOrderMemo.mockReset();
+    updateOrderMemo.mockReset();
 });
 
 describe('orders.byCustomer', () => {
@@ -353,13 +355,13 @@ describe('orders.byCustomer', () => {
 
 describe('orders.updateMemo', () => {
     it('answers the order the service changed', () => {
-        changeOrderMemo.mockReturnValue(order);
+        updateOrderMemo.mockReturnValue(order);
 
         expect(ordersEndpoints.updateMemo({ orderId: 12, memo: 'Reviewed' })).toEqual({ order });
     });
 
     it('answers 404 when the service finds no such order', () => {
-        changeOrderMemo.mockReturnValue(null);
+        updateOrderMemo.mockReturnValue(null);
 
         expect(() => ordersEndpoints.updateMemo({ orderId: 99, memo: 'Reviewed' })).toThrow(expect.objectContaining({ status: 404 }));
     });
@@ -379,7 +381,7 @@ sequenceDiagram
     Page->>Hook: mutate(orderId, memo)
     Hook->>Client: updateMemo(request)
     Client->>Restlet: POST, body carries endpoint updateMemo
-    Restlet->>Service: changeOrderMemo(orderId, memo)
+    Restlet->>Service: updateOrderMemo(orderId, memo)
     Service->>Repository: findSalesOrder, updateSalesOrderMemo
     Repository-->>Service: SalesOrder
     Service-->>Restlet: SalesOrderSummary

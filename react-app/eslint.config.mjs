@@ -56,6 +56,16 @@ const appLayerImportsInClientEvents = [
 const controllerImportsInServices = [
     { group: ['**/controllers/**'], message: 'A service takes plain arguments and returns its own types; the controller imports them and maps the wire. Nothing in a service names a controller.' },
 ];
+// What a service exports is named for what it does to the data: get, create, update or remove, and is or has for a
+// yes-or-no check (an authorize asks one). A build<Type> the service maps with stays in its file, tested through the
+// function that uses it. The service imports each repository as a namespace, so `removeSalesOrder` here can call
+// `salesOrdersRepository.removeSalesOrder` without the two names meeting.
+const serviceFunctionName = '/^(get|create|update|remove|is|has)[A-Z]/';
+const serviceFunctionMessage = 'An exported service function starts with get, create, update or remove, or is or has for a yes-or-no check. A build<Type> is not exported.';
+const serviceFunctionNames = [
+    { selector: `Program > ExportNamedDeclaration > FunctionDeclaration[id.name!=${serviceFunctionName}]`, message: serviceFunctionMessage },
+    { selector: `Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type=/^(ArrowFunctionExpression|FunctionExpression)$/][id.name!=${serviceFunctionName}]`, message: serviceFunctionMessage },
+];
 // A repository that calls another script of this application builds its client from that controller's Endpoints
 // type, as a type only: a repository that imported a controller's value would be pulling a deployed script into itself.
 const wireShapeImports = [
@@ -263,7 +273,10 @@ export default defineConfig([
     },
     {
         files: ['api/src/services/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...controllerImportsInServices] }] },
+        rules: {
+            'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape, ...serviceFunctionNames],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...controllerImportsInServices] }],
+        },
     },
     {
         // The data-access layers inside api/: Specification in specifications, the package's decorators in models.

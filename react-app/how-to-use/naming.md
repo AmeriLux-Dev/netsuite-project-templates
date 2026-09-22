@@ -13,12 +13,14 @@ Two rules from `CLAUDE.md`, applied to the layers of [folder-structure.md](folde
 | Controller | the wire, one pair per endpoint, no controller prefix | `ByEmployeeRequest`, `ByEmployeeResponse` |
 | Job | in the job's `contract.ts`: the run's input, one piece of the work, and the result, prefixed with the job's name; what a stage writes, named for what it is | `CloseOldOrdersRequest`, `CloseOldOrdersItem`, `CloseOldOrdersResult`, `RepTally` |
 
-**A function is named for what it does, with a verb.** A function that produces a value of a type is `build<Type>`: `buildRoleSummary(role)` says what comes out, its parameter says what goes in, and it sits next to the type it builds. When a second source for the same type appears, the source joins the name (`buildRoleSummaryFromRole`). `to<Type>` is not used: that name belongs to the type, and a function's name is a verb.
+**A function is named for what it does, with a verb.** A function that produces a value of a type is `build<Type>`: `buildRoleSummary(role)` says what comes out, its parameter says what goes in, and it sits next to the type it builds. When a second source for the same type appears, the source joins the name (`buildRoleSummaryFromRole`). `to<Type>` is not used: that name belongs to the type, and a function's name is a verb. In a service a builder is not exported: it is tested through the functions that answer with what it builds.
+
+**What a service exports starts with `get`, `create`, `update` or `remove`**, or `is` or `has` for a yes-or-no check, and `npm run lint` fails on any other exported name in `api/src/services/`. The rest of the name says which data and which part of it (`updateOrderMemo`, not `changeOrderMemo`; `updateOrderClosed`, not `closeOrder`). Three of those verbs are a repository's too, so a service imports each repository as a namespace (`import * as salesOrdersRepository from '../repositories/salesOrdersRepository'`), and its `removeSalesOrder` can call `salesOrdersRepository.removeSalesOrder` without the two names meeting.
 
 | Layer | Verb | Example |
 |---|---|---|
 | Repository | `list`, `find`, `read`, `create`, `update`, `remove`, then the set and the filter | `listEmployeeRolesByEmployee`, `readActiveUser`, `createSalesOrder` |
-| Service | the decision, in the domain's words | `getRolesByEmployee`, `approveOldestPendingSalesOrder` |
+| Service | `get`, `create`, `update`, `remove`, then the data; `is` or `has` for a check | `getRolesByEmployee`, `updateOrderMemo`, `isSalesRepOfCustomer` |
 | Endpoint | the operation, short; the controller scopes it | `list`, `byId`, `byEmployee`, `create` |
 | Specification | the condition, as a predicate | `forEmployee`, `pendingFulfillment` |
 | Guard | `parse<Field>` | `parseEmployeeId` |

@@ -86,8 +86,8 @@ export function findCustomer(customerId: number): Customer | null {
 // api/src/services/customerCreditService.ts                what the credit is, and who may see it
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { readActiveUser } from '../repositories/activeUserRepository';
-import { findCustomer } from '../repositories/customersRepository';
+import * as activeUserRepository from '../repositories/activeUserRepository';
+import * as customersRepository from '../repositories/customersRepository';
 
 /** Where a customer stands on credit. */
 export interface CustomerCredit {
@@ -100,7 +100,7 @@ export interface CustomerCredit {
 
 /** Where the customer stands on credit, or null when there is no such customer. */
 export function getCustomerCredit(customerId: number): CustomerCredit | null {
-    const customer = findCustomer(customerId);
+    const customer = customersRepository.findCustomer(customerId);
     if (customer === null) return null;
     const balance = customer.balance ?? 0;
     const creditLeft = customer.creditLimit === null ? null : customer.creditLimit - balance;
@@ -112,8 +112,8 @@ export function getCustomerCredit(customerId: number): CustomerCredit | null {
  * not the user: the session still says who is calling.
  */
 export function isSalesRepOfCustomer(customerId: number): boolean {
-    const customer = findCustomer(customerId);
-    return customer !== null && customer.salesRepId === readActiveUser().id;
+    const customer = customersRepository.findCustomer(customerId);
+    return customer !== null && customer.salesRepId === activeUserRepository.readActiveUser().id;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -202,11 +202,11 @@ export function readCustomerCredit(customerId: number): ByCustomerResponse['cred
 //                                                          restlet-controller.md
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { readCustomerCredit } from '../repositories/customerCreditRepository';
+import * as customerCreditRepository from '../repositories/customerCreditRepository';
 
 /** What the customer may still order on credit; null when no limit is set. */
 export function getCreditLeft(customerId: number): number | null {
-    return readCustomerCredit(customerId).creditLeft;
+    return customerCreditRepository.readCustomerCredit(customerId).creditLeft;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

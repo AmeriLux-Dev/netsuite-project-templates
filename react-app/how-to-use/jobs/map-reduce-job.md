@@ -81,14 +81,14 @@ export function startJobRun(job: JobRef, input: unknown): string {
 //                                                          service of controllers/restlet-controller.md
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { findSalesOrder, listSalesOrdersNotModifiedSince, updateSalesOrderLinesClosed } from '../repositories/salesOrdersRepository';
+import * as salesOrdersRepository from '../repositories/salesOrdersRepository';
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** The open orders nobody has changed for the given number of days. */
-export function listOldOrders(olderThanDays: number): SalesOrderSummary[] {
+export function getOldOrders(olderThanDays: number): SalesOrderSummary[] {
     const cutoff = new Date(Date.now() - olderThanDays * MILLISECONDS_PER_DAY);
-    return listSalesOrdersNotModifiedSince(cutoff).map(buildSalesOrderSummary);
+    return salesOrdersRepository.listSalesOrdersNotModifiedSince(cutoff).map(buildSalesOrderSummary);
 }
 
 /** What closing one order came to. */
@@ -98,12 +98,12 @@ export interface OrderClosing {
 }
 
 /** Closes every open line of the order, unless there is nothing left to close. */
-export function closeOrder(orderId: number): OrderClosing {
-    const salesOrder = findSalesOrder(orderId);
+export function updateOrderClosed(orderId: number): OrderClosing {
+    const salesOrder = salesOrdersRepository.findSalesOrder(orderId);
     if (salesOrder === null) return { closed: false, reason: 'No such order' };
     const openLineIds = salesOrder.lines.filter((line) => !line.isClosed).map((line) => line.id);
     if (openLineIds.length === 0) return { closed: false, reason: 'Already closed' };
-    updateSalesOrderLinesClosed(orderId, openLineIds);
+    salesOrdersRepository.updateSalesOrderLinesClosed(orderId, openLineIds);
     return { closed: true, reason: 'Closed' };
 }
 
@@ -168,14 +168,14 @@ export interface CloseOldOrdersResult {
 
 import { jobs } from '../../../../netsuite';
 import { jobGetInputData } from '../../repositories/jobRunRepository';
-import { listOldOrders } from '../../services/ordersService';
+import { getOldOrders } from '../../services/ordersService';
 import type { CloseOldOrdersItem, CloseOldOrdersRequest } from './contract';
 
 // The two types are the stage's claim: a run is started with a CloseOldOrdersRequest, and the work is a list of
 // CloseOldOrdersItem. The builder opens the run first, so `input` is what it was started with, already parsed off
 // the run record, not a script parameter to decode.
 export const getInputData = jobGetInputData<CloseOldOrdersRequest, CloseOldOrdersItem>(jobs.closeOldOrders, (input) =>
-    listOldOrders(input.olderThanDays).map((order) => ({ orderId: order.id, salesRepId: order.salesRepId })));
+    getOldOrders(input.olderThanDays).map((order) => ({ orderId: order.id, salesRepId: order.salesRepId })));
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // api/src/jobs/closeOldOrders/map.ts                       2. one item of it, once per order
@@ -183,14 +183,14 @@ export const getInputData = jobGetInputData<CloseOldOrdersRequest, CloseOldOrder
 
 import { jobs } from '../../../../netsuite';
 import { jobMap } from '../../repositories/jobRunRepository';
-import { closeOrder } from '../../services/ordersService';
+import { updateOrderClosed } from '../../services/ordersService';
 import type { CloseOldOrdersItem, CloseOutcome } from './contract';
 
 export const map = jobMap<CloseOldOrdersItem, CloseOutcome>(jobs.closeOldOrders, (item, job) => {
     // `item` arrives parsed, and what `job.write` is given travels on as JSON: neither is this stage's business.
     // The key is what groups the values for the reduce stage, here the rep, and it only groups: the rep id rides
     // in the value, so nothing has to parse it back out of the key.
-    const closing = closeOrder(item.orderId);
+    const closing = updateOrderClosed(item.orderId);
     job.write(String(item.salesRepId), { orderId: item.orderId, salesRepId: item.salesRepId, closed: closing.closed, reason: closing.reason });
 
     // A throw here fails this one order, not the run: NetSuite collects it, and it ends up on the run record with
@@ -318,13 +318,13 @@ import { mapContextFor } from '@amerilux/netsuite-api/testing';
 import { expect, it, vi } from 'vitest';
 
 // The stage is tested against a mocked service: what it hands the reduce stage, not how an order is closed.
-const { closeOrder } = vi.hoisted(() => ({ closeOrder: vi.fn() }));
-vi.mock('../../../src/services/ordersService', () => ({ closeOrder }));
+const { updateOrderClosed } = vi.hoisted(() => ({ updateOrderClosed: vi.fn() }));
+vi.mock('../../../src/services/ordersService', () => ({ updateOrderClosed }));
 
 import { map } from '../../../src/jobs/closeOldOrders/map';
 
 it('writes the outcome under the rep who owns the order', () => {
-    closeOrder.mockReturnValue({ closed: true, reason: 'Closed' });
+    updateOrderClosed.mockReturnValue({ closed: true, reason: 'Closed' });
     const context = mapContextFor({ value: { orderId: 7, salesRepId: 12 } });
 
     map(context);

@@ -107,12 +107,12 @@ const scenario = [
             "export type SalesOrderSummary = Pick<SalesOrder, 'id' | 'customerId' | 'memo'>;",
             '',
             '/** The ids of the orders old enough to close. */',
-            'export function listOldOrderIds(olderThanDays: number): number[] {',
+            'export function getOldOrderIds(olderThanDays: number): number[] {',
             '    return olderThanDays > 0 ? [] : [];',
             '}',
             '',
             '/** Closes one order, and says whether it went. */',
-            'export function closeOrder(orderId: number): boolean {',
+            'export function updateOrderClosed(orderId: number): boolean {',
             "    if (orderId <= 0) throw new Error('An order id is a positive number.');",
             '    return true;',
             '}',
@@ -154,12 +154,12 @@ const scenario = [
     {
         snippet: 'nspJobGetInputData',
         file: 'api/src/jobs/closeOldOrders/getInputData.ts',
-        values: { 1: 'listOldOrderIds', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersRequest', 7: 'The ids of the orders old enough to close', 8: 'closeOldOrders', 9: 'olderThanDays', 10: 'orderId' },
+        values: { 1: 'getOldOrderIds', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersRequest', 7: 'The ids of the orders old enough to close', 8: 'closeOldOrders', 9: 'olderThanDays', 10: 'orderId' },
     },
     {
         snippet: 'nspJobMap',
         file: 'api/src/jobs/closeOldOrders/map.ts',
-        values: { 1: 'closeOrder', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'Closes one order', 8: 'closeOldOrders', 9: 'orderId', 10: 'closed' },
+        values: { 1: 'updateOrderClosed', 2: 'services', 3: 'orders', 4: 'Service', 5: 'CloseOldOrdersItem', 6: 'CloseOldOrdersOutcome', 7: 'Closes one order', 8: 'closeOldOrders', 9: 'orderId', 10: 'closed' },
     },
     // A reduce gathers what map wrote under one key, so what it writes is what summarize then reads.
     {

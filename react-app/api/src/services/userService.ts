@@ -1,7 +1,7 @@
 import type { ActiveUser } from '../repositories/activeUserRepository';
-import { readActiveUser } from '../repositories/activeUserRepository';
+import * as activeUserRepository from '../repositories/activeUserRepository';
 import type { RoleSummary } from './userRolesService';
-import { listRolesForEmployee } from '../repositories/userRolesRepository';
+import * as userRolesRepository from '../repositories/userRolesRepository';
 
 /**
  * Decisions about the caller. The service composes repository answers into a type of its own; it
@@ -17,6 +17,6 @@ export interface ActiveUserRoles {
 }
 
 export function getActiveUserRoles(): ActiveUserRoles {
-    const user = readActiveUser();
-    return { user, roles: listRolesForEmployee(user.id) };
+    const user = activeUserRepository.readActiveUser();
+    return { user, roles: userRolesRepository.listRolesForEmployee(user.id) };
 }
