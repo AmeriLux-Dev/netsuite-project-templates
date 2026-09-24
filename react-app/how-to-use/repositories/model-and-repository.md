@@ -3,8 +3,8 @@
 One record type, the sales order. A model declares the fields this application uses, `npm run generate` turns it
 into types and a record set, the specifications name the filters, and the repository functions read and write
 through them. Nothing above the repository sees any of it: a service calls `listSalesOrdersByCustomer(7)` and gets
-`SalesOrder[]` back. The [controller](../controllers/restlet-controller.md) and [job](../jobs/map-reduce-job.md)
-examples build on these functions.
+`SalesOrder[]` back.{{#if netsuiteApi}} The [controller](../controllers/restlet-controller.md) and [job](../jobs/map-reduce-job.md)
+examples build on these functions.{{/if}}
 
 ## Steps
 
@@ -325,7 +325,9 @@ sequenceDiagram
   object under `netsuite/Objects/`.
 - **A create** goes through the same tracker: `dbContext.withTracking().salesOrders.create(fields)` takes a
   `SalesOrderCreate` (lines as an array) and answers the order with its new id (the `nspRepository` snippet writes one).
-- **A NetSuite module** rather than a record is read in a repository too: `activeUserRepository.ts` reads
-  `N/runtime` for the session (the `nspRepositoryModule` snippet). No layer above the repository imports `N/*`.
+- **A NetSuite module** rather than a record is read in a repository too: {{#if userRolesExample}}`activeUserRepository.ts` reads
+  {{/if}}`N/runtime` for the session (the `nspRepositoryModule` snippet). No layer above the repository imports `N/*`.
+{{#if netsuiteApi}}
 - **Another script of this application** is data for a repository as well:
   [controllers/suitelet-controller.md](../controllers/suitelet-controller.md) calls a Suitelet from one.
+{{/if}}

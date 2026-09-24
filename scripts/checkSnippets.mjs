@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 /**
- * Snippet check for the react-app template. Every snippet in react-app/.vscode/netsuite-project.code-snippets writes
- * a whole file with every option it offers, and is expanded the way VS Code would expand it (the file name in,
- * every tab stop filled with a sample value, nothing deleted) into an installed scaffold as one coherent addition:
- * an `orders` Restlet and an `orderTotals` Suitelet, the `SalesOrder` model, specification, repositories and
- * service behind them, their tests, a hook, a mutation, a page and a route, a job and two events. Then
- * `npm run generate`, the route tree generator, `npm run typecheck` (tsc in every workspace, tests included) and the
- * structure check run over the result. ESLint is not run: the check proves that the snippets compile and fit
- * together, which is what a stale snippet breaks first.
+ * Snippet check for the react-app template. Every snippet writes a whole file with every option it offers, and is
+ * expanded the way VS Code would expand it (the file name in, every tab stop filled with a sample value, nothing
+ * deleted) into an installed scaffold as one coherent addition: an `orders` Restlet and an `orderTotals` Suitelet,
+ * the `SalesOrder` model, specification, repositories and service behind them, their tests, a hook, a mutation, a
+ * page and a route, a job and two events. Then `npm run generate`, the route tree generator, `npm run typecheck`
+ * (tsc in every workspace, tests included) and the structure check run over the result. ESLint is not run: the check
+ * proves that the snippets compile and fit together, which is what a stale snippet breaks first.
+ *
+ * The snippets are read from the scaffold's .vscode/netsuite-project.code-snippets: the template's
+ * react-app/.vscode file as the CLI rendered it. The template's own copy carries {{#if}} blocks and tokens, and is
+ * not JSON until it is rendered. The scenario uses every snippet, so the scaffold must have both packages on
+ * (netsuite-api and netsuite-repository): with either off, its snippet file leaves out the snippets built on it.
  *
  * Every snippet must have a step in the scenario below; a snippet without one fails the check, so a snippet
  * cannot be added without saying what it is supposed to produce.
@@ -15,7 +19,7 @@
  *   node scripts/checkSnippets.mjs --project <dir>              # an installed scaffold (the e2e passes its own)
  *   node scripts/checkSnippets.mjs --project <dir> --keep       # leave the expanded files in place for inspection
  *   node scripts/checkSnippets.mjs --project <dir> --snippets <file>
- *                                                               # default: react-app/.vscode/netsuite-project.code-snippets
+ *                                                               # default: <dir>/.vscode/netsuite-project.code-snippets
  *
  * The files the check writes are removed afterwards (edited files restored, the generated modules refreshed),
  * so the scaffold is left as it was found.
@@ -23,10 +27,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expandSnippet } from './snippetExpansion.mjs';
 
-const templatesRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const isWindows = process.platform === 'win32';
 
 // ── the scenario: what a developer would type ─────────────────────────────────────────────────────────────────────
@@ -196,14 +198,19 @@ function readFlag(flag) {
 }
 
 const projectDir = readFlag('--project') && path.resolve(readFlag('--project'));
-const snippetsPath = path.resolve(readFlag('--snippets') ?? path.join(templatesRoot, 'react-app', '.vscode', 'netsuite-project.code-snippets'));
 const keep = process.argv.includes('--keep');
 if (!projectDir || !existsSync(path.join(projectDir, 'netsuite.ts')) || !existsSync(path.join(projectDir, 'node_modules'))) {
     console.error('--project must name an installed scaffold of the react-app template (netsuite.ts and node_modules present).');
     process.exit(1);
 }
+// The scaffold's copy, which the CLI rendered: the template's own carries {{#if}} blocks and is not JSON.
+const snippetsPath = path.resolve(readFlag('--snippets') ?? path.join(projectDir, '.vscode', 'netsuite-project.code-snippets'));
+if (!existsSync(snippetsPath)) {
+    console.error(`No snippet file at ${snippetsPath}.`);
+    process.exit(1);
+}
 
-/** The template tokens the snippet file carries, rendered from the scaffold as the CLI rendered them. */
+/** The template tokens the scenario's paths and values carry, read from the scaffold as the CLI rendered them. */
 function readTemplateTokens() {
     const source = readFileSync(path.join(projectDir, 'netsuite.ts'), 'utf8');
     const read = (property) => source.match(new RegExp(`^\\s*${property}:\\s*'([^']*)'`, 'm'))?.[1];
@@ -224,7 +231,7 @@ const uncovered = snippetNames.filter((name) => !scenarioSnippets.has(name));
 const unknown = [...scenarioSnippets].filter((name) => !snippetNames.includes(name));
 if (uncovered.length > 0 || unknown.length > 0) {
     if (uncovered.length > 0) console.error(`Snippets without a step in scripts/checkSnippets.mjs: ${uncovered.join(', ')}. Add a step so the check covers them.`);
-    if (unknown.length > 0) console.error(`Steps naming snippets that do not exist: ${unknown.join(', ')}.`);
+    if (unknown.length > 0) console.error(`Steps naming snippets that ${snippetsPath} does not have: ${unknown.join(', ')} (a scaffold with netsuite-api or netsuite-repository off leaves out the snippets built on it).`);
     process.exit(1);
 }
 

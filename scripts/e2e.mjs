@@ -15,10 +15,13 @@
  *                                                            # install @amerilux/netsuite-api from a packed tarball (npm pack in its checkout)
  *                                                            # instead of the registry, to check the template against an unpublished version
  *   node scripts/e2e.mjs --netsuite-wrapper ../netsuite-wrapper/amerilux-netsuite-wrapper-0.4.0.tgz
- *                                                            # the same for @amerilux/netsuite-wrapper
+ *   node scripts/e2e.mjs --netsuite-repository ../netsuite-repository/amerilux-netsuite-repository-1.2.1.tgz
+ *                                                            # the same for @amerilux/netsuite-wrapper and @amerilux/netsuite-repository
  *
  * The main scaffold is built with --performance-tracker so the wrapper's instrumentation, telemetry
  * bootstrap and entry wrapping run through a real webpack build; the plain variant checks the flag off.
+ * Three more scaffolds leave out netsuite-api, netsuite-repository or both, and must install, typecheck, lint,
+ * test and build with nothing of the left-out package in them.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -35,6 +38,7 @@ const isWindows = process.platform === 'win32';
 const cliCommand = resolveCliCommand(process.argv);
 const packageTarballs = {
     '@amerilux/netsuite-api': resolvePackageTarball(process.argv, '--netsuite-api', 'netsuite-api'),
+    '@amerilux/netsuite-repository': resolvePackageTarball(process.argv, '--netsuite-repository', 'netsuite-repository'),
     '@amerilux/netsuite-wrapper': resolvePackageTarball(process.argv, '--netsuite-wrapper', 'netsuite-wrapper'),
 };
 console.log(`Scratch project: ${projectDir}`);
@@ -160,7 +164,7 @@ assertEqual(probitySettings.hooks.PostToolUse[0].hooks[0].command, 'node .claude
 assertEqual(existsSync(path.join(projectDir, '.claude', 'hooks', 'guardrails.mjs')), false, '--probity leaves out the guardrails hook Probity replaces');
 assertEqual(readdirSync(path.join(projectDir, '.claude', 'rules')).sort(), ['api.md', 'client.md', 'controllers.md', 'data-access.md', 'events.md', 'jobs.md', 'lib.md', 'services.md', 'tests.md'], 'the folder rules Claude Code loads per folder are scaffolded');
 assertEqual(/^---\r?\nname: convert-project\r?\n/.test(readFileSync(path.join(projectDir, '.claude', 'skills', 'convert-project', 'SKILL.md'), 'utf8')), true, 'the convert-project skill is scaffolded');
-assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: true, probity: true }, 'features recorded with both flags on');
+assertEqual(JSON.parse(readFileSync(path.join(projectDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: true, probity: true, netsuiteApi: true, netsuiteRepository: true }, 'features recorded with both flags on');
 const wrapperConfigSource = readFileSync(path.join(projectDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
 assertEqual(wrapperConfigSource.includes("integration: 'performance-tracker'") && wrapperConfigSource.includes("scopeKey: 'app:demo-app'") && wrapperConfigSource.includes('instrumentation: true'), true, '--performance-tracker renders the wrapper config with the app scope key');
 assertEqual(wrapperConfigSource.includes('telemetryBootstrap: false'), false, '--performance-tracker drops the telemetry-off branch');
@@ -193,7 +197,7 @@ assertEqual(askGuardrails({ command: 'git push --force origin main' }), 'deny', 
 assertEqual(askGuardrails({ command: 'npm run deploy' }), 'ask', 'guardrails asks the person before a deploy');
 assertEqual(askGuardrails({ file_path: path.join(plainDir, 'api', 'src', 'services', 'userService.ts'), content: 'export {};' }), 'allow (exit 0)', 'guardrails lets an ordinary write through');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'package.json'), 'utf8')).devDependencies['@nizos/probity'], undefined, 'default scaffold does not depend on probity');
-assertEqual(JSON.parse(readFileSync(path.join(plainDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: false, probity: false }, 'features recorded');
+assertEqual(JSON.parse(readFileSync(path.join(plainDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: false, probity: false, netsuiteApi: true, netsuiteRepository: true }, 'features recorded, both packages on by default');
 const plainWrapperConfigSource = readFileSync(path.join(plainDir, 'api', 'netsuite-wrapper.config.js'), 'utf8');
 assertEqual(plainWrapperConfigSource.includes('telemetryBootstrap: false') && !plainWrapperConfigSource.includes("scopeKey: 'app:"), true, 'default scaffold renders the wrapper config with telemetry off');
 assertEqual(existsSync(path.join(plainDir, 'template.json')), false, 'template manifest is not copied');
@@ -279,7 +283,7 @@ assertEqual(/No project.json/.test(deployAttempt.stderr), true, 'deploy names th
 
 const leftoverTokens = listFiles(projectDir)
     .filter((file) => !file.startsWith('node_modules/') && !file.startsWith('netsuite/FileCabinet/'))
-    .filter((file) => /\.(ts|tsx|js|cjs|mjs|json|md|xml|css|html|example|code-snippets)$/.test(file) || file === '.gitignore' || file === '.npmrc')
+    .filter((file) => /\.(ts|tsx|mts|js|cjs|mjs|json|md|xml|css|html|example|code-snippets)$/.test(file) || file === '.gitignore' || file === '.npmrc')
     .filter((file) => readFileSync(path.join(projectDir, file), 'utf8').includes('{{'));
 assertEqual(leftoverTokens, [], 'no template tokens left behind');
 
@@ -314,6 +318,49 @@ run('node', [path.join(templatesRoot, 'scripts', 'checkSnippets.mjs'), '--projec
 // Every worked example under react-app/how-to-use/, written into this scaffold in the order they build on one another,
 // must generate, typecheck, lint, test and build (scripts/checkHowToUse.mjs); the check restores the scaffold afterwards.
 run('node', [path.join(templatesRoot, 'scripts', 'checkHowToUse.mjs'), '--project', projectDir], templatesRoot);
+
+// Either package can be left out. The project keeps the folders and the host page, and loses everything built on the
+// package: the example (which needs both), its generator, its config, its lint rules, its docs and its snippets. Each
+// variant must still install, typecheck, lint, test and build, and no file may still name the package it left out.
+const withoutPackagesVariants = [
+    { name: 'NoApiApp', flags: ['--no-netsuite-api'], netsuiteApi: false, netsuiteRepository: true, generate: 'npm run generate -w api' },
+    { name: 'NoRepositoryApp', flags: ['--no-netsuite-repository'], netsuiteApi: true, netsuiteRepository: false, generate: 'netsuite-api generate' },
+    { name: 'NoPackagesApp', flags: ['--no-netsuite-api', '--no-netsuite-repository'], netsuiteApi: false, netsuiteRepository: false, generate: undefined },
+];
+const jobsWithoutApi = spawnSync(cliCommand[0], [...cliCommand.slice(1), path.join(e2eRoot, 'JobsWithoutApiApp'), '--local-template', templateDir, '--prefix', 'nojobs', '--author', 'ci', '--no-netsuite-api', '--jobs', '--yes', '--no-install', '--no-git'].map(quoteForShell), { cwd: templatesRoot, encoding: 'utf8', shell: isWindows });
+assertEqual([jobsWithoutApi.status, existsSync(path.join(e2eRoot, 'JobsWithoutApiApp'))], [1, false], '--jobs with --no-netsuite-api is refused before anything is written');
+for (const variant of withoutPackagesVariants) {
+    const variantDir = path.join(e2eRoot, variant.name);
+    if (existsSync(variantDir)) rmSync(variantDir, { recursive: true, force: true });
+    runCli([variantDir, '--local-template', templateDir, '--prefix', 'bare', '--author', 'ci', ...variant.flags, '--yes', '--no-install', '--no-git'], templatesRoot);
+    const variantFileExists = (relativePath) => existsSync(path.join(variantDir, relativePath));
+    const label = variant.name;
+    assertEqual(JSON.parse(readFileSync(path.join(variantDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: false, probity: false, netsuiteApi: variant.netsuiteApi, netsuiteRepository: variant.netsuiteRepository }, `${label}: features recorded`);
+    assertEqual(['api/src/controllers/userController.ts', 'api/src/services/userService.ts', 'client/src/pages/UserRolesPage.tsx', 'netsuite/Objects/customscript_bare_user.xml'].map(variantFileExists), [false, false, false, false], `${label}: the user/userRoles example is left out`);
+    assertEqual(['api/src/controllers/.gitkeep', 'api/src/services/.gitkeep', 'api/src/repositories/.gitkeep', 'client/src/hooks/.gitkeep', 'client/src/pages/.gitkeep'].map(variantFileExists), [true, true, true, true, true], `${label}: the layer folders are kept`);
+    assertEqual(['netsuite-api.config.json', 'scripts/addJobs.mjs', 'client/src/hooks/useApiErrors.ts', 'how-to-use/controllers', '.claude/rules/controllers.md'].map(variantFileExists), Array(5).fill(variant.netsuiteApi), `${label}: what netsuite-api brings is there only with it`);
+    assertEqual(variantFileExists('api/src/_host/fileCabinet.ts'), !variant.netsuiteApi, `${label}: the host page finds the bundle with a File Cabinet lookup of its own only without netsuite-api`);
+    assertEqual(['api/netsuite-repository.config.json', 'api/src/models/.gitkeep', 'api/src/specifications/.gitkeep', 'how-to-use/repositories'].map(variantFileExists), Array(4).fill(variant.netsuiteRepository), `${label}: what netsuite-repository brings is there only with it`);
+    const variantManifest = JSON.parse(readFileSync(path.join(variantDir, 'package.json'), 'utf8'));
+    assertEqual(variantManifest.scripts.generate, variant.generate, `${label}: npm run generate runs only the generators of the packages it has`);
+    assertEqual(variantManifest.scripts['add:jobs'] !== undefined, variant.netsuiteApi, `${label}: add:jobs only with netsuite-api`);
+    const variantDependencies = { ...JSON.parse(readFileSync(path.join(variantDir, 'api', 'package.json'), 'utf8')).dependencies, ...JSON.parse(readFileSync(path.join(variantDir, 'client', 'package.json'), 'utf8')).dependencies };
+    assertEqual([variantDependencies['@amerilux/netsuite-api'] !== undefined, variantDependencies['@amerilux/netsuite-repository'] !== undefined], [variant.netsuiteApi, variant.netsuiteRepository], `${label}: depends on the packages it has only`);
+    const leftOutPackageNames = [...(variant.netsuiteApi ? [] : ['netsuite-api']), ...(variant.netsuiteRepository ? [] : ['netsuite-repository'])];
+    const filesNamingLeftOutPackages = listFiles(variantDir).filter((file) => leftOutPackageNames.some((packageName) => readFileSync(path.join(variantDir, file), 'utf8').includes(packageName)));
+    assertEqual(filesNamingLeftOutPackages, [], `${label}: no file names ${leftOutPackageNames.join(' or ')}`);
+    for (const [packageName, tarballPath] of Object.entries(packageTarballs)) {
+        if (tarballPath) usePackageTarball(variantDir, packageName, tarballPath);
+    }
+    run('npm', ['install', '--no-audit', '--no-fund'], variantDir);
+    if (variant.generate) run('npm', ['run', 'generate'], variantDir);
+    run('npm', ['run', 'typecheck'], variantDir);
+    run('npm', ['run', 'lint'], variantDir);
+    run('npm', ['test'], variantDir);
+    run('npm', ['run', 'build'], variantDir);
+    assertEqual(listFiles(path.join(variantDir, 'netsuite', 'FileCabinet', 'SuiteScripts', variant.name)), ['api/_host/homeController.js', 'api/_host/host.js', 'client/app.js'], `${label}: File Cabinet output is the host page and the client bundle`);
+    if (!keep) rmSync(variantDir, { recursive: true, force: true });
+}
 
 if (!keep) rmSync(projectDir, { recursive: true, force: true });
 console.log('\nEnd-to-end scaffold check passed.');

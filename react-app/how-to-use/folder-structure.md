@@ -1,15 +1,21 @@
 # Folder structure
 
-Scaffolded with create-netsuite-project {{cliVersion}} (`react-app` template). [README.md](../README.md) says what the application is for and who owns it; this folder says how to use the project. This file lays out the folders. Each part of the backend that has machinery of its own has a worked example beside it, one feature written end to end in the order it runs:
+Scaffolded with create-netsuite-project {{cliVersion}} (`react-app` template). [README.md](../README.md) says what the application is for and who owns it; this folder says how to use the project. This file lays out the folders.{{#if codeGeneration}} Each part of the backend that has machinery of its own has a worked example beside it, one feature written end to end in the order it runs:{{/if}}
+{{#if codeGeneration}}
 
+{{/if}}
+{{#if netsuiteRepository}}
 - [repositories/model-and-repository.md](repositories/model-and-repository.md): a record, from its model to the repository functions that read and write it
+{{/if}}
+{{#if netsuiteApi}}
 - [controllers/restlet-controller.md](controllers/restlet-controller.md): an API the frontend calls, from the controller to the page
 - [controllers/suitelet-controller.md](controllers/suitelet-controller.md): a Suitelet that runs as another role, called from the server and from the browser
 - [jobs/map-reduce-job.md](jobs/map-reduce-job.md): a Map/Reduce job, from the page that starts it to the result it leaves behind
+{{/if}}
 
-[naming.md](naming.md) says how types and functions are named in each layer. The examples build on one another in that order, all around sales orders, and the template repository compiles, lints and tests them before every release.
+[naming.md](naming.md) says how types and functions are named in each layer.{{#if netsuiteApi}} The examples build on one another in that order, all around sales orders, and the template repository compiles, lints and tests them before every release.{{/if}}{{#unless netsuiteApi}}{{#if netsuiteRepository}} The example is about sales orders, and the template repository compiles, lints and tests it before every release.{{/if}}{{/unless}}
 
-The application has two halves: a frontend (React, runs in the browser) in `client/`, and a backend (SuiteScript, runs in NetSuite) in `api/`. NetSuite serves the frontend from a Suitelet, and the frontend calls the backend scripts over HTTP. The two halves share no source: the frontend's whole view of the backend is generated from the backend's controllers by `npm run generate`.
+The application has two halves: a frontend (React, runs in the browser) in `client/`, and a backend (SuiteScript, runs in NetSuite) in `api/`. NetSuite serves the frontend from a Suitelet, and the frontend calls the backend scripts over HTTP. The two halves share no source{{#if netsuiteApi}}: the frontend's whole view of the backend is generated from the backend's controllers by `npm run generate`{{/if}}.
 
 ## Layout
 
@@ -18,15 +24,21 @@ Every entry links to its section.
 <pre>
 <a href="#api">api/</a>
   <a href="#srccontrollers">src/controllers/</a>
+{{#if netsuiteApi}}
   <a href="#srcjobs">src/jobs/</a>
+{{/if}}
   <a href="#srcevents">src/events/</a>
   <a href="#srcservices">src/services/</a>
   <a href="#srcrepositories">src/repositories/</a>
+{{#if netsuiteRepository}}
   <a href="#srcspecifications">src/specifications/</a>
   <a href="#srcmodels">src/models/</a>
+{{/if}}
   <a href="#srclib">src/lib/</a>
   <a href="#srctypes">src/types/</a>
+{{#if netsuiteApi}}
   <a href="#srcscriptsgents">src/scripts.gen.ts</a>
+{{/if}}
   <a href="#src_host">src/_host/</a>
   <a href="#__tests__">__tests__/</a>
   <a href="#netsuite-wrapperconfigjs">netsuite-wrapper.config.js</a>
@@ -34,7 +46,9 @@ Every entry links to its section.
   <a href="#srcroutes">src/routes/</a>
   <a href="#srcpages">src/pages/</a>
   <a href="#srchooks">src/hooks/</a>
+{{#if netsuiteApi}}
   <a href="#srcapi">src/api/</a>
+{{/if}}
   <a href="#srccomponents">src/components/</a>
   <a href="#srcstyles">src/styles/</a>
   <a href="#__tests__-1">__tests__/</a>
@@ -47,7 +61,9 @@ Every entry links to its section.
   <a href="#manifestxml-and-deployxml">deploy.xml</a>
 <a href="#how-to-use">how-to-use/</a>
 <a href="#netsuitets">netsuite.ts</a>
+{{#if netsuiteApi}}
 <a href="#netsuite-apiconfigjson">netsuite-api.config.json</a>
+{{/if}}
 <a href="#scripts">scripts/</a>
 <a href="#vscode">.vscode/</a>
 <a href="#claude">.claude/</a>
@@ -64,20 +80,25 @@ Every entry links to its section.
 
 The backend. Webpack bundles it into one JavaScript file per deployed script.
 
-`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. It writes `src/repositories/generated/` and `src/types/models.gen.ts` from the models, then reads the controllers and the jobs and writes `src/scripts.gen.ts` and the client's generated files. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
+{{#if codeGeneration}}
+`npm run generate` runs once, from the root, before every root command (dev, build, typecheck, test); nothing else triggers it. It {{#if netsuiteRepository}}writes `src/repositories/generated/` and `src/types/models.gen.ts` from the models{{/if}}{{#if bothNetsuitePackages}}, then {{/if}}{{#if netsuiteApi}}reads the controllers and the jobs and writes `src/scripts.gen.ts` and the client's generated files{{/if}}. A workspace script run directly (`npm run typecheck -w api`, `npm run build -w api`) assumes it has run.
 
-Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`, `employeeRolesSpecifications.ts`. Services and repositories are named after what they handle, not after a controller. `src/lib/` is not a layer, so its files are named for what they hold (`errors.ts`).
+{{/if}}
+Every folder is flat, and the file name carries the layer: `userController.ts`, `userService.ts`, `activeUserRepository.ts`{{#if netsuiteRepository}}, `employeeRolesSpecifications.ts`{{/if}}. Services and repositories are named after what they handle, not after a controller. `src/lib/` is not a layer, so its files are named for what they hold (`errors.ts`).
 
-There are four kinds of deployed script, one file each: a controller (an API the frontend calls), a job (background work), a user event (logic on a record being saved) and a client event (logic on a record page in the browser). A file becomes a script only when its leading JSDoc carries `@NScriptType`; everything else is bundled into the scripts that import it.
+There are {{#if netsuiteApi}}four{{/if}}{{#unless netsuiteApi}}three{{/unless}} kinds of deployed script, one file each: a controller (an API the frontend calls), {{#if netsuiteApi}}a job (background work), {{/if}}a user event (logic on a record being saved) and a client event (logic on a record page in the browser). A file becomes a script only when its leading JSDoc carries `@NScriptType`; everything else is bundled into the scripts that import it.
 
 ### src/controllers/
 
 One file per deployed script, `<name>Controller.ts`.
+{{#if netsuiteApi}}
 
 The file holds the request and response shapes, one function per endpoint, and the Restlet or Suitelet entry point that serves them. The entry point declares the script's id and deployment id (`defineEndpoints`, `defineRestlet`, `defineSuitelet` from `@amerilux/netsuite-api/server`).
 
 [controllers/restlet-controller.md](controllers/restlet-controller.md) adds one step by step; [controllers/suitelet-controller.md](controllers/suitelet-controller.md) covers a Suitelet that runs as another role, `authorize` and document downloads.
+{{/if}}
 
+{{#if netsuiteApi}}
 ### src/jobs/
 
 One folder per Map/Reduce script, and the folder is everything about that job. There is no `api/src/jobs` at all until `npm run add:jobs` has been run.
@@ -97,10 +118,11 @@ A job is background work: NetSuite runs it in stages, and it answers nothing to 
 
 Each stage is NetSuite's own entry point, in a file of its own name, built by the builder of that stage (`jobMap`, from the jobRunRepository `npm run add:jobs` writes), which handles the run and the JSON between the stages. The shapes the run carries are all in `contract.ts`, and every stage imports its types from there, so the chain reads in one place and two stages naming the same value name the one declaration. The job's ids are in `netsuite.ts`, under `jobs`, beside its SDF object.
 
-A job's folder is a service's peer: it calls services and repositories, and touches no `N/*` beyond the context types, no model, specification or controller. Nothing below it may import it; only a controller reaches in, for the `start<Name>` its `start.ts` declares.
+A job's folder is a service's peer: it calls services and repositories, and touches no `N/*` beyond the context types, no {{#if netsuiteRepository}}model, specification or {{/if}}controller. Nothing below it may import it; only a controller reaches in, for the `start<Name>` its `start.ts` declares.
 
 [jobs/map-reduce-job.md](jobs/map-reduce-job.md) writes one end to end.
 
+{{/if}}
 ### src/events/
 
 Logic that belongs to a NetSuite record rather than to this application. Two folders, one file per script, named for what it fires on (`salesOrder.ts`):
@@ -130,13 +152,13 @@ The decisions: plain arguments in (an id, a filter, the fields of a create), rep
 
 A page, a job, a document or a step is never a domain: a page's list, a job's steps and a document's request go in the service of the domain they are about, so a change to one rule opens one service. Transactions of different types are different domains; what they share at the data level (lines, links) is one repository, not a `transactionService`.
 
-A function that touches two records belongs to the domain of the record it creates or changes; a read belongs to the domain of the records it reads or lists. Creating a fulfillment from a sales order is `fulfillmentService`'s; a customer's credit is `customerService`'s, whichever page shows it ([controllers/suitelet-controller.md](controllers/suitelet-controller.md)).
+A function that touches two records belongs to the domain of the record it creates or changes; a read belongs to the domain of the records it reads or lists. Creating a fulfillment from a sales order is `fulfillmentService`'s; a customer's credit is `customerService`'s, whichever page shows it{{#if netsuiteApi}} ([controllers/suitelet-controller.md](controllers/suitelet-controller.md)){{/if}}.
 
 Services may import one another, in one direction only, following NetSuite's transaction flow: the later record's service imports the earlier one's (`fulfillmentService` imports `salesOrderService`, `invoiceService` imports `fulfillmentService`), never back. `npm run lint` fails on an import cycle. A service that others share sits below them and imports none of them. [src/lib/](#srclib) says where code that several parts share goes.
 
 A service grows as its domain does. Split it when two halves change for different reasons, not because the file is long; its tests may be one file per concern under `__tests__/services/<service>/`.
 
-Which role a function needs is its script's concern, not the service's. `userService.getRolesByEmployee` reads role assignments directly, so it works only in the `userRoles` Suitelet, whose deployment runs as Administrator; `userService.getActiveUserRoles` reads them through that Suitelet, so it works in any script. Say so in the function's comment.
+Which role a function needs is its script's concern, not the service's.{{#if userRolesExample}} `userService.getRolesByEmployee` reads role assignments directly, so it works only in the `userRoles` Suitelet, whose deployment runs as Administrator; `userService.getActiveUserRoles` reads them through that Suitelet, so it works in any script.{{/if}}{{#unless userRolesExample}} A function that reads a record the caller's role cannot read works only in a script whose deployment runs as another role.{{/unless}} Say so in the function's comment.
 
 **Several providers of one operation.** FedEx and UPS both create a shipping label. The controller asks one service for a label and the service decides which carrier makes it: the carrier is the domain, and each provider is a repository.
 
@@ -174,6 +196,7 @@ export function createLabel(salesOrderId: number): LabelOutcome {
 One file per record type or outside system, `<subject>Repository.ts`, never one per page or per service: a service reads from as many repositories as its domain spans.
 
 The only code that touches NetSuite: records, queries, the session, other scripts, outside systems. An outside system with several providers of one operation is one repository per provider, each exporting the same functions, with the shape they share in a repository file of its own ([src/services/](#srcservices), "Several providers of one operation").
+{{#if netsuiteRepository}}
 
 `generated/` is written by `npm run generate`. [repositories/model-and-repository.md](repositories/model-and-repository.md) walks from a model to its repository functions.
 
@@ -188,10 +211,11 @@ Reusable query filters, used by repositories.
 One class per NetSuite record type: its record type id and the field ids the app uses. A native record type is named through `NetsuiteRecordType` from `@amerilux/netsuite-repository` (`@RecordType(NetsuiteRecordType.SALES_ORDER)`), a custom record by its id (`@RecordType('customrecord_{{prefix}}_x')`). A model imports nothing from `N/*`: `npm run generate` evaluates it outside NetSuite.
 
 Written once, here; `npm run generate` reads them.
+{{/if}}
 
 ### src/lib/
 
-Plain helpers, one file per kind of value, named for what it holds: `errors.ts` (`describeErrorMessage`, the message of whatever was thrown). A file here knows nothing of NetSuite or of this application, so every layer may import it, and it imports nothing but other files in `lib/`: no `N/*`, no AmeriLux package, no `netsuite.ts`, no entity type. `npm run lint` fails on anything else. A function takes values and returns one, so its tests under `__tests__/lib/` call it with plain inputs and mock nothing.
+Plain helpers, one file per kind of value, named for what it holds: `errors.ts` (`describeErrorMessage`, the message of whatever was thrown). A file here knows nothing of NetSuite or of this application, so every layer may import it, and it imports nothing but other files in `lib/`: no `N/*`, no AmeriLux package, no `netsuite.ts`{{#if netsuiteRepository}}, no entity type{{/if}}. `npm run lint` fails on anything else. A function takes values and returns one, so its tests under `__tests__/lib/` call it with plain inputs and mock nothing.
 
 A domain's rules do not go here, even the ones that need no record: a partner's file layout, the earliest date a list may read, how a carton label is numbered. They stay in the service of their domain, so a change to one of them opens one service.
 
@@ -208,16 +232,20 @@ A service two others share imports neither of them. `npm run lint` fails on an i
 
 ### src/types/
 
-`models.gen.ts` is generated from the models: one entity type per model, what the controllers' shapes pick from.
+{{#if netsuiteRepository}}
+`models.gen.ts` is generated from the models: one entity type per model{{#if netsuiteApi}}, what the controllers' shapes pick from{{/if}}.
 
+{{/if}}
 `build.d.ts` declares the build-time constants.
 
+{{#if netsuiteApi}}
 ### src/scripts.gen.ts
 
 Generated from the declarations: `scripts` (every controller's script by controller name) and, once `npm run add:jobs` has run, `jobRuns` (the run record's ids, read from `netsuite-api.config.json`).
 
 A repository passes a `scripts` entry to `createSuiteletClient`, and `jobRuns` is what the run store is built from. A job's own ids are not here: they are in `netsuite.ts`, and a job's `start.ts` passes its entry to `startJobRun`.
 
+{{/if}}
 ### src/_host/
 
 The Suitelet that serves the frontend page, and its client script. Boilerplate: the underscore marks the folder you do not add to.
@@ -228,7 +256,12 @@ The client script (`host.ts`) runs in the browser, so it is compiled with the DO
 
 Unit tests for the backend.
 
+{{#if netsuiteApi}}
 The `N/*` modules resolve to the stubs `@amerilux/netsuite-api/testing` ships (see `vitest.config.mts`).
+{{/if}}
+{{#unless netsuiteApi}}
+`vitest.config.mts` has no stubs for `N/*`: a test that reaches a module importing `N/*` needs an alias of the project's own there.
+{{/unless}}
 
 ### netsuite-wrapper.config.js
 
@@ -260,7 +293,8 @@ A page calls hooks, never the API directly.
 
 ### src/hooks/
 
-Fetching and caching, one hook per endpoint. The only code that calls `src/api/index.gen.ts`.
+Fetching and caching, one hook per endpoint. The only code that calls {{#if netsuiteApi}}`src/api/index.gen.ts`{{/if}}{{#unless netsuiteApi}}the backend{{/unless}}.
+{{#if netsuiteApi}}
 
 `useApiErrors.ts` keeps the failures the generated clients report (`main.tsx` hands its `reportApiError` to `configureApiClient`), for the banner.
 
@@ -271,10 +305,11 @@ Generated by `npm run generate`, never edited, nothing else lives here.
 One `<name>.gen.ts` per controller: its request and response types, the entity types it names and, for a controller the browser calls, its client `api`: one function per endpoint, each calling the package's `callEndpoint` with the controller's script. One `<name>Job.gen.ts` per job: the type of the result its runs leave behind.
 
 `index.gen.ts` re-exports each under the controller's name: `user.api.roles()`, `user.RolesResponse`; and the jobs under `jobs`: `jobs.closeOldOrders.Result`.
+{{/if}}
 
 ### src/components/
 
-Shared UI pieces: the AppShell header and outlet, and the `ApiErrorBanner` that shows every reported API failure until it is dismissed.
+Shared UI pieces: the AppShell header and outlet{{#if netsuiteApi}}, and the `ApiErrorBanner` that shows every reported API failure until it is dismissed{{/if}}.
 
 ### src/styles/
 
@@ -288,7 +323,7 @@ Unit tests for hooks.
 
 Local development proxy: signs requests to your sandbox so `npm run dev` works without a NetSuite session.
 
-Limitation: it can only reach Restlets. NetSuite accepts an OAuth 2.0 token for Restlets and REST web services, not for Suitelets, so a Suitelet controller the browser calls (`browser` not `false`) works deployed but not under `npm run dev`. Test it in the account.
+Limitation: it can only reach Restlets. NetSuite accepts an OAuth 2.0 token for Restlets and REST web services, not for Suitelets, so a Suitelet controller the browser calls{{#if netsuiteApi}} (`browser` not `false`){{/if}} works deployed but not under `npm run dev`. Test it in the account.
 
 ### .env.example
 
@@ -300,7 +335,7 @@ The SDF project that suitecloud deploys.
 
 ### Objects/
 
-One XML file per script record and its deployments: every controller and job, and the run record once `npm run add:jobs` has run. Never an event.
+One XML file per script record and its deployments: every controller{{#if netsuiteApi}} and job, and the run record once `npm run add:jobs` has run{{/if}}. Never an event.
 
 ### FileCabinet/
 
@@ -314,50 +349,66 @@ The SDF manifest and what to deploy.
 
 ### how-to-use/
 
-This file, [naming.md](naming.md), and one folder of worked examples per part of the backend that has machinery of its own (`repositories/`, `controllers/`, `jobs/`). The examples are the full code of one feature, so they are the place to copy from; the snippets in `.vscode/` emit the same shapes one file at a time.
+This file{{#if codeGeneration}},{{/if}}{{#unless codeGeneration}} and{{/unless}} [naming.md](naming.md){{#if codeGeneration}}, and one folder of worked examples per part of the backend that has machinery of its own ({{#if netsuiteRepository}}`repositories/`{{/if}}{{#if bothNetsuitePackages}}, {{/if}}{{#if netsuiteApi}}`controllers/`, `jobs/`{{/if}}). The examples are the full code of one feature, so they are the place to copy from; the snippets in `.vscode/` emit the same shapes one file at a time{{/if}}.
 
 ### netsuite.ts
 
-The application's names (`app`), the ids of every job (`jobs`), and any id no controller or model owns: script parameters, saved searches, list values.
+The application's names (`app`){{#if netsuiteApi}}, the ids of every job (`jobs`),{{/if}} and {{#if codeGeneration}}any id no {{#if netsuiteApi}}controller{{/if}}{{#if bothNetsuitePackages}} or {{/if}}{{#if netsuiteRepository}}model{{/if}} owns{{/if}}{{#unless codeGeneration}}every NetSuite id outside the event files{{/unless}}: {{#unless netsuiteApi}}script and deployment ids, {{/unless}}{{#unless netsuiteRepository}}records, fields, {{/unless}}script parameters, saved searches, list values.
 
 Imported by both `api/` and `client/` (a page or component imports it by relative path), so it holds exported constants and types only, no imports.
 
+{{#if netsuiteApi}}
 ### netsuite-api.config.json
 
 Where `netsuite-api generate` reads the controllers and the jobs, and writes the generated files.
 
 The values are the defaults; the file is there to document them. A project with jobs also has a `jobRuns` block naming the run record it deployed (`npm run add:jobs` writes it): the record's id, what its field ids start with, and any field this application added to it.
 
+{{/if}}
 ### scripts/
 
-Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`, `checkStructure.mjs` (run by `npm run lint`) and `addJobs.mjs` (`npm run add:jobs`).
+Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`{{#if netsuiteApi}}, `checkStructure.mjs` (run by `npm run lint`) and `addJobs.mjs` (`npm run add:jobs`){{/if}}{{#unless netsuiteApi}} and `checkStructure.mjs` (run by `npm run lint`){{/unless}}.
 
 ### .vscode/
 
-`netsuite-project.code-snippets`: VS Code snippets that each write one whole file in the shape this project expects, with every option that file can take: a model with every decorator, a repository with every read and write, a controller with every kind of endpoint and `authorize`, a client event with every entry point. Keep what the file needs and delete the rest. In a new file type the prefix and accept the completion, then tab through the placeholders. Names and ids are derived from the file name wherever the layout fixes them.
+`netsuite-project.code-snippets`: VS Code snippets that each write one whole file in the shape this project expects, with every option that file can take: {{#if netsuiteRepository}}a model with every decorator, a repository with every read and write, {{/if}}{{#if netsuiteApi}}a controller with every kind of endpoint and `authorize`, {{/if}}a client event with every entry point. Keep what the file needs and delete the rest. In a new file type the prefix and accept the completion, then tab through the placeholders. Names and ids are derived from the file name wherever the layout fixes them.
 
 `settings.json`: puts snippets first in the suggest list and keeps the list closed while you tab through placeholders. An inline suggestion from an AI completion extension is a separate channel: press Escape to dismiss it, or Ctrl+Space to open the suggest list explicitly.
 
 | Prefix | File |
 |---|---|
+{{#if netsuiteApi}}
 | `nspControllerRestlet`, `nspControllerSuitelet` | `api/src/controllers/<name>Controller.ts`: a filtered list, `byId`, `create`, `update` and `remove`, a guard for what comes off the wire, `authorize`; the Suitelet adds a CSV download and `browser: false` to uncomment |
 | `nspJob` | `api/src/jobs/<name>/<name>.ts`: the file NetSuite loads, the header and all four stages it exports |
 | `nspJobGetInputData`, `nspJobMap`, `nspJobReduce`, `nspJobSummarize` | one stage file each, with the shapes on that stage's own boundary |
 | `nspJobStart` | `api/src/jobs/<name>/start.ts`: starts a run and answers the id a page follows |
+{{/if}}
 | `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript with every entry point of its kind |
+{{#if userRolesExample}}
 | `nspService` | `api/src/services/<domain>Service.ts`: `<Model>Summary` and the `build<Model>Summary` it maps with, a list, a single read, a create, an update, a removal and a permission check |
+{{/if}}
+{{#if netsuiteRepository}}
 | `nspRepository` | `api/src/repositories/<set>Repository.ts` over `dbContext`: every read the set offers, every write through `withTracking()`, several records saved at once |
+{{/if}}
+{{#if netsuiteApi}}
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
+{{/if}}
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
+{{#if netsuiteRepository}}
 | `nspSpecification` | `api/src/specifications/<set>Specifications.ts`: one builder per kind of condition, `include`, an order and a page |
 | `nspModel`, `nspModelBase` | `api/src/models/<Record>.ts`: a record with every decorator and option, commented, and a subrecord class and a sublist line class in the same file (a line usually moves to a file of its own); an abstract base a record class extends |
-| `nspTestController`, `nspTestService`, `nspTestRepository`, `nspTestRepositorySuitelet` | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below, one `describe` per function the matching snippet writes |
+{{/if}}
+{{#if codeGeneration}}
+| {{#if netsuiteApi}}`nspTestController`, {{/if}}{{#if userRolesExample}}`nspTestService`, {{/if}}{{#if netsuiteRepository}}`nspTestRepository`{{/if}}{{#if bothNetsuitePackages}}, {{/if}}{{#if netsuiteApi}}`nspTestRepositorySuitelet`{{/if}} | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below, one `describe` per function the matching snippet writes |
+{{/if}}
+{{#if netsuiteApi}}
 | `nspTestHook` | `client/__tests__/<controller>Query.test.ts` |
 | `nspHookQuery`, `nspHookMutation` | `client/src/hooks/use<Name>.ts`: a query with its key and options (drop the argument for an endpoint without a request), a mutation |
-| `nspPage`, `nspRoute` (TSX) | `client/src/pages/<Name>Page.tsx`, `client/src/routes/<segment>.tsx` |
-| `nspObjectRestlet`, `nspObjectSuitelet`, `nspObjectMapReduce` (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`; the Map/Reduce one carries the job's run parameter and its deployment |
+{{/if}}
+| {{#if netsuiteApi}}`nspPage`, {{/if}}`nspRoute` (TSX) | {{#if netsuiteApi}}`client/src/pages/<Name>Page.tsx`, {{/if}}`client/src/routes/<segment>.tsx` |
+| `nspObjectRestlet`, `nspObjectSuitelet`{{#if netsuiteApi}}, `nspObjectMapReduce`{{/if}} (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`{{#if netsuiteApi}}; the Map/Reduce one carries the job's run parameter and its deployment{{/if}} |
 
-A prefix is `nsp`, the folder the file belongs in, then what the snippet emits. No snippet adds lines to a file that exists already: a job's ids go in `netsuite.ts` by hand, as [jobs/map-reduce-job.md](jobs/map-reduce-job.md) shows. The names that used to be shorter still work as aliases (`nspRepo`, `nspSpec`, `nspHook`, `nspHookWith`, `nspMutation`, `nspSdfRestlet`). A file snippet's description ends with the snippet that comes next in the recipe, so a chain can be followed from the suggest list. The template repository checks every snippet before a release: expanded together into a fresh scaffold with nothing deleted, the set must generate, typecheck and pass the structure check.
+A prefix is `nsp`, the folder the file belongs in, then what the snippet emits. No snippet adds lines to a file that exists already{{#if netsuiteApi}}: a job's ids go in `netsuite.ts` by hand, as [jobs/map-reduce-job.md](jobs/map-reduce-job.md) shows{{/if}}. The names that used to be shorter still work as aliases ({{#if netsuiteRepository}}`nspRepo`, `nspSpec`, {{/if}}{{#if netsuiteApi}}`nspHook`, `nspHookWith`, `nspMutation`, {{/if}}`nspSdfRestlet`). A file snippet's description ends with the snippet that comes next in the recipe, so a chain can be followed from the suggest list. The template repository checks every snippet before a release: expanded together into a fresh scaffold with nothing deleted, the set must {{#if codeGeneration}}generate, {{/if}}typecheck and pass the structure check.
 
 ### .claude/
 
@@ -387,7 +438,7 @@ Agent guardrails, hooked up in `.claude/settings.json`.
 {{/if}}
 ### package.json
 
-Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, generate, typecheck, lint, test, build, deploy, add:jobs, update:amerilux).
+Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, {{#if codeGeneration}}generate, {{/if}}typecheck, lint, test, build, deploy, {{#if netsuiteApi}}add:jobs, {{/if}}update:amerilux).
 
 ### node_modules/
 
@@ -395,6 +446,6 @@ The only install. npm workspaces hoist every workspace's packages here, so one `
 
 Add a package to the workspace that uses it: `npm install -w api <package>`. `npm run lint` fails when a workspace imports a package its own `package.json` does not declare.
 
-Updating packages: `npm update` at the root moves every workspace to the newest version inside its range. The AmeriLux packages (`@amerilux/netsuite-api`, `@amerilux/netsuite-repository`, `@amerilux/netsuite-wrapper`) are still 0.x, so a caret range only floats across patch releases and a new minor is outside it; `npm run update:amerilux` installs the latest of all three into the workspaces that use them and rewrites the pins. A package used by both workspaces (`@amerilux/netsuite-api`) must carry the same range in both `package.json` files, or npm installs two copies.
+Updating packages: `npm update` at the root moves every workspace to the newest version inside its range. {{#if codeGeneration}}The AmeriLux packages ({{#if netsuiteApi}}`@amerilux/netsuite-api`, {{/if}}{{#if netsuiteRepository}}`@amerilux/netsuite-repository`, {{/if}}`@amerilux/netsuite-wrapper`) are{{/if}}{{#unless codeGeneration}}The AmeriLux package `@amerilux/netsuite-wrapper` is{{/unless}} still 0.x, so a caret range only floats across patch releases and a new minor is outside it; `npm run update:amerilux` installs the latest {{#if codeGeneration}}of {{#if bothNetsuitePackages}}all three{{/if}}{{#unless bothNetsuitePackages}}both{{/unless}} into the workspaces that use them{{/if}}{{#unless codeGeneration}}into the workspaces that use it{{/unless}} and rewrites the pins.{{#if netsuiteApi}} A package used by both workspaces (`@amerilux/netsuite-api`) must carry the same range in both `package.json` files, or npm installs two copies.{{/if}}
 
 If `npm install` fails with `ETARGET` (`No matching version found`), a pin names a version the registry does not have; nothing was installed. Fix the pin, then run `npm install` again from the root. Do not install into one workspace by hand: that leaves the other workspace and the lockfile behind.

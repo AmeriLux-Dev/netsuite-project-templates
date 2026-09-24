@@ -8,7 +8,12 @@ import type { EntryPoints } from 'N/types';
 import * as log from 'N/log';
 import * as serverWidget from 'N/ui/serverWidget';
 import { app } from '../../../netsuite';
+{{#if netsuiteApi}}
 import { getFileUrlByName } from '@amerilux/netsuite-api/server';
+{{/if}}
+{{#unless netsuiteApi}}
+import { getFileUrlByName } from './fileCabinet';
+{{/unless}}
 import { describeErrorMessage } from '../lib/errors';
 
 /**

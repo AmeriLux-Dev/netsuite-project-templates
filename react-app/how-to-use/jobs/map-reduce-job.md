@@ -2,9 +2,13 @@
 
 One job, `closeOldOrders`: a page asks for every sales order older than N days to be closed, the work is split one
 order per map stage, the outcomes are tallied per sales rep in a reduce stage, and the page follows the run until
-it ends and reads the tally. It reads and writes through the repository functions of
-[repositories/model-and-repository.md](../repositories/model-and-repository.md), and is started from the controller
+it ends and reads the tally. {{#if netsuiteRepository}}It reads and writes through the repository functions of
+[repositories/model-and-repository.md](../repositories/model-and-repository.md), and is started{{/if}}{{#unless netsuiteRepository}}It is started{{/unless}} from the controller
 of [controllers/restlet-controller.md](../controllers/restlet-controller.md).
+{{#unless netsuiteRepository}}
+The `salesOrdersRepository` functions its service calls are not part of this project: they are the developer's to
+write.
+{{/unless}}
 
 A job is background work: NetSuite runs it in stages, and it answers nothing to whoever started it. What stands in
 for an answer is a **run**, a row in this application's own run record. Starting a job writes the run and hands back
@@ -401,7 +405,7 @@ reduce expecting another would be two statements about a value neither file shar
 there is one `CloseOutcome` for both to import, so they cannot drift apart, and the whole chain reads in one place.
 
 A job's folder is a service's peer: its stages call services and repositories, and touch no `N/*` beyond the
-context types, no model, specification or controller. Nothing below a job may import it; only a controller reaches
+context types, no {{#if netsuiteRepository}}model, specification or {{/if}}controller. Nothing below a job may import it; only a controller reaches
 in, for the `start<Name>` its `start.ts` declares. `npm run lint` says so otherwise.
 
 ## The variations

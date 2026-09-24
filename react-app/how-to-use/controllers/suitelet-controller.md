@@ -10,10 +10,14 @@ Two things only a Suitelet can do, on the orders page of [restlet-controller.md]
 - **Answer with a document.** The `orderExports` Suitelet answers a customer's orders as a CSV file the browser
   downloads. A Restlet can only answer JSON.
 
-It reads through the repository functions of [repositories/model-and-repository.md](../repositories/model-and-repository.md)
-and adds an endpoint to the orders controller of [restlet-controller.md](restlet-controller.md). A customer's credit
+{{#if netsuiteRepository}}It reads through the repository functions of [repositories/model-and-repository.md](../repositories/model-and-repository.md)
+and adds{{/if}}{{#unless netsuiteRepository}}It adds{{/unless}} an endpoint to the orders controller of [restlet-controller.md](restlet-controller.md). A customer's credit
 is the Customer record's, so its decisions go in a `customerService`, not in the sales order's: the orders controller
 calls it as it would any service.
+{{#unless netsuiteRepository}}
+The `customersRepository.findCustomer` the service calls, and the `activeUserRepository.readActiveUser` that says who
+is calling, are not part of this project: they are the developer's to write.
+{{/unless}}
 
 ## Steps
 
@@ -42,6 +46,7 @@ because they are not TypeScript:
   to a `Blob`, because its handler answers `RawResponse`.
 
 ```typescript
+{{#if netsuiteRepository}}
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // api/src/models/Customer.ts                               the record the Suitelet reads as Administrator
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -84,6 +89,7 @@ export function findCustomer(customerId: number): Customer | null {
     return dbContext.customers.find(customerId);
 }
 
+{{/if}}
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // api/src/services/customerService.ts                      the Customer's domain: where it stands on credit,
 //                                                          and who may see it
@@ -449,5 +455,7 @@ sequenceDiagram
   OAuth 2.0 token, and NetSuite accepts one for Restlets, not for Suitelets. Try it in the account.
 - **A Suitelet that runs as the caller** needs no `authorize` beyond what any controller needs: delete the
   `<runasrole>` line from its deployment, as `orderExports` does, and NetSuite's own permissions apply.
+{{#if userRolesExample}}
 - **The shipped reference** is the `userRoles` Suitelet (`browser: false`, running as Administrator) and the
   `userRolesRepository.ts` that the `user` Restlet reaches it through.
+{{/if}}

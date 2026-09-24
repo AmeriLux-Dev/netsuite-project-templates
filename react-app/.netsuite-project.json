@@ -6,6 +6,8 @@
   "cliVersion": "{{cliVersion}}",
   "features": {
     "performanceTracker": {{performanceTrackerJson}},
-    "probity": {{probityJson}}
+    "probity": {{probityJson}},
+    "netsuiteApi": {{netsuiteApiJson}},
+    "netsuiteRepository": {{netsuiteRepositoryJson}}
   }
 }

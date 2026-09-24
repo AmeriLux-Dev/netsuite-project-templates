@@ -107,8 +107,8 @@ export default defineConfig({
 
         /* Generated and account-specific files are never written by an agent */
         {
-            files: ['netsuite/FileCabinet/**', 'api/src/repositories/generated/**', 'api/src/types/models.gen.ts', 'api/src/scripts.gen.ts', 'client/src/api/**', 'client/src/routeTree.gen.ts'],
-            rules: [forbidAnyWrite('Generated output. Change the source (models, controllers, routes, bundles) and run npm run generate or npm run build instead.')],
+            files: ['netsuite/FileCabinet/**', {{#if netsuiteRepository}}'api/src/repositories/generated/**', 'api/src/types/models.gen.ts', {{/if}}{{#if netsuiteApi}}'api/src/scripts.gen.ts', 'client/src/api/**', {{/if}}'client/src/routeTree.gen.ts'],
+            rules: [forbidAnyWrite('Generated output. Change the source ({{#if netsuiteRepository}}models, {{/if}}{{#if netsuiteApi}}controllers, {{/if}}routes, bundles) and run {{#if codeGeneration}}npm run generate or {{/if}}npm run build instead.')],
         },
         {
             files: ['project.json', 'client/.env', '**/*.pem', '**/*.p12', '**/*.key', '**/*.pfx'],
@@ -137,12 +137,17 @@ export default defineConfig({
             ],
         },
         {
+{{#if bothNetsuitePackages}}
             // A model declares its record and field ids and a controller its script ids; nowhere else writes one.
-            files: ['api/src/services/**', 'api/src/lib/**', 'api/src/repositories/**', 'api/src/specifications/**', 'api/src/_host/**', 'client/src/**'],
+{{/if}}
+{{#unless bothNetsuitePackages}}
+            // NetSuite ids are declared {{#if netsuiteRepository}}on their models and {{/if}}{{#if netsuiteApi}}in their controllers and {{/if}}in netsuite.ts; nowhere else writes one.
+{{/unless}}
+            files: [{{#unless netsuiteApi}}'api/src/controllers/**', {{/unless}}'api/src/services/**', 'api/src/lib/**', 'api/src/repositories/**', {{#if netsuiteRepository}}'api/src/specifications/**', {{/if}}'api/src/_host/**', 'client/src/**'],
             rules: [
                 forbidContentPattern({
                     match: /['"`](customscript|customdeploy|customrecord|customlist|custentity|custbody|custitem|custrecord)_[a-z0-9_]+['"`]/,
-                    reason: 'NetSuite identifiers are declared on the model that owns them (api/src/models), in the controller that declares the script, or in netsuite.ts; import them from there.',
+                    reason: 'NetSuite identifiers are declared {{#if netsuiteRepository}}on the model that owns them (api/src/models), {{/if}}{{#if netsuiteApi}}in the controller that declares the script, {{/if}}{{#if codeGeneration}}or {{/if}}in netsuite.ts; import them from there.',
                 }),
             ],
         },
@@ -158,8 +163,8 @@ export default defineConfig({
 
 - Behaviour change (new or changed outputs, validation, side-effects, error handling): write or extend a test in the matching __tests__/ folder, see it fail, then implement the minimum.
 - Refactor with unchanged behaviour, configuration, documentation, generated files and .gitignore changes need no new test.
-- Test observable behaviour through the public surface: inputs to outputs, calls made to the record sets or the typed api client, envelope status and error. Never assert on DOM structure, CSS classes or internal state.
-- Repository functions use the generated dbContext; tests mock it with a fake whose sets record the specifications applied to them. Service tests mock the repository module. A lib function is called with plain values; nothing is mocked.
+- Test observable behaviour through the public surface: {{#if codeGeneration}}inputs to outputs, calls made to {{#if netsuiteRepository}}the record sets{{#if netsuiteApi}} or {{/if}}{{/if}}{{#if netsuiteApi}}the typed api client, envelope status and error{{/if}}{{/if}}{{#unless codeGeneration}}inputs to outputs and the calls made to the layer below{{/unless}}. Never assert on DOM structure, CSS classes or internal state.
+- {{#if netsuiteRepository}}Repository functions use the generated dbContext; tests mock it with a fake whose sets record the specifications applied to them. {{/if}}Service tests mock the repository module. A lib function is called with plain values; nothing is mocked.
 - Prefer extending an existing test file over a duplicate; prefer the lowest level that proves the behaviour.
 
 ### Refactor or behaviour: how to decide
@@ -168,7 +173,7 @@ Most writes here land on existing code, so decide by this procedure, in order:
 
 1. Would any existing assertion under __tests__/ have to change for the pending write to be correct, or does the write need an assertion that does not exist yet? If yes, it is a behaviour change: the red comes first. If no, and the affected tests have been observed passing in this session, it is a refactor.
 2. Refactors in this codebase look like: a check moving between layers with its test moving alongside (a wire check leaving a service for its controller); a service or repository function split into two with the same outputs; a DTO field renamed across the controller and the client; a repository function extracted from a query that already exists elsewhere; a hook's query options lifted out for reuse.
-3. Behaviour changes look like: a new endpoint; a new field on a response or a request; a new branch, default, sort order or validation in a service; a new specification predicate; a changed error status or message; a new call to the record sets or to another script.
+3. Behaviour changes look like: a new endpoint; a new field on a response or a request; a new branch, default, sort order or validation in a service; {{#if netsuiteRepository}}a new specification predicate; {{/if}}a changed error status or message; a new call to the record sets or to another script.
 4. Existing behaviour being changed on purpose: the assertion changes first and is seen failing, then the code. Existing code with no test being refactored: a pinning test that passes as things stand comes first, then the refactor under it.
 5. A refactor is only a refactor while its tests were seen green in the recent session. A test run is the evidence; prose about intent is not. If the window shows neither a red nor a green for the files touched, ask for the tests to be run rather than guessing from the diff.`,
                 }),

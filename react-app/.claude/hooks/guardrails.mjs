@@ -19,7 +19,7 @@ const commandRules = [
     { match: /npm\s+run\s+deploy\b|suitecloud\s+(project:deploy|file:upload)\b/, decision: 'ask', reason: 'Deploying reaches a NetSuite account: only when the person asked for it, and after npm test.' },
 ];
 
-const generatedPaths = ['netsuite/FileCabinet/', 'api/src/repositories/generated/', 'api/src/types/models.gen.ts', 'api/src/scripts.gen.ts', 'client/src/api/', 'client/src/routeTree.gen.ts'];
+const generatedPaths = ['netsuite/FileCabinet/', {{#if netsuiteRepository}}'api/src/repositories/generated/', 'api/src/types/models.gen.ts', {{/if}}{{#if netsuiteApi}}'api/src/scripts.gen.ts', 'client/src/api/', {{/if}}'client/src/routeTree.gen.ts'];
 const secretPaths = ['project.json', 'client/.env'];
 const secretExtensions = /\.(pem|p12|key|pfx)$/;
 const colocatedTest = /^(api|client)\/src\/.*\.(test|spec)\.[cm]?[jt]sx?$/;
@@ -50,7 +50,7 @@ function checkWrite(toolInput) {
     const relativePath = path.relative(projectRoot, path.resolve(projectRoot, writtenPath)).split(path.sep).join('/');
     if (relativePath.startsWith('../')) return;
     if (generatedPaths.some((generatedPath) => relativePath === generatedPath || relativePath.startsWith(generatedPath))) {
-        answer('deny', 'Generated output. Change the source (models, controllers, jobs, routes) and run npm run generate or npm run build instead.');
+        answer('deny', 'Generated output. Change the source ({{#if netsuiteRepository}}models, {{/if}}{{#if netsuiteApi}}controllers, jobs, {{/if}}routes) and run {{#if codeGeneration}}npm run generate or {{/if}}npm run build instead.');
     }
     if (secretPaths.includes(relativePath) || secretExtensions.test(relativePath)) {
         answer('deny', 'Account selection and secrets are entered by a person, never written by the agent. Update client/.env.example if a new variable is needed.');

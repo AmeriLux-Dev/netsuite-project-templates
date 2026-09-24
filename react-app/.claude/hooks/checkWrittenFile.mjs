@@ -41,6 +41,7 @@ function checkRepositoryNamespaceImports(typescript, sourceFile, report) {
     }
 }
 
+{{#if netsuiteRepository}}
 /** A model is evaluated by `npm run generate` outside NetSuite, and a specification is query vocabulary: neither touches N/*. */
 function checkNoNetsuiteModules(typescript, sourceFile, report) {
     for (const statement of sourceFile.statements) {
@@ -50,6 +51,7 @@ function checkNoNetsuiteModules(typescript, sourceFile, report) {
     }
 }
 
+{{/if}}
 /** Every test runs. */
 function checkNoFocusedOrSkippedTests(typescript, sourceFile, report) {
     visitNodes(typescript, sourceFile, (node) => {
@@ -63,7 +65,9 @@ function checkNoFocusedOrSkippedTests(typescript, sourceFile, report) {
 const agentStandards = [
     { folders: ['api/src/controllers/'], check: checkFieldByFieldWire },
     { folders: ['api/src/services/'], check: checkRepositoryNamespaceImports },
+{{#if netsuiteRepository}}
     { folders: ['api/src/models/', 'api/src/specifications/'], check: checkNoNetsuiteModules },
+{{/if}}
     { folders: ['api/__tests__/', 'client/__tests__/'], check: checkNoFocusedOrSkippedTests },
 ];
 

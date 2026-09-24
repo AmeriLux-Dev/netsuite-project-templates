@@ -5,12 +5,28 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+{{#if bothNetsuitePackages}}
 // Id standards: a record's type and field ids are declared on its model (api/src/models); a script's ids in its
 // controller's script declaration; ids no model or controller owns live in netsuite.ts. A NetSuite id written
 // anywhere else is a string id scattered through a script. custpage_ ids are form-local field names on a Suitelet
 // form, not account objects, so they are not checked.
+{{/if}}
+{{#unless bothNetsuitePackages}}
+{{#if netsuiteApi}}
+// Id standards: a script's ids are declared in its controller's script declaration; every other id lives in netsuite.ts.
+{{/if}}
+{{#if netsuiteRepository}}
+// Id standards: a record's type and field ids are declared on its model (api/src/models); every other id lives in
+// netsuite.ts.
+{{/if}}
+{{#unless codeGeneration}}
+// Id standards: every NetSuite id lives in netsuite.ts.
+{{/unless}}
+// A NetSuite id written anywhere else is a string id scattered through a script. custpage_ ids are form-local field
+// names on a Suitelet form, not account objects, so they are not checked.
+{{/unless}}
 const netsuiteIdPattern = '/^(custbody|custcol|custrecord|custentity|custitem|custevent|custform|custlist|custsublist|customscript|customdeploy|customsearch)_/i';
-const netsuiteIdMessage = 'NetSuite ids live on the model that owns them (api/src/models), in the controller that declares the script, or in netsuite.ts. Import the constant.';
+const netsuiteIdMessage = 'NetSuite ids live {{#if netsuiteRepository}}on the model that owns them (api/src/models), {{/if}}{{#if netsuiteApi}}in the controller that declares the script, {{/if}}{{#if codeGeneration}}or {{/if}}in netsuite.ts. Import the constant.';
 const netsuiteIdOutsideNetsuiteTs = [
     { selector: `Literal[value=${netsuiteIdPattern}]`, message: netsuiteIdMessage },
     { selector: `TemplateElement[value.raw=${netsuiteIdPattern}]`, message: netsuiteIdMessage },
@@ -31,14 +47,28 @@ const logEntryShape = [
 // Alerting strategy: no script sends its own alert. Rules over the span stream do, and recipients come from the README owners.
 // Business email (a PO to a vendor) is an outbound side effect like any other N/* call: a repository function sends it.
 const alertingImports = [{ group: ['N/email'], message: 'No script sends its own alert; alert rules read the span stream. Business email is sent from a repository function.' }];
+{{#if netsuiteRepository}}
 // Dependency governance: the shared package is imported by the data-access layers only (models, specifications, repositories).
 const sharedPackageImports = [{ group: ['@amerilux/netsuite-repository', '@amerilux/netsuite-repository/*'], message: 'Only api/src/models, api/src/specifications and api/src/repositories import the shared repository package.' }];
-// An endpoint never queries, a service never loads a record, and neither creates the context or reaches any other
+{{/if}}
+// An endpoint never queries, a service never loads a record, and neither {{#if netsuiteRepository}}creates the context or {{/if}}reaches any other
 // NetSuite module: a repository function does.
 const recordAccessImports = [
     { group: ['N/*'], message: 'Endpoints parse and reply, services decide. Only a repository touches NetSuite (N/*).' },
+{{#if netsuiteRepository}}
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+{{/if}}
 ];
+{{#unless netsuiteApi}}
+// A controller is a Restlet or Suitelet entry point: `N/types` stays available as types, because NetSuite hands it a
+// context typed by them. Everything else in NetSuite it reaches through a service and a repository.
+const controllerRecordAccessImports = [
+    { group: ['N/*', '!N/types'], allowTypeImports: true, message: 'Endpoints parse and reply, services decide. Only a repository touches NetSuite (N/*).' },
+{{#if netsuiteRepository}}
+    { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+{{/if}}
+];
+{{/unless}}
 // lib/ is plain TypeScript every layer may import, so it knows nothing of NetSuite or of this application: code that
 // needs a record is a service, placed below the services that share it, and code that needs a NetSuite module is a
 // repository. The zone in the layers block keeps it off this application's own files.
@@ -46,16 +76,20 @@ const libImports = [
     { group: ['N/*'], message: 'lib/ never touches NetSuite. Code that needs a record is a service calling a repository; code that needs a NetSuite module is a repository.' },
     { group: ['@amerilux/*'], message: 'lib/ is plain TypeScript any layer can call; the AmeriLux packages belong to the layers that use them.' },
 ];
+{{#if netsuiteApi}}
 // A job's folder decides and calls a repository, as a service does; its stages are handed what NetSuite gave them.
 // `N/types` stays available as types, because a stage is a Map/Reduce entry point and its context is typed by them.
 const jobRecordAccessImports = [
     { group: ['N/*', '!N/types'], allowTypeImports: true, message: 'A job decides and calls a repository; only a repository touches NetSuite (N/*).' },
+{{#if netsuiteRepository}}
     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+{{/if}}
 ];
+{{/if}}
 // A client event runs in the browser, on a NetSuite record page rather than in this app: it calls N/* itself,
 // logs with console, and is not wrapped for telemetry. Its only rule is that it belongs to no layer of this app.
 const appLayerImportsInClientEvents = [
-    { group: ['**/services/**', '**/repositories/**', '**/specifications/**', '**/controllers/**', '**/jobs/**'], message: 'A client event is self-contained: it runs on a record page, not in this application. Call N/* directly.' },
+    { group: ['**/services/**', '**/repositories/**', {{#if netsuiteRepository}}'**/specifications/**', {{/if}}'**/controllers/**'{{#if netsuiteApi}}, '**/jobs/**'{{/if}}], message: 'A client event is self-contained: it runs on a record page, not in this application. Call N/* directly.' },
 ];
 // A service never sees a controller. Its inputs are plain arguments and its outputs are types it declares; the
 // controller imports those types to build its wire shapes and maps between the two. The dependency runs one way,
@@ -73,12 +107,19 @@ const serviceFunctionNames = [
     { selector: `Program > ExportNamedDeclaration > FunctionDeclaration[id.name!=${serviceFunctionName}]`, message: serviceFunctionMessage },
     { selector: `Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type=/^(ArrowFunctionExpression|FunctionExpression)$/][id.name!=${serviceFunctionName}]`, message: serviceFunctionMessage },
 ];
+{{#if netsuiteApi}}
 // A repository that calls another script of this application builds its client from that controller's Endpoints
 // type, as a type only: a repository that imported a controller's value would be pulling a deployed script into itself.
+{{/if}}
+{{#unless netsuiteApi}}
+// A repository that calls another script of this application may take that controller's types, as types only: a
+// repository that imported a controller's value would be pulling a deployed script into itself.
+{{/unless}}
 const wireShapeImports = [
     { group: ['**/controllers/**', '!**/controllers/*Controller'], message: 'Below a controller, only controllers/<name>Controller.ts is visible, and only its types.' },
-    { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'A controller file is seen below only as types (import type: its Endpoints type, for a Suitelet client); nothing below a controller imports its code.' },
+    { group: ['**/controllers/*Controller'], allowTypeImports: true, message: 'A controller file is seen below only as types ({{#if netsuiteApi}}import type: its Endpoints type, for a Suitelet client{{/if}}{{#unless netsuiteApi}}import type{{/unless}}); nothing below a controller imports its code.' },
 ];
+{{#if netsuiteApi}}
 // The api package has one entry per side: api/ imports its server entry, client/ its client entry. The client never
 // imports from api/: `npm run generate` writes one module per controller (its types and its client) under
 // client/src/api/, re-exported by index.gen.ts; a hook imports @/api/index.gen. Both sides import netsuite.ts directly.
@@ -94,6 +135,14 @@ const apiPackageClientSide = [
     { group: ['@amerilux/netsuite-api/server', '@amerilux/netsuite-api/testing'], message: 'client/ imports @amerilux/netsuite-api/client. The server entry runs in NetSuite.' },
     { group: ['api/**'], message: 'The client never imports from api/. Its types and clients are in the generated @/api/index.gen.' },
 ];
+{{/if}}
+{{#unless netsuiteApi}}
+// The client never imports from api/: api/ is SuiteScript bundled for NetSuite, the client a bundle for the browser, and
+// they meet over HTTP. Both sides import netsuite.ts directly.
+const apiImportsInClient = [
+    { group: ['api/**'], message: 'The client never imports from api/: the two are separate bundles, one run by NetSuite and one by the browser.' },
+];
+{{/unless}}
 // netsuite.ts is the one file both api/ and client/ import, so it holds only what SuiteScript and the browser bundle alike: exported constants and types.
 const appFileShape = [
     { selector: 'ImportDeclaration', message: 'netsuite.ts imports nothing; both api/ and client/ import it, so it holds only what either side can bundle.' },
@@ -109,10 +158,14 @@ export default defineConfig([
     globalIgnores([
         '**/node_modules/**',
         'netsuite/FileCabinet/**',
+{{#if netsuiteRepository}}
         'api/src/repositories/generated/**',
         'api/src/types/models.gen.ts',
+{{/if}}
+{{#if netsuiteApi}}
         'api/src/scripts.gen.ts',
         'client/src/api/**',
+{{/if}}
         'client/src/routeTree.gen.ts',
         '**/dist/**',
         '**/coverage/**',
@@ -147,7 +200,7 @@ export default defineConfig([
         // Tests need literal ids to stand in for real ones; the structure check names the id prefixes it verifies, and
         // the job setup script writes the run record's own. (A model, a controller and a job declare ids too: see their
         // blocks, which come after the api/src block because the later block wins.)
-        files: ['**/__tests__/**', 'scripts/checkStructure.mjs', 'scripts/addJobs.mjs'],
+        files: ['**/__tests__/**', 'scripts/checkStructure.mjs'{{#if netsuiteApi}}, 'scripts/addJobs.mjs'{{/if}}],
         rules: { 'no-restricted-syntax': 'off' },
     },
     {
@@ -160,33 +213,52 @@ export default defineConfig([
         rules: { '@typescript-eslint/no-require-imports': 'off' },
     },
     {
+{{#if bothNetsuitePackages}}
         // Layers. Endpoint calls service, service calls repository, repository composes specifications over the generated
         // sets. Client pages and routes call hooks, hooks call the generated client module. The client's whole view of
         // the api is that generated module; pages and components may take its types (the rule for that is in the
         // client block below, because this rule cannot tell a type import apart).
+{{/if}}
+{{#unless bothNetsuitePackages}}
+        // Layers. Endpoint calls service, service calls repository{{#if netsuiteRepository}}, repository composes specifications over the generated sets{{/if}}.
+        // Client pages and routes call hooks{{#if netsuiteApi}}, hooks call the generated client module. The client's whole view of the api is that
+        // generated module; pages and components may take its types (the rule for that is in the client block below,
+        // because this rule cannot tell a type import apart){{/if}}.
+{{/unless}}
         files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}'],
         rules: {
             'import-x/no-restricted-paths': ['error', {
                 zones: [
-                    { target: './api/src/controllers', from: ['./api/src/repositories', './api/src/specifications', './api/src/models'], message: 'An endpoint never queries. Call a service.' },
+                    { target: './api/src/controllers', from: ['./api/src/repositories'{{#if netsuiteRepository}}, './api/src/specifications', './api/src/models'{{/if}}], message: 'An endpoint never queries. Call a service.' },
+{{#if bothNetsuitePackages}}
                     { target: './api/src/jobs', from: ['./api/src/specifications', './api/src/models'], message: 'A job decides and calls a repository, as a service does; it knows nothing about records or queries.' },
+{{/if}}
+{{#if netsuiteRepository}}
                     { target: './api/src/services', from: ['./api/src/specifications', './api/src/models'], message: 'A service decides; the repository queries.' },
+{{/if}}
                     { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
+{{#if netsuiteRepository}}
                     { target: './api/src/specifications', from: ['./api/src/services', './api/src/controllers'], message: 'A specification is query vocabulary; it knows nothing above the repository.' },
                     { target: './api/src/specifications', from: './api/src/repositories', except: ['./generated'], message: 'A specification uses the generated fields, never a repository function.' },
-                    { target: './api/src/models', from: ['./api/src/types', './api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', './api/src/jobs', './api/src/events'], message: 'A model declares a record; it knows nothing about the wire or the layers above it.' },
+                    { target: './api/src/models', from: ['./api/src/types', './api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications', {{#if netsuiteApi}}'./api/src/jobs', {{/if}}'./api/src/events'], message: 'A model declares a record; it knows nothing about the wire or the layers above it.' },
+{{/if}}
+{{#if netsuiteApi}}
                     // A job owns the shapes on either end of its runs, so it sits above a service and nothing below may name it;
                     // a controller is the exception, calling the start<Name> its folder declares. An event NetSuite calls alone,
                     // and a client event belongs to no layer at all.
-                    { target: ['./api/src/services', './api/src/repositories', './api/src/specifications'], from: './api/src/jobs', message: "A job is above a service: the shapes on either end of a run are the job's own, and only a controller reaches into a job's folder, for its start." },
-                    { target: ['./api/src/controllers', './api/src/services', './api/src/repositories', './api/src/specifications'], from: './api/src/events', message: 'An event is an entry point: NetSuite calls it, this application does not.' },
-                    { target: './api/src/events/client', from: ['./api/src/events/user', './api/src/jobs'], message: 'A client event is self-contained; nothing of the server side belongs in a page script.' },
+                    { target: ['./api/src/services', './api/src/repositories'{{#if netsuiteRepository}}, './api/src/specifications'{{/if}}], from: './api/src/jobs', message: "A job is above a service: the shapes on either end of a run are the job's own, and only a controller reaches into a job's folder, for its start." },
+{{/if}}
+{{#unless netsuiteApi}}
+                    // An event NetSuite calls alone, and a client event belongs to no layer at all.
+{{/unless}}
+                    { target: ['./api/src/controllers', './api/src/services', './api/src/repositories'{{#if netsuiteRepository}}, './api/src/specifications'{{/if}}], from: './api/src/events', message: 'An event is an entry point: NetSuite calls it, this application does not.' },
+                    { target: './api/src/events/client', from: ['./api/src/events/user'{{#if netsuiteApi}}, './api/src/jobs'{{/if}}], message: 'A client event is self-contained; nothing of the server side belongs in a page script.' },
                     // Every layer imports lib/, so lib/ imports none of them: a lib/ file that reached a repository would
                     // let a controller query through it. Entity types and netsuite.ts are this application's too.
                     { target: './api/src/lib', from: './api/src', except: ['./lib'], message: 'lib/ imports only other lib/ files. Code that needs a record is a service, placed below the services that share it; a business rule stays in the service of its domain.' },
                     { target: './api/src/lib', from: './netsuite.ts', message: 'lib/ knows nothing of this application, so it never needs its ids. A rule that does belongs to a service.' },
                     { target: './client/src/hooks', from: ['./client/src/pages', './client/src/routes', './client/src/components'], message: 'A hook does not render.' },
-                    { target: './client', from: './api', message: 'The client never imports from api/; its view of the backend is the generated client module.' },
+                    { target: './client', from: './api', message: 'The client never imports from api/{{#if netsuiteApi}}; its view of the backend is the generated client module{{/if}}.' },
                     { target: './api', from: './client', message: 'The api never imports from client/.' },
                 ],
             }],
@@ -203,15 +275,22 @@ export default defineConfig([
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'warn',
             'no-console': ['warn', { allow: ['warn', 'error'] }],
+{{#if netsuiteApi}}
             'no-restricted-globals': ['error', { name: 'fetch', message: 'fetch lives in @amerilux/netsuite-api/client. Call a function of the generated @/api/index.gen.' }],
             '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageClientSide] }],
+{{/if}}
+{{#unless netsuiteApi}}
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiImportsInClient] }],
+{{/unless}}
         },
     },
+{{#if netsuiteApi}}
     {
         // What renders takes the generated modules' types and nothing else from them: the `api` is called from a hook.
         files: ['client/src/pages/**/*.{ts,tsx}', 'client/src/routes/**/*.{ts,tsx}', 'client/src/components/**/*.{ts,tsx}'],
         rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageClientSide, ...generatedClientModuleImports] }] },
     },
+{{/if}}
     {
         files: ['api/src/**/*.ts'],
         // SuiteScript's own globals plus the build-time constants webpack defines.
@@ -219,25 +298,34 @@ export default defineConfig([
         rules: {
             'no-console': 'error', // invisible in NetSuite; the wrapper's log is the only signal path
             'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports{{#if netsuiteRepository}}, ...sharedPackageImports{{/if}}{{#if netsuiteApi}}, ...apiPackageServerSide{{/if}}] }],
         },
     },
+{{#if netsuiteRepository}}
     {
         // A model is where a record's type and field ids are declared, so the id rule does not apply to it; the log
         // rules still do.
         files: ['api/src/models/**/*.ts'],
         rules: { 'no-restricted-syntax': ['error', ...logEntryShape] },
     },
+{{/if}}
     {
+{{#if netsuiteApi}}
         // An endpoint speaks the shapes declared next to it (built from an entity type, a service's type, a Pick of one,
         // or a composition), unpacks the request, calls a service with plain arguments and shapes the response. A
         // controller declares its own script ids, so the id rule does not apply to it; the log rules still do.
+{{/if}}
+{{#unless netsuiteApi}}
+        // A controller unpacks the request, calls a service with plain arguments and shapes the response. Its script ids
+        // are in netsuite.ts like every other id.
+{{/unless}}
         files: ['api/src/controllers/**/*.ts'],
         rules: {
-            'no-restricted-syntax': ['error', ...logEntryShape],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports] }],
+            'no-restricted-syntax': ['error', {{#unless netsuiteApi}}...netsuiteIdOutsideNetsuiteTs, {{/unless}}...logEntryShape],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports{{#if netsuiteRepository}}, ...sharedPackageImports{{/if}}{{#if netsuiteApi}}, ...apiPackageServerSide, ...recordAccessImports{{/if}}{{#unless netsuiteApi}}, ...controllerRecordAccessImports{{/unless}}] }],
         },
     },
+{{#if netsuiteApi}}
     {
         // A job is a folder: <name>/<name>.ts is the script NetSuite loads and says which stages there are, and a file
         // per stage beside it does the work, calling services and repositories as a service would. A job's ids are in
@@ -245,9 +333,10 @@ export default defineConfig([
         files: ['api/src/jobs/**/*.ts'],
         rules: {
             'no-restricted-syntax': ['error', ...logEntryShape],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...jobRecordAccessImports] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports{{#if netsuiteRepository}}, ...sharedPackageImports{{/if}}, ...apiPackageServerSide, ...jobRecordAccessImports] }],
         },
     },
+{{/if}}
     {
         // A user event is self-contained: it reads and writes the record NetSuite hands it, and reaches anything else
         // through a repository function. The ids it uses are written in the file, so the id rule does not apply; N/*
@@ -258,10 +347,16 @@ export default defineConfig([
             '@typescript-eslint/no-restricted-imports': ['error', {
                 patterns: [
                     ...alertingImports,
+{{#if netsuiteRepository}}
                     ...sharedPackageImports,
+{{/if}}
+{{#if netsuiteApi}}
                     ...apiPackageServerSide,
+{{/if}}
                     { group: ['N/*', '!N/log', '!N/types'], allowTypeImports: true, message: 'A user event works the record its context carries and logs with N/log; everything else in NetSuite it reaches through a repository function, so the call is tracked like any other.' },
+{{#if netsuiteRepository}}
                     { group: ['**/repositories/generated/context.gen'], message: 'The context stays inside api/src/repositories. Call a repository function instead.' },
+{{/if}}
                 ],
             }],
         },
@@ -277,7 +372,9 @@ export default defineConfig([
             '@typescript-eslint/no-restricted-imports': ['error', {
                 patterns: [
                     ...appLayerImportsInClientEvents,
+{{#if netsuiteApi}}
                     { group: ['@amerilux/netsuite-api', '@amerilux/netsuite-api/*'], message: 'A client event is not part of this application\'s API; it talks to NetSuite through N/* like any other page script.' },
+{{/if}}
                 ],
             }],
         },
@@ -286,7 +383,7 @@ export default defineConfig([
         files: ['api/src/services/**/*.ts'],
         rules: {
             'no-restricted-syntax': ['error', ...netsuiteIdOutsideNetsuiteTs, ...logEntryShape, ...serviceFunctionNames],
-            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...sharedPackageImports, ...apiPackageServerSide, ...recordAccessImports, ...controllerImportsInServices] }],
+            '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports{{#if netsuiteRepository}}, ...sharedPackageImports{{/if}}{{#if netsuiteApi}}, ...apiPackageServerSide{{/if}}, ...recordAccessImports, ...controllerImportsInServices] }],
         },
     },
     {
@@ -294,15 +391,17 @@ export default defineConfig([
         files: ['api/src/lib/**/*.ts'],
         rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...libImports] }] },
     },
+{{#if netsuiteRepository}}
     {
         // The data-access layers inside api/: Specification in specifications, the package's decorators in models.
         files: ['api/src/models/**/*.ts', 'api/src/specifications/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports, ...apiPackageServerSide, ...wireShapeImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...alertingImports{{#if netsuiteApi}}, ...apiPackageServerSide{{/if}}, ...wireShapeImports] }] },
     },
+{{/if}}
     {
-        // Repositories: the context, every N/* module the application touches, and outbound side effects such as email.
+        // Repositories: {{#if netsuiteRepository}}the context, {{/if}}every N/* module the application touches, and outbound side effects such as email.
         files: ['api/src/repositories/**/*.ts'],
-        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [...apiPackageServerSide, ...wireShapeImports] }] },
+        rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [{{#if netsuiteApi}}...apiPackageServerSide, {{/if}}...wireShapeImports] }] },
     },
     {
         // The app file: names and ids, imported by both api/ and client/.

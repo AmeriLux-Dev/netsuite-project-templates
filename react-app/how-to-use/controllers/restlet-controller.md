@@ -3,13 +3,17 @@
 One controller, `orders`: a page shows a customer's sales orders and lets someone change an order's memo in place.
 The controller is one Restlet with two endpoints, `byCustomer` and `updateMemo`. The service decides what a caller
 sees, the controller is the only code that knows the wire, `npm run generate` writes the client the browser calls,
-and a query hook and a mutation hook sit between that client and the page. It reads and writes through the
-repository functions of [repositories/model-and-repository.md](../repositories/model-and-repository.md).
+and a query hook and a mutation hook sit between that client and the page.{{#if netsuiteRepository}} It reads and writes through the
+repository functions of [repositories/model-and-repository.md](../repositories/model-and-repository.md).{{/if}}
+{{#unless netsuiteRepository}}
+The `salesOrdersRepository` it reads and writes through is not part of this project: its functions, and the
+`SalesOrder` type the service imports from `../types/models.gen`, are the developer's to write.
+{{/unless}}
 
 ## Steps
 
-1. **The service**, `api/src/services/<domain>Service.ts` (the `nspService` snippet, every kind of service function,
-   to delete down to what the controller calls): plain arguments in, a type the service declares out. What it
+1. **The service**, `api/src/services/<domain>Service.ts`{{#if bothNetsuitePackages}} (the `nspService` snippet, every kind of service function,
+   to delete down to what the controller calls){{/if}}: plain arguments in, a type the service declares out. What it
    exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check), and it imports
    each repository as a namespace.
 2. **The controller**, `api/src/controllers/<name>Controller.ts` (`nspControllerRestlet` or `nspControllerSuitelet`:
@@ -19,7 +23,7 @@ repository functions of [repositories/model-and-repository.md](../repositories/m
 5. **The hooks**, `client/src/hooks/use<What>.ts` (`nspHookQuery`, without its argument for an endpoint without a
    request; `nspHookMutation` for a write).
 6. **The page and its route** (`nspPage`, `nspRoute`).
-7. **The tests** (`nspTestController`, `nspTestService`, `nspTestHook`), each against a fake of the layer below.
+7. **The tests** (`nspTestController`, {{#if bothNetsuitePackages}}`nspTestService`, {{/if}}`nspTestHook`), each against a fake of the layer below.
 
 `npm run lint` names any piece that is missing or disagrees with the others; `npm run generate` names a controller it
 cannot turn into a client; `npm run typecheck` catches a client call that names an endpoint the controller lacks.
@@ -413,8 +417,8 @@ message when broken:
 - Every handler is written inline in `defineEndpoints({...})`, with its request and response types annotated. A
   handler with no parameter takes no request.
 - Every type in the file is exported.
-- A type is imported only from `../types/models.gen`, from a service under `../services/` (copied into the generated
-  module with the entity types it is built on), or from another controller.
+- A type is imported only from {{#if netsuiteRepository}}`../types/models.gen`, from {{/if}}a service under `../services/` (copied into the generated
+  module{{#if netsuiteRepository}} with the entity types it is built on{{/if}}), or from another controller.
 - The declaration is an object literal with literal ids, and its `name` is the file name without `Controller`.
   Script ids are unique across controllers.
 - No shape is named `ApiCallOptions` or `ScriptRef`: the generated module imports those names for its client.
@@ -434,6 +438,6 @@ message when broken:
 - **A page that shows a failure in place** reads the query's `isError` and `error` (an `ApiClientError` carrying the
   status, the message and the `details` the handler gave its `ApiError`), and its hook passes
   `{ handleError: false }` as the call's second argument, so the banner stays out of it.
-- **An endpoint without a request** takes no parameter (`roles: (): RolesResponse => ...` in the shipped
-  `userController.ts`). Its generated function takes the call options alone, so its hook calls it as
+- **An endpoint without a request** takes no parameter (`roles: (): RolesResponse => ...`{{#if userRolesExample}} in the shipped
+  `userController.ts`{{/if}}). Its generated function takes the call options alone, so its hook calls it as
   `user.api.roles({ signal })` (the `nspHookQuery` snippet without its argument).

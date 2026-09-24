@@ -1,6 +1,52 @@
 {
+  "derivedFlags": {
+    "bothNetsuitePackages": { "all": ["netsuiteApi", "netsuiteRepository"] },
+    "userRolesExample": { "all": ["netsuiteApi", "netsuiteRepository"] },
+    "codeGeneration": { "any": ["netsuiteApi", "netsuiteRepository"] }
+  },
   "conditionalPaths": {
     "probity.config.ts": "probity",
-    ".claude/hooks/guardrails.mjs": "!probity"
+    ".claude/hooks/guardrails.mjs": "!probity",
+
+    "netsuite-api.config.json": "netsuiteApi",
+    "scripts/addJobs.mjs": "netsuiteApi",
+    "api/src/_host/fileCabinet.ts": "!netsuiteApi",
+    "client/src/hooks/useApiErrors.ts": "netsuiteApi",
+    "client/src/components/ApiErrorBanner.tsx": "netsuiteApi",
+    "client/__tests__/apiErrors.test.ts": "netsuiteApi",
+    "how-to-use/controllers": "netsuiteApi",
+    "how-to-use/jobs": "netsuiteApi",
+    ".claude/rules/controllers.md": "netsuiteApi",
+    ".claude/rules/jobs.md": "netsuiteApi",
+
+    "api/netsuite-repository.config.json": "netsuiteRepository",
+    "api/src/models": "netsuiteRepository",
+    "api/src/specifications": "netsuiteRepository",
+    "how-to-use/repositories": "netsuiteRepository",
+
+    "api/src/controllers/userController.ts": "userRolesExample",
+    "api/src/controllers/userRolesController.ts": "userRolesExample",
+    "api/src/services/userService.ts": "userRolesExample",
+    "api/src/repositories/activeUserRepository.ts": "userRolesExample",
+    "api/src/repositories/employeeRolesRepository.ts": "userRolesExample",
+    "api/src/repositories/userRolesRepository.ts": "userRolesExample",
+    "api/src/models/EmployeeRole.ts": "userRolesExample",
+    "api/src/specifications/employeeRolesSpecifications.ts": "userRolesExample",
+    "api/__tests__/controllers": "userRolesExample",
+    "api/__tests__/services": "userRolesExample",
+    "api/__tests__/repositories": "userRolesExample",
+    "client/src/hooks/useActiveUserRoles.ts": "userRolesExample",
+    "client/src/pages/UserRolesPage.tsx": "userRolesExample",
+    "client/__tests__/userQuery.test.ts": "userRolesExample",
+    "netsuite/Objects/customscript_{{prefix}}_user.xml": "userRolesExample",
+    "netsuite/Objects/customscript_{{prefix}}_user_roles.xml": "userRolesExample",
+
+    "api/src/controllers/.gitkeep": "!userRolesExample",
+    "api/src/services/.gitkeep": "!userRolesExample",
+    "api/src/repositories/.gitkeep": "!userRolesExample",
+    "api/src/models/.gitkeep": "!userRolesExample",
+    "api/src/specifications/.gitkeep": "!userRolesExample",
+    "client/src/hooks/.gitkeep": "!userRolesExample",
+    "client/src/pages/.gitkeep": "!userRolesExample"
   }
 }

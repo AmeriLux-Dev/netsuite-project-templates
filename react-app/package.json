@@ -12,13 +12,17 @@
     "node": ">=22"
   },
   "scripts": {
-    "generate": "npm run generate -w api && netsuite-api generate",
-    "dev": "npm run generate && npm run dev -w client",
-    "typecheck": "npm run generate && npm run typecheck --workspaces",
+{{#if codeGeneration}}
+    "generate": "{{#if netsuiteRepository}}npm run generate -w api{{#if netsuiteApi}} && {{/if}}{{/if}}{{#if netsuiteApi}}netsuite-api generate{{/if}}",
+{{/if}}
+    "dev": "{{#if codeGeneration}}npm run generate && {{/if}}npm run dev -w client",
+    "typecheck": "{{#if codeGeneration}}npm run generate && {{/if}}npm run typecheck --workspaces",
     "lint": "eslint . && node scripts/checkStructure.mjs",
+{{#if netsuiteApi}}
     "add:jobs": "node scripts/addJobs.mjs",
-    "test": "npm run generate && npm test --workspaces --if-present",
-    "build": "npm run generate && npm run build -w client && npm run build -w api",
+{{/if}}
+    "test": "{{#if codeGeneration}}npm run generate && {{/if}}npm test --workspaces --if-present",
+    "build": "{{#if codeGeneration}}npm run generate && {{/if}}npm run build -w client && npm run build -w api",
     "deploy:full": "node scripts/deploy.mjs",
     "deploy": "node scripts/deploy.mjs --files-only"
   },

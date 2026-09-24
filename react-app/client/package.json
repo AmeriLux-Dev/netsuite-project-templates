@@ -8,10 +8,12 @@
     "dev": "concurrently -k -n vite,proxy \"vite\" \"tsx server.ts\"",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "test": "vitest run"
+    "test": "vitest run{{#unless netsuiteApi}} --passWithNoTests{{/unless}}"
   },
   "dependencies": {
-    "@amerilux/netsuite-api": "^0.7.0",
+{{#if netsuiteApi}}
+    "@amerilux/netsuite-api": "^0.7.1",
+{{/if}}
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.34",
     "react": "^19.3.0",

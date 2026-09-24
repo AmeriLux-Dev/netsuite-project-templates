@@ -1,13 +1,18 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+{{#if netsuiteApi}}
 import { configureApiClient } from '@amerilux/netsuite-api/client';
+{{/if}}
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { app } from '../../netsuite';
+{{#if netsuiteApi}}
 import { reportApiError } from '@/hooks/useApiErrors';
+{{/if}}
 import { createAppRouter } from '@/router';
 import '@/styles/app.css';
 
+{{#if netsuiteApi}}
 configureApiClient({
     // Deployed, API calls ride the NetSuite session on the same origin. In development the Vite server
     // proxies /api to server.ts, which signs each call to the sandbox.
@@ -17,11 +22,14 @@ configureApiClient({
     onError: reportApiError,
 });
 
+{{/if}}
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             refetchOnWindowFocus: false,
+{{#if netsuiteApi}}
             // A failed call is already reported once; retrying would report it again.
+{{/if}}
             retry: false,
             staleTime: 5 * 60 * 1000,
         },

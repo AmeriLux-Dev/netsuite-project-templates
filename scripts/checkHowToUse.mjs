@@ -1,10 +1,16 @@
 #!/usr/bin/env node
 /**
- * Worked-example check for the react-app template. Every file block in react-app/how-to-use/ is written into an
- * installed scaffold, in the order the examples build on one another, and the result must pass what a project
+ * Worked-example check for the react-app template. Every file block in the scaffold's how-to-use/ is written into
+ * that installed scaffold, in the order the examples build on one another, and the result must pass what a project
  * must pass: `npm run generate`, the route tree generator, typecheck, `npm run lint` (ESLint and the structure
  * check), the tests and the build. An example therefore cannot drift from the packages, the snippets or the lint
  * rules without this check failing.
+ *
+ * The examples and the snippets are read from the scaffold (how-to-use/ and .vscode/netsuite-project.code-snippets):
+ * the template's react-app copies as the CLI rendered them. The template's own copies carry {{#if}} blocks and
+ * tokens, and the snippet file is not JSON until it is rendered. Every listed example must be there, so the
+ * scaffold must have both packages on (netsuite-api and netsuite-repository): with either off, the examples and
+ * snippets built on it are left out.
  *
  * A file block is a fenced TypeScript block cut into files by banners:
  *
@@ -37,12 +43,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expandSnippet } from './snippetExpansion.mjs';
 
-const templatesRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const howToUseRoot = path.join(templatesRoot, 'react-app', 'how-to-use');
-const snippetsPath = path.join(templatesRoot, 'react-app', '.vscode', 'netsuite-project.code-snippets');
 const isWindows = process.platform === 'win32';
 
 // ── the examples, in the order they build on one another ─────────────────────────────────────────────────────────
@@ -303,6 +305,15 @@ if (!projectDir || !existsSync(path.join(projectDir, 'netsuite.ts')) || !existsS
     console.error('--project must name an installed scaffold of the react-app template (netsuite.ts and node_modules present).');
     process.exit(1);
 }
+// The scaffold's copies, which the CLI rendered: the template's own carry {{#if}} blocks.
+const howToUseRoot = path.join(projectDir, 'how-to-use');
+const snippetsPath = path.join(projectDir, '.vscode', 'netsuite-project.code-snippets');
+for (const required of [howToUseRoot, snippetsPath]) {
+    if (!existsSync(required)) {
+        console.error(`The scaffold has no ${path.relative(projectDir, required)}.`);
+        process.exit(1);
+    }
+}
 typescript = createRequire(path.join(projectDir, 'package.json'))('typescript');
 
 function readTemplateTokens() {
@@ -335,7 +346,7 @@ function checkExamplesListed() {
     const unlisted = found.filter((examplePath) => !listed.includes(examplePath));
     const missing = listed.filter((examplePath) => !existsSync(path.join(howToUseRoot, examplePath)));
     if (unlisted.length > 0) throw new Error(`Examples with file blocks not listed in scripts/checkHowToUse.mjs: ${unlisted.join(', ')}.`);
-    if (missing.length > 0) throw new Error(`Listed examples that do not exist under react-app/how-to-use/: ${missing.join(', ')}.`);
+    if (missing.length > 0) throw new Error(`Listed examples that do not exist under ${howToUseRoot}: ${missing.join(', ')} (a scaffold with netsuite-api or netsuite-repository off leaves out the examples built on it).`);
 }
 
 const originals = new Map();

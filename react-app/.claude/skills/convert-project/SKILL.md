@@ -34,26 +34,30 @@ Services import one another in one direction, following NetSuite's transaction f
 
 | Old code | Goes to |
 |---|---|
-| a Restlet or a Suitelet | one controller per script (`how-to-use/controllers/`): it unpacks the request, calls a service and shapes the reply |
+| a Restlet or a Suitelet | one controller per script{{#if netsuiteApi}} (`how-to-use/controllers/`){{/if}}: it unpacks the request, calls a service and shapes the reply |
+{{#if netsuiteApi}}
 | a Map/Reduce or scheduled script | a job folder (`how-to-use/jobs/map-reduce-job.md`), after `npm run add:jobs` |
+{{/if}}
 | a user event or a client script | `api/src/events/user/` or `api/src/events/client/` |
-| `N/record`, `N/query`, `N/search` | a model per record type, and repository functions over `dbContext` (`how-to-use/repositories/model-and-repository.md`) |
+| `N/record`, `N/query`, `N/search` | {{#if netsuiteRepository}}a model per record type, and repository functions over `dbContext` (`how-to-use/repositories/model-and-repository.md`){{/if}}{{#unless netsuiteRepository}}repository functions, one repository per record type{{/unless}} |
 | `N/https`, `N/file`, `N/runtime`, `N/email` | repository functions, one repository per outside system or module |
-| a hard-coded id | the model (record and field ids), the controller's declaration (script ids), `netsuite.ts` (everything else) |
+| a hard-coded id | {{#if netsuiteRepository}}the model (record and field ids), {{/if}}{{#if netsuiteApi}}the controller's declaration (script ids), {{/if}}`netsuite.ts`{{#if codeGeneration}} (everything else){{/if}} |
 | a helper that knows nothing of NetSuite or the business | `api/src/lib/` |
 
 Old names are not carried over: a file or function keeps its name only when it already follows `how-to-use/naming.md`.
 
 ## 5. Propose, then move
 
-Before moving any code, show the person one table: each old module, where its logic lands (a service, repository, controller, job or `lib/` file), and every merge and rename. The merges are theirs to decide; wait for their answer.
+Before moving any code, show the person one table: each old module, where its logic lands (a service, repository, controller{{#if netsuiteApi}}, job{{/if}} or `lib/` file), and every merge and rename. The merges are theirs to decide; wait for their answer.
 
 Then move one domain at a time, earliest record in the transaction flow first:
 
+{{#if netsuiteRepository}}
 1. The models, then `npm run generate`.
-2. The repositories, with their tests.
-3. The service, with its tests. Exports are renamed to `get`, `create`, `update` or `remove` (`is` or `has` for a check) as they move, and builders stay private. A large domain's tests may split one file per concern under `api/__tests__/services/<service>/`.
-4. The controllers and jobs that call it, with their SDF objects.
-5. The client's hooks and pages.
+{{/if}}
+{{#if netsuiteRepository}}2{{/if}}{{#unless netsuiteRepository}}1{{/unless}}. The repositories, with their tests.
+{{#if netsuiteRepository}}3{{/if}}{{#unless netsuiteRepository}}2{{/unless}}. The service, with its tests. Exports are renamed to `get`, `create`, `update` or `remove` (`is` or `has` for a check) as they move, and builders stay private. A large domain's tests may split one file per concern under `api/__tests__/services/<service>/`.
+{{#if netsuiteRepository}}4{{/if}}{{#unless netsuiteRepository}}3{{/unless}}. The controllers{{#if netsuiteApi}} and jobs{{/if}} that call it, with their SDF objects.
+{{#if netsuiteRepository}}5{{/if}}{{#unless netsuiteRepository}}4{{/unless}}. The client's hooks and pages.
 
 After each domain, run `npm run typecheck`, `npm run lint` and `npm test`, and fix what fails before starting the next. Raise anything these rules do not place with the person rather than forcing it into a folder.

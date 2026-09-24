@@ -1,4 +1,5 @@
 {
+{{#if netsuiteApi}}
     "nspControllerRestlet": {
         "scope": "typescript",
         "prefix": "nspControllerRestlet",
@@ -139,6 +140,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspControllerSuitelet": {
         "scope": "typescript",
         "prefix": "nspControllerSuitelet",
@@ -303,6 +306,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJob": {
         "scope": "typescript",
         "prefix": "nspJob",
@@ -331,6 +336,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJobContract": {
         "scope": "typescript",
         "prefix": "nspJobContract",
@@ -376,6 +383,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJobGetInputData": {
         "scope": "typescript",
         "prefix": "nspJobGetInputData",
@@ -398,6 +407,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJobMap": {
         "scope": "typescript",
         "prefix": "nspJobMap",
@@ -420,6 +431,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJobReduce": {
         "scope": "typescript",
         "prefix": "nspJobReduce",
@@ -440,6 +453,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJobSummarize": {
         "scope": "typescript",
         "prefix": "nspJobSummarize",
@@ -463,6 +478,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspJobStart": {
         "scope": "typescript",
         "prefix": "nspJobStart",
@@ -482,6 +499,7 @@
             ""
         ]
     },
+{{/if}}
     "nspUserEvent": {
         "scope": "typescript",
         "prefix": "nspUserEvent",
@@ -647,6 +665,7 @@
             ""
         ]
     },
+{{#if userRolesExample}}
     "nspService": {
         "scope": "typescript",
         "prefix": "nspService",
@@ -710,6 +729,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteRepository}}
     "nspRepository": {
         "scope": "typescript",
         "prefix": [
@@ -803,6 +824,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspRepositorySuitelet": {
         "scope": "typescript",
         "prefix": "nspRepositorySuitelet",
@@ -826,6 +849,7 @@
             ""
         ]
     },
+{{/if}}
     "nspRepositoryModule": {
         "scope": "typescript",
         "prefix": "nspRepositoryModule",
@@ -849,6 +873,7 @@
             ""
         ]
     },
+{{#if netsuiteRepository}}
     "nspSpecification": {
         "scope": "typescript",
         "prefix": [
@@ -919,6 +944,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteRepository}}
     "nspModel": {
         "scope": "typescript",
         "prefix": "nspModel",
@@ -1066,6 +1093,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteRepository}}
     "nspModelBase": {
         "scope": "typescript",
         "prefix": "nspModelBase",
@@ -1095,6 +1124,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspTestController": {
         "scope": "typescript",
         "prefix": "nspTestController",
@@ -1196,6 +1227,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if userRolesExample}}
     "nspTestService": {
         "scope": "typescript",
         "prefix": "nspTestService",
@@ -1305,6 +1338,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteRepository}}
     "nspTestRepository": {
         "scope": "typescript",
         "prefix": "nspTestRepository",
@@ -1483,6 +1518,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspTestRepositorySuitelet": {
         "scope": "typescript",
         "prefix": "nspTestRepositorySuitelet",
@@ -1522,6 +1559,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspTestHook": {
         "scope": "typescript",
         "prefix": "nspTestHook",
@@ -1555,6 +1594,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspHookQuery": {
         "scope": "typescript",
         "prefix": [
@@ -1593,6 +1634,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspHookMutation": {
         "scope": "typescript",
         "prefix": [
@@ -1620,6 +1663,8 @@
             ""
         ]
     },
+{{/if}}
+{{#if netsuiteApi}}
     "nspPage": {
         "scope": "typescriptreact",
         "prefix": "nspPage",
@@ -1663,6 +1708,7 @@
             ""
         ]
     },
+{{/if}}
     "nspRoute": {
         "scope": "typescriptreact",
         "prefix": "nspRoute",
@@ -1683,75 +1729,7 @@
             ""
         ]
     },
-    "nspObjectRestlet": {
-        "scope": "xml",
-        "prefix": [
-            "nspObjectRestlet",
-            "nspSdfRestlet"
-        ],
-        "description": "netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml for a Restlet controller; ids and the script file come from the file name. Next: npm run generate.",
-        "body": [
-            "<restlet scriptid=\"${TM_FILENAME_BASE}\">",
-            "  <description>${2:What it serves}, for {{appTitle}}.</description>",
-            "  <isinactive>F</isinactive>",
-            "  <name>{{appTitle}} ${1:Name}</name>",
-            "  <notifyadmins>F</notifyadmins>",
-            "  <notifyemails></notifyemails>",
-            "  <notifyowner>T</notifyowner>",
-            "  <notifyuser>F</notifyuser>",
-            "  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_([a-z])/${1:/upcase}/g}Controller.js]</scriptfile>",
-            "  <scriptdeployments>",
-            "    <scriptdeployment scriptid=\"${TM_FILENAME_BASE/^customscript_/customdeploy_/}\">",
-            "      <allemployees>F</allemployees>",
-            "      <allpartners>F</allpartners>",
-            "      <allroles>F</allroles>",
-            "      <audslctrole>${3:ADMINISTRATOR}</audslctrole>",
-            "      <isdeployed>T</isdeployed>",
-            "      <loglevel>DEBUG</loglevel>",
-            "      <status>RELEASED</status>",
-            "      <title>{{appTitle}} ${1}</title>",
-            "    </scriptdeployment>",
-            "  </scriptdeployments>",
-            "</restlet>",
-            ""
-        ]
-    },
-    "nspObjectSuitelet": {
-        "scope": "xml",
-        "prefix": [
-            "nspObjectSuitelet",
-            "nspSdfSuitelet"
-        ],
-        "description": "netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml for a Suitelet controller; ids and the script file come from the file name. Remove <runasrole> unless the script must run as another role. Next: npm run generate.",
-        "body": [
-            "<suitelet scriptid=\"${TM_FILENAME_BASE}\">",
-            "  <description>${2:What it serves}, for {{appTitle}}.</description>",
-            "  <isinactive>F</isinactive>",
-            "  <name>{{appTitle}} ${1:Name}</name>",
-            "  <notifyadmins>F</notifyadmins>",
-            "  <notifyemails></notifyemails>",
-            "  <notifyowner>T</notifyowner>",
-            "  <notifyuser>F</notifyuser>",
-            "  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_([a-z])/${1:/upcase}/g}Controller.js]</scriptfile>",
-            "  <scriptdeployments>",
-            "    <scriptdeployment scriptid=\"${TM_FILENAME_BASE/^customscript_/customdeploy_/}\">",
-            "      <allemployees>F</allemployees>",
-            "      <allpartners>F</allpartners>",
-            "      <allroles>T</allroles>",
-            "      <audslctrole></audslctrole>",
-            "      <eventtype></eventtype>",
-            "      <isdeployed>T</isdeployed>",
-            "      <isonline>F</isonline>",
-            "      <loglevel>DEBUG</loglevel>",
-            "      ${3:<runasrole>ADMINISTRATOR</runasrole>}",
-            "      <status>RELEASED</status>",
-            "      <title>{{appTitle}} ${1}</title>",
-            "    </scriptdeployment>",
-            "  </scriptdeployments>",
-            "</suitelet>",
-            ""
-        ]
-    },
+{{#if netsuiteApi}}
     "nspObjectMapReduce": {
         "scope": "xml",
         "prefix": [
@@ -1811,6 +1789,76 @@
             "    </scriptdeployment>",
             "  </scriptdeployments>",
             "</mapreducescript>",
+            ""
+        ]
+    },
+{{/if}}
+    "nspObjectRestlet": {
+        "scope": "xml",
+        "prefix": [
+            "nspObjectRestlet",
+            "nspSdfRestlet"
+        ],
+        "description": "netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml for a Restlet controller; ids and the script file come from the file name.{{#if netsuiteApi}} Next: npm run generate.{{/if}}",
+        "body": [
+            "<restlet scriptid=\"${TM_FILENAME_BASE}\">",
+            "  <description>${2:What it serves}, for {{appTitle}}.</description>",
+            "  <isinactive>F</isinactive>",
+            "  <name>{{appTitle}} ${1:Name}</name>",
+            "  <notifyadmins>F</notifyadmins>",
+            "  <notifyemails></notifyemails>",
+            "  <notifyowner>T</notifyowner>",
+            "  <notifyuser>F</notifyuser>",
+            "  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_([a-z])/${1:/upcase}/g}Controller.js]</scriptfile>",
+            "  <scriptdeployments>",
+            "    <scriptdeployment scriptid=\"${TM_FILENAME_BASE/^customscript_/customdeploy_/}\">",
+            "      <allemployees>F</allemployees>",
+            "      <allpartners>F</allpartners>",
+            "      <allroles>F</allroles>",
+            "      <audslctrole>${3:ADMINISTRATOR}</audslctrole>",
+            "      <isdeployed>T</isdeployed>",
+            "      <loglevel>DEBUG</loglevel>",
+            "      <status>RELEASED</status>",
+            "      <title>{{appTitle}} ${1}</title>",
+            "    </scriptdeployment>",
+            "  </scriptdeployments>",
+            "</restlet>",
+            ""
+        ]
+    },
+    "nspObjectSuitelet": {
+        "scope": "xml",
+        "prefix": [
+            "nspObjectSuitelet",
+            "nspSdfSuitelet"
+        ],
+        "description": "netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml for a Suitelet controller; ids and the script file come from the file name. Remove <runasrole> unless the script must run as another role.{{#if netsuiteApi}} Next: npm run generate.{{/if}}",
+        "body": [
+            "<suitelet scriptid=\"${TM_FILENAME_BASE}\">",
+            "  <description>${2:What it serves}, for {{appTitle}}.</description>",
+            "  <isinactive>F</isinactive>",
+            "  <name>{{appTitle}} ${1:Name}</name>",
+            "  <notifyadmins>F</notifyadmins>",
+            "  <notifyemails></notifyemails>",
+            "  <notifyowner>T</notifyowner>",
+            "  <notifyuser>F</notifyuser>",
+            "  <scriptfile>[/SuiteScripts/{{appName}}/api/controllers/${TM_FILENAME_BASE/^customscript_{{prefix}}_|_([a-z])/${1:/upcase}/g}Controller.js]</scriptfile>",
+            "  <scriptdeployments>",
+            "    <scriptdeployment scriptid=\"${TM_FILENAME_BASE/^customscript_/customdeploy_/}\">",
+            "      <allemployees>F</allemployees>",
+            "      <allpartners>F</allpartners>",
+            "      <allroles>T</allroles>",
+            "      <audslctrole></audslctrole>",
+            "      <eventtype></eventtype>",
+            "      <isdeployed>T</isdeployed>",
+            "      <isonline>F</isonline>",
+            "      <loglevel>DEBUG</loglevel>",
+            "      ${3:<runasrole>ADMINISTRATOR</runasrole>}",
+            "      <status>RELEASED</status>",
+            "      <title>{{appTitle}} ${1}</title>",
+            "    </scriptdeployment>",
+            "  </scriptdeployments>",
+            "</suitelet>",
             ""
         ]
     }

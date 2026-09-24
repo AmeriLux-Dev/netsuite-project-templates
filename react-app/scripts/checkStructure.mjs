@@ -4,39 +4,49 @@
  * agree with each other, so a controller added by hand (or by an agent) is complete before it is
  * deployed. ESLint sees one file at a time; this script sees the set.
  *
+{{#if netsuiteApi}}
  * For every controller (api/src/controllers/<name>Controller.ts):
  *   - it exports <name>Endpoints = defineEndpoints({ ... }), the type <Name>Endpoints, and the entry point of its
  *     kind (`post = defineRestlet(...)` for a Restlet, `onRequest = defineSuitelet(...)` for a Suitelet) whose
  *     declaration says name: '<name>' and ids that share the prefix and the name and fit NetSuite's 40-character cap
- *   - netsuite/Objects/<scriptId>.xml exists, is a <restlet> or <suitelet> matching the entry point, declares the
- *     deployment, and points at api/controllers/<name>Controller.js
+ *   - <scriptId>.xml, in netsuite/Objects or a folder inside it, is a <restlet> or <suitelet> matching the entry
+ *     point, declares the deployment, and points at api/controllers/<name>Controller.js
  * For every job (api/src/jobs/<name>/<name>.ts):
  *   - it exports its stages from the files beside it, and netsuite.ts gives it ids that share the prefix and the
  *     name, end in _mr, and fit the cap
- *   - netsuite/Objects/<scriptId>.xml is a <mapreducescript> declaring every deployment the job may run on and every
- *     script parameter it reads, and points at api/jobs/<name>/<name>.js
+ *   - <scriptId>.xml, in netsuite/Objects or a folder inside it, is a <mapreducescript> declaring every deployment
+ *     the job may run on and every script parameter it reads, and points at api/jobs/<name>/<name>.js
  *
  * And the other way round: every SDF script object points at an existing source whose @NScriptType matches, and
+{{/if}}
+{{#unless netsuiteApi}}
+ * Every SDF script object points at an existing source whose @NScriptType matches, and
+{{/unless}}
  * every server-side @NScriptType file has an object (a ClientScript attached to a form has no script record).
  * Events are the exception: their script records are created in NetSuite by hand, so api/src/events is checked for
  * its file names and script types only.
+{{#if netsuiteApi}}
  * (`npm run generate` reads the same declarations to write the clients and fails on one it cannot read; TypeScript
  * checks the rest: a client call that names an endpoint the controller lacks does not compile.)
+{{/if}}
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+{{#if netsuiteApi}}
 const SCRIPT_ID_MAX_LENGTH = 40;
+{{/if}}
 const problems = [];
 
 function report(message) {
     problems.push(message);
 }
 
+/** With line endings as \n: a Windows checkout under core.autocrlf has \r\n, and every pattern here matches \n. */
 function readProjectFile(relativePath) {
-    return readFileSync(path.join(projectRoot, relativePath), 'utf8');
+    return readFileSync(path.join(projectRoot, relativePath), 'utf8').replace(/\r\n/g, '\n');
 }
 
 function projectFileExists(relativePath) {
@@ -55,6 +65,7 @@ function listFilesRecursively(relativeDirectory) {
     return files;
 }
 
+{{#if netsuiteApi}}
 /** The names of the directories directly inside a directory: one per job, under api/src/jobs. */
 function listDirectories(relativeDirectory) {
     const directory = path.join(projectRoot, relativeDirectory);
@@ -62,6 +73,7 @@ function listDirectories(relativeDirectory) {
     return readdirSync(directory).filter((entry) => statSync(path.join(directory, entry)).isDirectory());
 }
 
+{{/if}}
 /** The leading JSDoc block NetSuite reads, or an empty string when the file has none. */
 function readScriptHeader(source) {
     const match = source.match(/^\s*(\/\*[\s\S]*?\*\/)/);
@@ -81,6 +93,7 @@ function readAppNames() {
     return { prefix: prefix ?? '', folder: folder ?? '' };
 }
 
+{{#if netsuiteApi}}
 const KIND_BY_DEFINE = { defineRestlet: 'restlet', defineSuitelet: 'suitelet' };
 const ENTRY_POINT_BY_KIND = { restlet: 'post', suitelet: 'onRequest' };
 const HEADER_BY_KIND = { restlet: 'Restlet', suitelet: 'Suitelet' };
@@ -136,6 +149,7 @@ function checkScriptIds(controller, prefix) {
     }
 }
 
+{{/if}}
 /** Reads an SDF script object and returns its kind, deployment ids, parameter ids and the api/src path of its source file. */
 function readScriptObject(objectPath) {
     const xml = readProjectFile(objectPath);
@@ -146,10 +160,27 @@ function readScriptObject(objectPath) {
     return { objectPath, kind: opening?.[1], scriptId: opening?.[2], deployIds, parameterIds, scriptFile };
 }
 
+/**
+ * Every SDF object by its file name, wherever it sits under netsuite/Objects: the template writes them at the top,
+ * and a project may group them in folders of its own, so a script's object is found by its script id alone.
+ */
+const objectPathsByFileName = new Map();
+for (const objectPath of listFilesRecursively('netsuite/Objects')) {
+    const fileName = path.basename(objectPath);
+    const earlierPath = objectPathsByFileName.get(fileName);
+    if (earlierPath) report(`${objectPath}: ${earlierPath} has the same file name; one id is one object, so keep only one of them.`);
+    else objectPathsByFileName.set(fileName, objectPath);
+}
+
+{{#if netsuiteApi}}
+function findScriptObjectPath(scriptId) {
+    return objectPathsByFileName.get(`${scriptId}.xml`);
+}
+
 function checkControllerObject(controller, folder) {
-    const objectPath = `netsuite/Objects/${controller.scriptId}.xml`;
-    if (!projectFileExists(objectPath)) {
-        report(`${controller.controllerPath}: ${objectPath} is missing; every script needs its SDF object (copy the user or userRoles one).`);
+    const objectPath = findScriptObjectPath(controller.scriptId);
+    if (!objectPath) {
+        report(`${controller.controllerPath}: there is no ${controller.scriptId}.xml under netsuite/Objects; every script needs its SDF object (copy the user or userRoles one).`);
         return;
     }
     const object = readScriptObject(objectPath);
@@ -262,9 +293,9 @@ function checkJobIds(job, prefix) {
 }
 
 function checkJobObject(job, folder) {
-    const objectPath = `netsuite/Objects/${job.scriptId}.xml`;
-    if (!projectFileExists(objectPath)) {
-        report(`${job.jobPath}: ${objectPath} is missing; every job needs its SDF object (the nspObjectMapReduce snippet writes one).`);
+    const objectPath = findScriptObjectPath(job.scriptId);
+    if (!objectPath) {
+        report(`${job.jobPath}: there is no ${job.scriptId}.xml under netsuite/Objects; every job needs its SDF object (the nspObjectMapReduce snippet writes one).`);
         return;
     }
     const object = readScriptObject(objectPath);
@@ -281,6 +312,7 @@ function checkJobObject(job, folder) {
     if (object.scriptFile !== expectedScriptFile) report(`${objectPath}: <scriptfile> must be [${expectedScriptFile}] (found "${object.scriptFile ?? ''}").`);
 }
 
+{{/if}}
 /** Every object points at an existing source of the matching type, and every server-side script source has an object. */
 function checkObjectsAndSources(folder) {
     const expectedPrefix = `/SuiteScripts/${folder}/api/`;
@@ -302,7 +334,7 @@ function checkObjectsAndSources(folder) {
         if (object.kind && declaredType !== object.kind) report(`${sourcePath}: @NScriptType must be ${object.kind} to match <${object.kind}> in ${objectPath} (found "${declaredType ?? 'none'}").`);
     }
     for (const sourceFile of listFilesRecursively('api/src')) {
-        if (!sourceFile.endsWith('.ts') || sourceFile.endsWith('.d.ts') || sourceFile.includes('/repositories/generated/')) continue;
+        if (!sourceFile.endsWith('.ts') || sourceFile.endsWith('.d.ts'){{#if netsuiteRepository}} || sourceFile.includes('/repositories/generated/'){{/if}}) continue;
         // Events are deployed by hand: the developer creates their script record and its deployments in NetSuite,
         // so nothing under api/src/events is expected to have an SDF object here.
         if (sourceFile.startsWith('api/src/events/')) continue;
@@ -334,8 +366,11 @@ function checkEvents() {
 }
 
 const app = readAppNames();
+{{#if netsuiteApi}}
 const controllers = [];
 for (const controllerFile of listFilesRecursively('api/src/controllers')) {
+    // An empty folder keeps a .gitkeep so git keeps the folder; it is not a controller.
+    if (path.basename(controllerFile) === '.gitkeep') continue;
     if (!/^[a-z][A-Za-z0-9]*Controller\.ts$/.test(path.basename(controllerFile))) {
         report(`${controllerFile}: a controller file is named <name>Controller.ts, with <name> in camelCase; nothing else lives in api/src/controllers.`);
         continue;
@@ -379,15 +414,22 @@ for (const job of jobs) {
     claim(scriptOwners, job.scriptId, job.jobPath, 'scriptId');
     for (const deployment of job.deployments) claim(deployOwners, deployment, job.jobPath, 'deployment');
 }
+{{/if}}
 const eventCount = checkEvents();
 checkObjectsAndSources(app.folder);
 
 if (problems.length > 0) {
     console.error(`Structure check found ${problems.length} problem(s):`);
     for (const problem of problems) console.error(`  - ${problem}`);
+{{#if netsuiteApi}}
     console.error('\nhow-to-use/controllers/restlet-controller.md and how-to-use/jobs/map-reduce-job.md list every piece a script needs.');
     console.error('If this project no longer follows the template\'s controller layout, remove this check: delete scripts/checkStructure.mjs');
+{{/if}}
+{{#unless netsuiteApi}}
+    console.error('\nEvery script NetSuite deploys has its SDF object under netsuite/Objects, pointing at its bundle.');
+    console.error('If this project no longer follows that layout, remove this check: delete scripts/checkStructure.mjs');
+{{/unless}}
     console.error('and drop `&& node scripts/checkStructure.mjs` from the lint script in package.json.');
     process.exit(1);
 }
-console.log(`Structure check passed: ${controllers.length} controller(s), ${jobs.length} job(s), ${eventCount} event(s).`);
+console.log(`Structure check passed: {{#if netsuiteApi}}${controllers.length} controller(s), ${jobs.length} job(s), {{/if}}${eventCount} event(s).`);
