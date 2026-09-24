@@ -1,7 +1,8 @@
 // @amerilux/netsuite-wrapper build configuration (read by webpack.config.js).
 //
-// telemetryBootstrap: where wrapped N/* calls and log lines report. `false` keeps the wrappers as
-//   thin pass-throughs. Leaving the key out would silently default to performance-tracker.
+// telemetryBootstrap: where wrapped N/* calls and log lines report. `false` swaps only N/log (for
+//   splitting long details); every other N module is NetSuite's own. Leaving the key out would
+//   silently default to performance-tracker.
 //   scopeKey: the PerformanceTracker scope every script in this app runs under. Its row in the
 //     PerformanceTracker app (Scopes) sets the mode without a redeploy: off, boundary (one root
 //     span per run plus that run's log lines) or diagnostic (every wrapped N/* call too). No row

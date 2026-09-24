@@ -12,7 +12,7 @@
   "dependencies": {
     "@amerilux/netsuite-api": "^0.7.0",
     "@amerilux/netsuite-repository": "^1.2.0",
-    "@amerilux/netsuite-wrapper": "^0.4.0"
+    "@amerilux/netsuite-wrapper": "^0.4.2"
   },
   "devDependencies": {
     "@hitc/netsuite-types": "^2026.2.2",
