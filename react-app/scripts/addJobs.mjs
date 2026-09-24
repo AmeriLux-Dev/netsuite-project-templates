@@ -698,5 +698,5 @@ if (written.length === 0) {
         console.log('newer version out of scripts/addJobs.mjs by hand.');
     }
     console.log('\nNext: `npm run generate`, then write a job in its own folder under api/src/jobs (the nspJob snippet, or how-to-use/jobs/map-reduce-job.md).');
-    console.log('The run record and the cleanup script reach the account on the next `npm run deploy`.');
+    console.log('The run record and the cleanup script reach the account on the next `npm run deploy:full`.');
 }

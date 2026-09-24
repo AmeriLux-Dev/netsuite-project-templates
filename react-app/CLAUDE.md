@@ -15,7 +15,7 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 {{#if netsuiteApi}}
 | `npm run add:jobs` | Once per project, before the first Map/Reduce job. |
 {{/if}}
-| `npm run deploy`, `npm run deploy:files` | Only when the person asked for it, after `npm test`. |
+| `npm run deploy` (File Cabinet files), `npm run deploy:full` (full SDF deploy) | Only when the person asked for it, after `npm test`. |
 
 ## Layout
 

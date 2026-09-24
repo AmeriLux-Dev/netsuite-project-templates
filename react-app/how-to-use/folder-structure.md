@@ -438,7 +438,7 @@ Agent guardrails, hooked up in `.claude/settings.json`.
 {{/if}}
 ### package.json
 
-Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, {{#if codeGeneration}}generate, {{/if}}typecheck, lint, test, build, deploy, {{#if netsuiteApi}}add:jobs, {{/if}}update:amerilux).
+Workspace root: the `workspaces` list (api, client) and the npm scripts (dev, {{#if codeGeneration}}generate, {{/if}}typecheck, lint, test, build, deploy, deploy:full, {{#if netsuiteApi}}add:jobs, {{/if}}update:amerilux).
 
 ### node_modules/
 

@@ -195,6 +195,7 @@ assertEqual(askGuardrails({ file_path: path.join(plainDir, 'client', 'src', 'api
 assertEqual(askGuardrails({ file_path: path.join(plainDir, 'api', 'src', 'services', 'user.test.ts'), content: '' }), 'deny', 'guardrails refuses a test beside its source');
 assertEqual(askGuardrails({ command: 'git push --force origin main' }), 'deny', 'guardrails refuses a force push without lease');
 assertEqual(askGuardrails({ command: 'npm run deploy' }), 'ask', 'guardrails asks the person before a deploy');
+assertEqual(askGuardrails({ command: 'npm run deploy:full' }), 'ask', 'guardrails asks the person before a full SDF deploy');
 assertEqual(askGuardrails({ file_path: path.join(plainDir, 'api', 'src', 'services', 'userService.ts'), content: 'export {};' }), 'allow (exit 0)', 'guardrails lets an ordinary write through');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, 'package.json'), 'utf8')).devDependencies['@nizos/probity'], undefined, 'default scaffold does not depend on probity');
 assertEqual(JSON.parse(readFileSync(path.join(plainDir, '.netsuite-project.json'), 'utf8')).features, { performanceTracker: false, probity: false, netsuiteApi: true, netsuiteRepository: true }, 'features recorded, both packages on by default');

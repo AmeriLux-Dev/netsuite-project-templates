@@ -2,10 +2,11 @@
 /**
  * Deploy {{appTitle}} to the NetSuite account selected in project.json.
  *
- *   npm run deploy          build both bundles, then `suitecloud project:adddependencies` and `project:deploy`
- *                           (uploads File Cabinet files and creates/updates the script records and deployments)
- *   npm run deploy:files    build, then upload only the File Cabinet files (`suitecloud file:upload`) in batches
- *                           of 10; the fast path after a client-only change
+ *   npm run deploy          build, then upload only the File Cabinet files (`suitecloud file:upload`) in batches of
+ *                           10; the everyday path once the script records exist
+ *   npm run deploy:full     build both bundles, then `suitecloud project:adddependencies` and `project:deploy`
+ *                           (uploads File Cabinet files and creates/updates the script records and deployments);
+ *                           the first deploy to an account, and after an SDF object under netsuite/Objects changes
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
