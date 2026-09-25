@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { user } from '@/api/index.gen';
-import { activeUserRolesQueryKey, activeUserRolesQueryOptions } from '@/hooks/useActiveUserRoles';
+import { activeUserRolesQueryKey, activeUserRolesQueryOptions } from '@/hooks/user/useActiveUserRoles';
 
 // The hook is tested against the user client's roles function, replaced: what the hook asks for, not how the wire looks.
 const activeUserRolesResponse: user.RolesResponse = { user: { id: 7, name: 'Ada', email: '' }, activeRoleId: 3, roles: [] };

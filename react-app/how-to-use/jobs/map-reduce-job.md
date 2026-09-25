@@ -276,17 +276,21 @@ export const ordersEndpoints = defineEndpoints({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// client/src/hooks/useCloseOldOrders.ts                    starting a run is a write, so a mutation hook
+// client/src/hooks/orders/useCloseOldOrders.ts             starting a run is a write, so a mutation hook
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { useMutation } from '@tanstack/react-query';
 import { orders } from '@/api/index.gen';
 
+export function closeOldOrdersMutationOptions() {
+    return {
+        mutationFn: (request: orders.CloseOldRequest) => orders.api.closeOld(request),
+    };
+}
+
 /** Starts a run of the closeOldOrders job; what it resolves to carries the run id the page follows. */
 export function useCloseOldOrders() {
-    return useMutation({
-        mutationFn: (request: orders.CloseOldRequest) => orders.api.closeOld(request),
-    });
+    return useMutation(closeOldOrdersMutationOptions());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -295,8 +299,8 @@ export function useCloseOldOrders() {
 
 import { useState } from 'react';
 import type { jobs } from '@/api/index.gen';
-import { useCloseOldOrders } from '@/hooks/useCloseOldOrders';
-import { useJobRun } from '@/hooks/useJobRun';
+import { useCloseOldOrders } from '@/hooks/orders/useCloseOldOrders';
+import { useJobRun } from '@/hooks/jobRuns/useJobRun';
 
 /** Closes the orders nobody has touched for 90 days, and shows how far it has got and what it came to. */
 export function OldOrdersPage() {

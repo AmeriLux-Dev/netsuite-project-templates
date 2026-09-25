@@ -20,8 +20,8 @@ The `salesOrdersRepository` it reads and writes through is not part of this proj
    every kind of endpoint, a guard and `authorize`, to delete down to what this controller serves).
 3. **The SDF object**, `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml` (`nspObjectRestlet`).
 4. **`npm run generate`**: writes the client module `client/src/api/<name>.gen.ts` from the controller.
-5. **The hooks**, `client/src/hooks/use<What>.ts` (`nspHookQuery`, without its argument for an endpoint without a
-   request; `nspHookMutation` for a write).
+5. **The hooks**, `client/src/hooks/<controller>/use<What>.ts`, one hook per file with its options beside it
+   (`nspHookQuery`, without its argument for an endpoint without a request; `nspHookMutation` for a write).
 6. **The page and its route** (`nspPage`, `nspRoute`).
 7. **The tests** (`nspTestController`, {{#if bothNetsuitePackages}}`nspTestService`, {{/if}}`nspTestHook`), each against a fake of the layer below.
 
@@ -185,7 +185,7 @@ export const api = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// client/src/hooks/useOrdersByCustomer.ts                  a query hook: the only code that calls the
+// client/src/hooks/orders/useOrdersByCustomer.ts           a query hook: the only code that calls the
 //                                                          generated client for a read
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -208,20 +208,27 @@ export function useOrdersByCustomer(customerId: number) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// client/src/hooks/useUpdateOrderMemo.ts                   a mutation hook: one write, then every query of
+// client/src/hooks/orders/useUpdateOrderMemo.ts            a mutation hook: one write, then every query of
 //                                                          the controller refetched
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { orders } from '@/api/index.gen';
 
-/** Replaces an order's memo. Every query of the orders controller is refetched afterwards. */
+/** Every query of the orders controller is refetched once the memo is saved: their keys all start with its name. */
+export function updateOrderMemoMutationOptions(queryClient: QueryClient) {
+    return {
+        mutationFn: (request: orders.UpdateMemoRequest) => orders.api.updateMemo(request),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['orders'] });
+        },
+    };
+}
+
+/** Replaces an order's memo. */
 export function useUpdateOrderMemo() {
     const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (request: orders.UpdateMemoRequest) => orders.api.updateMemo(request),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
-    });
+    return useMutation(updateOrderMemoMutationOptions(queryClient));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -231,8 +238,8 @@ export function useUpdateOrderMemo() {
 
 import { useState } from 'react';
 import type { orders } from '@/api/index.gen';
-import { useOrdersByCustomer } from '@/hooks/useOrdersByCustomer';
-import { useUpdateOrderMemo } from '@/hooks/useUpdateOrderMemo';
+import { useOrdersByCustomer } from '@/hooks/orders/useOrdersByCustomer';
+import { useUpdateOrderMemo } from '@/hooks/orders/useUpdateOrderMemo';
 
 /**
  * A customer's sales orders, newest first, each memo editable in place. A failed call needs nothing here: it is

@@ -10,7 +10,8 @@
  *   - api/src/repositories/jobRunRepository.ts            the run store: start, read, and the calls a stage makes
  *   - api/src/services/jobRunService.ts                   who may see a run, and what cleanup removes
  *   - api/src/controllers/jobRunsController.ts (+ object)  the endpoint a page polls
- *   - client/src/hooks/useJobRun.ts                       the hook that polls it
+ *   - client/src/hooks/jobRuns/useJobRunsMine.ts          the hook that finds the run to pick up after a refresh
+ *   - client/src/hooks/jobRuns/useJobRun.ts               the hook that polls it
  *   - the `jobs` block in netsuite.ts                     the cleanup job's ids, where every job's ids go
  *   - the `jobRuns` block in netsuite-api.config.json      the record's ids, for the generator
  *
@@ -555,9 +556,29 @@ export const post = defineRestlet({
 }, jobRunsEndpoints);
 `;
 
-const useJobRunHook = `import { useQuery } from '@tanstack/react-query';
+const useJobRunsMineHook = `import { queryOptions, useQuery } from '@tanstack/react-query';
+import { jobRuns } from '@/api/index.gen';
+
+// The job is part of the key, so each job's runs are cached on their own.
+export const jobRunsMineQueryKey = (job: string) => ['jobRuns', 'mine', job] as const;
+
+export function jobRunsMineQueryOptions(job: string) {
+    return queryOptions({
+        queryKey: jobRunsMineQueryKey(job),
+        queryFn: ({ signal }) => jobRuns.api.mine({ job }, { signal }),
+    });
+}
+
+/** The caller's own recent runs of one job, newest first: what useJobRun asks for, once, when the page has no run id. */
+export function useJobRunsMine(job: string) {
+    return useQuery(jobRunsMineQueryOptions(job));
+}
+`;
+
+const useJobRunHook = `import { queryOptions, useQuery } from '@tanstack/react-query';
 import { ApiClientError } from '@amerilux/netsuite-api/client';
 import { jobRuns } from '@/api/index.gen';
+import { jobRunsMineQueryOptions } from '@/hooks/jobRuns/useJobRunsMine';
 
 /**
  * Follows a job run until it ends. A Map/Reduce answers nothing, so the page holds the run id the
@@ -591,27 +612,27 @@ export interface UseJobRunOptions {
 }
 
 export const jobRunQueryKey = (runId: string | undefined) => ['jobRuns', 'status', runId] as const;
-export const jobRunsMineQueryKey = (job: string) => ['jobRuns', 'mine', job] as const;
 
-export function useJobRun<TResult = unknown>({ job, runId, resume = 'running' }: UseJobRunOptions) {
-    // Only asked when the page has no run id of its own: one request, not a poll.
-    const mine = useQuery({
-        queryKey: jobRunsMineQueryKey(job),
-        enabled: runId === undefined && resume !== 'none',
-        queryFn: ({ signal }) => jobRuns.api.mine({ job }, { signal }),
-    });
-    const resumed = mine.data?.runs.find((run) => (resume === 'latest' ? true : run.status === 'pending' || run.status === 'running'));
-    const followedRunId = runId ?? resumed?.id;
-
-    const query = useQuery({
-        queryKey: jobRunQueryKey(followedRunId),
-        enabled: followedRunId !== undefined,
+/** One run, asked about every couple of seconds until it ends; nothing is asked until there is a run id. */
+export function jobRunQueryOptions(runId: string | undefined) {
+    return queryOptions({
+        queryKey: jobRunQueryKey(runId),
+        enabled: runId !== undefined,
         // A run that is gone is an answer, not a failure: the page is told, and the banner is not.
-        queryFn: ({ signal }) => jobRuns.api.status({ runId: followedRunId as string }, { signal, handleError: false }),
+        queryFn: ({ signal }) => jobRuns.api.status({ runId: runId as string }, { signal, handleError: false }),
         retry: (failureCount, error) => !(error instanceof ApiClientError && error.status === NOT_FOUND) && failureCount < 2,
         // A finished run never changes again; anything else is still worth asking about.
         refetchInterval: ({ state }) => (state.data?.status === 'complete' || state.data?.status === 'failed' ? false : POLL_INTERVAL_MILLISECONDS),
     });
+}
+
+export function useJobRun<TResult = unknown>({ job, runId, resume = 'running' }: UseJobRunOptions) {
+    // Only asked when the page has no run id of its own: one request, not a poll.
+    const mine = useQuery({ ...jobRunsMineQueryOptions(job), enabled: runId === undefined && resume !== 'none' });
+    const resumed = mine.data?.runs.find((run) => (resume === 'latest' ? true : run.status === 'pending' || run.status === 'running'));
+    const followedRunId = runId ?? resumed?.id;
+
+    const query = useQuery(jobRunQueryOptions(followedRunId));
     const run = query.data;
     return {
         ...query,
@@ -640,7 +661,8 @@ addProjectFile('api/src/jobs/jobRunCleanup/summarize.ts', cleanupSummarize);
 addProjectFile('api/src/repositories/jobRunRepository.ts', jobRunRepository);
 addProjectFile('api/src/services/jobRunService.ts', jobRunService);
 addProjectFile('api/src/controllers/jobRunsController.ts', jobRunsController);
-addProjectFile('client/src/hooks/useJobRun.ts', useJobRunHook);
+addProjectFile('client/src/hooks/jobRuns/useJobRunsMine.ts', useJobRunsMineHook);
+addProjectFile('client/src/hooks/jobRuns/useJobRun.ts', useJobRunHook);
 
 /**
  * The `jobs` block of netsuite.ts: every job's script and deployment ids, written by hand beside the

@@ -5,7 +5,7 @@ paths:
 
 # client/src
 
-- File-based routing (TanStack Router, hash history) in `routes/`; `routeTree.gen.ts` is written by the Vite plugin. Pages live in `pages/`, hooks in `hooks/`.
+- File-based routing (TanStack Router, hash history) in `routes/`; `routeTree.gen.ts` is written by the Vite plugin. Pages live in `pages/`; hooks in `hooks/<controller>/`, one folder per controller (`hooks/customers/useCustomer.ts`), each file holding one hook and the one query or mutation options it uses, so a folder lists every hook of its controller.
 {{#if netsuiteApi}}
 - `api/` is generated from the controllers: one `<name>.gen.ts` per controller holding its request and response types, the entity types it names, and (unless `browser: false`) its `api`, one function per endpoint. `index.gen.ts` re-exports each module under the controller's name.
 {{/if}}
@@ -15,6 +15,6 @@ paths:
 {{/if}}
 - A page or component that needs `app` imports the root `netsuite.ts` by relative path (`../../netsuite` from `src/`). Nothing imports from `api/`.
 {{#if netsuiteApi}}
-- A failed call is reported to `reportApiError` (`hooks/useApiErrors.ts`, handed to `configureApiClient` in `main.tsx`) before it rejects, and the AppShell's `ApiErrorBanner` shows it until dismissed: hooks and pages carry no error handling of their own. A page that shows a failure in place reads the query's `isError` and `error` (an `ApiClientError`, whose `details` is whatever the handler gave its `ApiError`), and its hook passes `{ handleError: false }` to the call.
+- A failed call is reported to `reportApiError` (`hooks/apiErrors/useApiErrors.ts`, handed to `configureApiClient` in `main.tsx`) before it rejects, and the AppShell's `ApiErrorBanner` shows it until dismissed: hooks and pages carry no error handling of their own. A page that shows a failure in place reads the query's `isError` and `error` (an `ApiClientError`, whose `details` is whatever the handler gave its `ApiError`), and its hook passes `{ handleError: false }` to the call.
 - A `Date` in a response shape reaches the browser as an ISO string, typed `string` in the generated module. A request shape cannot carry a `Date`.
 {{/if}}

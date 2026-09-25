@@ -299,7 +299,7 @@ export const onRequest = defineSuitelet({
 }, orderExportsEndpoints);
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// client/src/hooks/useCreditLeft.ts                        a query hook, as for any endpoint
+// client/src/hooks/orders/useCreditLeft.ts                 a query hook, as for any endpoint
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -321,16 +321,15 @@ export function useCreditLeft(customerId: number) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// client/src/hooks/useDownloadOrdersCsv.ts                 a mutation: a download is something someone does,
+// client/src/hooks/orderExports/useDownloadOrdersCsv.ts    a mutation: a download is something someone does,
 //                                                          not data a page shows
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { useMutation } from '@tanstack/react-query';
 import { orderExports } from '@/api/index.gen';
 
-/** Downloads the customer's sales orders as a CSV file. */
-export function useDownloadOrdersCsv() {
-    return useMutation({
+export function downloadOrdersCsvMutationOptions() {
+    return {
         mutationFn: async (customerId: number) => {
             // The client resolves a raw endpoint to a Blob. The Blob carries the body, not the file name, so the name
             // is given again here.
@@ -341,7 +340,12 @@ export function useDownloadOrdersCsv() {
             link.click();
             URL.revokeObjectURL(link.href);
         },
-    });
+    };
+}
+
+/** Downloads the customer's sales orders as a CSV file. */
+export function useDownloadOrdersCsv() {
+    return useMutation(downloadOrdersCsvMutationOptions());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -349,8 +353,8 @@ export function useDownloadOrdersCsv() {
 //                                                          <OrdersToolbar customerId={customerId} />
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { useCreditLeft } from '@/hooks/useCreditLeft';
-import { useDownloadOrdersCsv } from '@/hooks/useDownloadOrdersCsv';
+import { useCreditLeft } from '@/hooks/orders/useCreditLeft';
+import { useDownloadOrdersCsv } from '@/hooks/orderExports/useDownloadOrdersCsv';
 
 /** The customer's credit left, when the caller may see it, and the CSV download. */
 export function OrdersToolbar({ customerId }: { customerId: number }) {

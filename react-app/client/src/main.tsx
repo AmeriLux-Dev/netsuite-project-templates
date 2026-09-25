@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { app } from '../../netsuite';
 {{#if netsuiteApi}}
-import { reportApiError } from '@/hooks/useApiErrors';
+import { reportApiError } from '@/hooks/apiErrors/useApiErrors';
 {{/if}}
 import { createAppRouter } from '@/router';
 import '@/styles/app.css';

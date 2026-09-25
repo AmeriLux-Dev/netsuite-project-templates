@@ -1,4 +1,4 @@
-import { useActiveUserRoles } from '@/hooks/useActiveUserRoles';
+import { useActiveUserRoles } from '@/hooks/user/useActiveUserRoles';
 
 /**
  * The starting page: who is signed in and which roles they hold. A page calls a hook; only a hook

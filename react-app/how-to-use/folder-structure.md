@@ -293,10 +293,10 @@ A page calls hooks, never the API directly.
 
 ### src/hooks/
 
-Fetching and caching, one hook per endpoint. The only code that calls {{#if netsuiteApi}}`src/api/index.gen.ts`{{/if}}{{#unless netsuiteApi}}the backend{{/unless}}.
+Fetching and caching, one hook per endpoint, in one folder per controller, named for it: `hooks/<controller>/use<What>.ts`{{#if netsuiteApi}}, the name `index.gen.ts` exports the controller's module under{{/if}} (`hooks/customers/useCustomer.ts`), so opening a folder shows every hook of that controller. Each file holds one hook and the one query options or mutation options it uses, with its key beside it; a hook that combines two endpoints takes the second from its sibling file. The only code that calls {{#if netsuiteApi}}`src/api/index.gen.ts`{{/if}}{{#unless netsuiteApi}}the backend{{/unless}}.
 {{#if netsuiteApi}}
 
-`useApiErrors.ts` keeps the failures the generated clients report (`main.tsx` hands its `reportApiError` to `configureApiClient`), for the banner.
+`apiErrors/useApiErrors.ts` keeps the failures the generated clients report (`main.tsx` hands its `reportApiError` to `configureApiClient`), for the banner.
 
 ### src/api/
 
@@ -403,7 +403,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`{{#if netsuiteApi}}, `chec
 {{/if}}
 {{#if netsuiteApi}}
 | `nspTestHook` | `client/__tests__/<controller>Query.test.ts` |
-| `nspHookQuery`, `nspHookMutation` | `client/src/hooks/use<Name>.ts`: a query with its key and options (drop the argument for an endpoint without a request), a mutation |
+| `nspHookQuery`, `nspHookMutation` | `client/src/hooks/<controller>/use<Name>.ts`: a query with its key and options (drop the argument for an endpoint without a request), a mutation with its options |
 {{/if}}
 | {{#if netsuiteApi}}`nspPage`, {{/if}}`nspRoute` (TSX) | {{#if netsuiteApi}}`client/src/pages/<Name>Page.tsx`, {{/if}}`client/src/routes/<segment>.tsx` |
 | `nspObjectRestlet`, `nspObjectSuitelet`{{#if netsuiteApi}}, `nspObjectMapReduce`{{/if}} (XML) | `netsuite/Objects/customscript_{{prefix}}_<snake_name>.xml`{{#if netsuiteApi}}; the Map/Reduce one carries the job's run parameter and its deployment{{/if}} |

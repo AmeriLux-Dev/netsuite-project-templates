@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '@amerilux/netsuite-api/client';
 import type { ApiCallContext } from '@amerilux/netsuite-api/client';
-import { clearApiErrors, dismissApiError, readApiErrors, reportApiError, subscribeToApiErrors } from '@/hooks/useApiErrors';
+import { clearApiErrors, dismissApiError, readApiErrors, reportApiError, subscribeToApiErrors } from '@/hooks/apiErrors/useApiErrors';
 
 const userRolesCall: ApiCallContext = { scriptRef: { kind: 'restlet', scriptId: 'customscript_{{prefix}}_user', deployId: 'customdeploy_{{prefix}}_user' }, endpoint: 'roles', request: {} };
 

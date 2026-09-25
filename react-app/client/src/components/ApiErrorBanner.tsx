@@ -1,4 +1,4 @@
-import { dismissApiError, useApiErrors } from '@/hooks/useApiErrors';
+import { dismissApiError, useApiErrors } from '@/hooks/apiErrors/useApiErrors';
 
 /** Every API failure reported and not yet dismissed, one line each, above the page. Renders nothing while there is none. */
 export function ApiErrorBanner() {

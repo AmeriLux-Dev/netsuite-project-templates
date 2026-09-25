@@ -76,9 +76,9 @@ const scenario = [
     { snippet: 'nspTestHook', file: 'client/__tests__/ordersQuery.test.ts', values: { 2: 'byCustomer', 3: '{ customerId: 7, orders: [] }', 4: 'ordersByCustomer', 6: '{ customerId: 7 }' } },
 
     // The client: a query hook, a mutation, a page and its route.
-    { snippet: 'nspHookQuery', file: 'client/src/hooks/useOrdersByCustomer.ts', values: { 1: 'orders', 2: 'byCustomer', 3: 'customerId', 5: 'Every sales order of the customer' } },
-    { snippet: 'nspHookMutation', file: 'client/src/hooks/useCreateOrder.ts', values: { 1: 'orders', 2: 'create', 3: 'Creates a sales order' } },
-    { snippet: 'nspPage', file: 'client/src/pages/OrdersPage.tsx', values: { 1: 'useOrdersByCustomer', 2: 'useCreateOrder', 3: 'customerId', 5: "{ customerId, memo: '' }", 6: 'Orders', 7: 'The customer\'s sales orders' } },
+    { snippet: 'nspHookQuery', file: 'client/src/hooks/orders/useOrdersByCustomer.ts', values: { 1: 'orders', 2: 'byCustomer', 3: 'customerId', 5: 'Every sales order of the customer' } },
+    { snippet: 'nspHookMutation', file: 'client/src/hooks/orders/useCreateOrder.ts', values: { 1: 'orders', 2: 'create', 3: 'Creates a sales order' } },
+    { snippet: 'nspPage', file: 'client/src/pages/OrdersPage.tsx', values: { 1: 'useOrdersByCustomer', 2: 'useCreateOrder', 3: 'customerId', 5: "{ customerId, memo: '' }", 6: 'Orders', 7: 'The customer\'s sales orders', 8: 'orders' } },
     { snippet: 'nspRoute', file: 'client/src/routes/orders.$customerId.tsx' },
 
     // Jobs: the run machinery a project adds once, then a job, its object, and the file that starts it.
@@ -96,7 +96,8 @@ const scenario = [
             'api/src/repositories/jobRunRepository.ts',
             'api/src/services/jobRunService.ts',
             'api/src/controllers/jobRunsController.ts',
-            'client/src/hooks/useJobRun.ts',
+            'client/src/hooks/jobRuns/useJobRunsMine.ts',
+            'client/src/hooks/jobRuns/useJobRun.ts',
             'netsuite-api.config.json',
         ],
     },
