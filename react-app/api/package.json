@@ -16,7 +16,7 @@
     "@amerilux/netsuite-api": "^0.7.1",
 {{/if}}
 {{#if netsuiteRepository}}
-    "@amerilux/netsuite-repository": "^1.2.1",
+    "@amerilux/netsuite-repository": "^1.2.2",
 {{/if}}
     "@amerilux/netsuite-wrapper": "^0.4.2"
   },
