@@ -38,7 +38,7 @@ const isWindows = process.platform === 'win32';
  * step expands one into a new file (its name is what VS Code derives the names from), keeping everything it offers:
  * the check proves the full page compiles as written, and a developer deletes what the file does not need. An
  * `edit` step is what the developer would write by hand (a job's ids in netsuite.ts, the service functions a job
- * calls). A `run` step runs one of the project's npm scripts, for a setup step the snippets assume has happened
+ * calls), and a `write` step a whole file written by hand (a class a snippet imports by name). A `run` step runs one of the project's npm scripts, for a setup step the snippets assume has happened
  * (`add:jobs`); what it creates is named in `creates`, so the restore takes those files away again. Paths and values
  * may carry the template tokens {{prefix}}, {{appName}} and {{appTitle}}; they are rendered from the scaffold's
  * netsuite.ts. The defaults line up across the chain (model, specifications, repository, service, controller, tests),
@@ -47,8 +47,46 @@ const isWindows = process.platform === 'win32';
 const scenario = [
     // The record behind everything, with every decorator. Its reference points at the scaffold's own EmployeeRole,
     // so the scenario needs no second record; an abstract base beside it.
-    { snippet: 'nspModel', file: 'api/src/models/SalesOrder.ts', values: { 1: 'EmployeeRole', 7: 'roleId', 8: 'roleName', 9: 'one sales order' } },
+    { snippet: 'nspModel', file: 'api/src/models/SalesOrder.ts', values: { 1: 'EmployeeRole', 8: 'roleId', 9: 'roleName', 10: 'one sales order' } },
     { snippet: 'nspModelBase', file: 'api/src/models/TransactionBase.ts' },
+    // The subrecord and the line the model imports, each a class in its own file. The line keeps lineId and quantity,
+    // which the repository, specification and test snippets use.
+    {
+        write: 'api/src/models/SalesOrderAddress.ts',
+        content: [
+            '/** The shipping address of a sales order: a subrecord, so a plain class without @RecordType. */',
+            'export class SalesOrderAddress {',
+            '    addr1!: string | null;',
+            '',
+            '    city!: string | null;',
+            '',
+            '    zip!: string | null;',
+            '}',
+        ],
+    },
+    {
+        write: 'api/src/models/SalesOrderLine.ts',
+        content: [
+            "import { Field, InternalId, ParentId, RecordType } from '@amerilux/netsuite-repository';",
+            '',
+            '/** One line of a sales order\'s item sublist. */',
+            "@RecordType('transactionline')",
+            'export class SalesOrderLine {',
+            '    @InternalId()',
+            "    @Field('line', { queryFieldId: 'id' })",
+            '    lineId!: number;',
+            '',
+            '    @ParentId()',
+            "    @Field('transaction', { readOnly: true })",
+            '    salesOrderId!: number;',
+            '',
+            "    @Field('item')",
+            '    itemId!: number;',
+            '',
+            '    quantity!: number;',
+            '}',
+        ],
+    },
 
     // Its query vocabulary and its repository over dbContext, every builder and every set method; a repository over a
     // NetSuite module.
@@ -289,7 +327,14 @@ function applyStep(step) {
         writeProjectFile(relativePath, expandStep(step, fileNameBase));
         return `${step.snippet} -> ${relativePath}`;
     }
-    throw new Error(`A step names neither file, edit nor run: ${JSON.stringify(step)}. Every snippet writes a whole file.`);
+    if (step.write) {
+        const relativePath = renderTokens(step.write);
+        if (existsSync(path.join(projectDir, relativePath))) throw new Error(`${relativePath} already exists; the scenario only writes new files.`);
+        rememberOriginal(relativePath);
+        writeProjectFile(relativePath, `${renderTokens(step.content.join('\n'))}\n`);
+        return `wrote ${relativePath}`;
+    }
+    throw new Error(`A step names neither file, edit, write nor run: ${JSON.stringify(step)}. Every snippet writes a whole file.`);
 }
 
 /** With shell:true (needed for npm's .cmd shim on Windows) arguments with spaces must be quoted by hand. */

@@ -51,7 +51,7 @@ because they are not TypeScript:
 // api/src/models/Customer.ts                               the record the Suitelet reads as Administrator
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { Field, NetsuiteRecordType, ReadOnly, RecordType } from '@amerilux/netsuite-repository';
+import { Field, NetsuiteRecordType, RecordType } from '@amerilux/netsuite-repository';
 
 /**
  * A customer: who looks after it, and where it stands on credit.
@@ -68,8 +68,7 @@ export class Customer {
     salesRepId!: number | null;
 
     /** Queried as `balancesearch`, written (never, here) as `balance`: NetSuite names it differently on each side. */
-    @Field('balance', { queryFieldId: 'balancesearch' })
-    @ReadOnly()
+    @Field('balance', { queryFieldId: 'balancesearch', readOnly: true })
     balance!: number | null;
 
     @Field('creditlimit')

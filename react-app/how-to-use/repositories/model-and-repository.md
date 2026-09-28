@@ -35,7 +35,7 @@ nobody writes them:
 // api/src/models/SalesOrderLine.ts                         a sublist line is a record type of its own
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { Field, InternalId, ParentId, ReadOnly, RecordType } from '@amerilux/netsuite-repository';
+import { Field, InternalId, ParentId, RecordType } from '@amerilux/netsuite-repository';
 
 /**
  * One item line of a sales order. NetSuite queries lines as `transactionline` rows, so the line class is a record
@@ -50,8 +50,7 @@ export class SalesOrderLine {
     id!: number;
 
     @ParentId()
-    @Field('transaction')
-    @ReadOnly()
+    @Field('transaction', { readOnly: true })
     salesOrderId!: number;
 
     @Field('item')
@@ -66,7 +65,7 @@ export class SalesOrderLine {
 //                                                          application uses, declared here and nowhere else
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { Field, NetsuiteRecordType, ReadOnly, RecordType, Sublist } from '@amerilux/netsuite-repository';
+import { Field, NetsuiteRecordType, RecordType, Sublist } from '@amerilux/netsuite-repository';
 import type { SalesOrderLine } from './SalesOrderLine';
 
 /**
@@ -98,8 +97,7 @@ export class SalesOrder {
     @Field({ queryFieldId: 'status', text: true })
     statusText!: string;
 
-    @Field('lastmodifieddate')
-    @ReadOnly()
+    @Field('lastmodifieddate', { readOnly: true })
     lastModified!: Date;
 
     /** A salesorder query has no join to its lines, so they are read from the transaction root, without the header line. */

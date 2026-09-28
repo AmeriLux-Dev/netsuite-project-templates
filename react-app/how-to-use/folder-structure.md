@@ -396,7 +396,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`{{#if netsuiteApi}}, `chec
 | `nspRepositoryModule` | `api/src/repositories/<source>Repository.ts` reading a NetSuite module (`N/runtime`, `N/file`) |
 {{#if netsuiteRepository}}
 | `nspSpecification` | `api/src/specifications/<set>Specifications.ts`: one builder per kind of condition, `include`, an order and a page |
-| `nspModel`, `nspModelBase` | `api/src/models/<Record>.ts`: a record with every decorator and option, commented, and a subrecord class and a sublist line class in the same file (a line usually moves to a file of its own); an abstract base a record class extends |
+| `nspModel`, `nspModelBase` | `api/src/models/<Record>.ts`: one record class with every decorator and option, commented; the subrecord and sublist line classes it imports are models in files of their own; an abstract base a record class extends |
 {{/if}}
 {{#if codeGeneration}}
 | {{#if netsuiteApi}}`nspTestController`, {{/if}}{{#if userRolesExample}}`nspTestService`, {{/if}}{{#if netsuiteRepository}}`nspTestRepository`{{/if}}{{#if bothNetsuitePackages}}, {{/if}}{{#if netsuiteApi}}`nspTestRepositorySuitelet`{{/if}} | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below, one `describe` per function the matching snippet writes |
