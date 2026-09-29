@@ -122,7 +122,7 @@ export function updateOrderClosed(orderId: number): OrderClosing {
     if (salesOrder === null) return { closed: false, reason: 'No such order' };
     const openLineIds = salesOrder.lines.filter((line) => !line.isClosed).map((line) => line.id);
     if (openLineIds.length === 0) return { closed: false, reason: 'Already closed' };
-    salesOrdersRepository.updateSalesOrderLinesClosed(orderId, openLineIds);
+    salesOrdersRepository.updateSalesOrder(orderId, { lines: { update: openLineIds.map((id) => ({ id, isClosed: true })) } });
     return { closed: true, reason: 'Closed' };
 }
 

@@ -80,7 +80,7 @@ export function getOrdersByCustomer(customerId: number): SalesOrderSummary[] {
 export function updateOrderMemo(orderId: number, memo: string): SalesOrderSummary | null {
     if (salesOrdersRepository.findSalesOrder(orderId) === null) return null;
     const trimmed = memo.trim();
-    return buildSalesOrderSummary(salesOrdersRepository.updateSalesOrderMemo(orderId, trimmed === '' ? null : trimmed));
+    return buildSalesOrderSummary(salesOrdersRepository.updateSalesOrder(orderId, { memo: trimmed === '' ? null : trimmed }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -393,7 +393,7 @@ sequenceDiagram
     Hook->>Client: updateMemo(request)
     Client->>Restlet: POST, body carries endpoint updateMemo
     Restlet->>Service: updateOrderMemo(orderId, memo)
-    Service->>Repository: findSalesOrder, updateSalesOrderMemo
+    Service->>Repository: findSalesOrder, updateSalesOrder(orderId, { memo })
     Repository-->>Service: SalesOrder
     Service-->>Restlet: SalesOrderSummary
     Restlet-->>Client: envelope with status 200 and data

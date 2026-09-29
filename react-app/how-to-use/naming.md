@@ -25,7 +25,7 @@ Two rules from `CLAUDE.md`, applied to the layers of [folder-structure.md](folde
 
 | Layer | Verb | Example |
 |---|---|---|
-| Repository | `list`, `find`, `read`, `create`, `update`, `remove`, then the set and the filter{{#if netsuiteRepository}}; `list<Set>` with no filter runs the specifications its caller composes{{/if}} | `listSalesOrdersByCustomer`, `readActiveUser`, `createSalesOrder`{{#if netsuiteRepository}}, `listSalesOrders`{{/if}} |
+| Repository | `list`, `find`, `read`, `create`, `update`, `remove`, then the set and the filter{{#if netsuiteRepository}}; `list<Set>` with no filter runs the specifications its caller composes, and `update<Record>` with no part applies the patch its caller builds{{/if}} | `listSalesOrdersByCustomer`, `readActiveUser`, `createSalesOrder`{{#if netsuiteRepository}}, `listSalesOrders`, `updateSalesOrder`{{/if}} |
 | Service | `get`, `create`, `update`, `remove`, then the data; `is` or `has` for a check | `getRolesByEmployee`, `updateOrderMemo`, `isSalesRepOfCustomer` |
 {{#if netsuiteApi}}
 | Endpoint | read with the controller in front of it, so it never repeats it: what the call answers, or how its rows are chosen; a verb when the call changes something | `roles`, `labels`, `list`, `byId`, `byEmployee`, `create`, `approve` |
