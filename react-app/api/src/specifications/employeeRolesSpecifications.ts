@@ -2,8 +2,8 @@ import type { Specification } from '@amerilux/netsuite-repository';
 import { type EmployeeRole, EmployeeRoleFields as Fields } from '../repositories/generated/EmployeeRole.gen';
 
 /**
- * The query vocabulary for role assignments: one predicate per builder, no decisions. A repository
- * function composes them; a test can render any of them against a recording query and no context.
+ * The query vocabulary for role assignments: one predicate per builder, no decisions. userService composes
+ * them; a test can render any of them against a recording query and no context.
  */
 
 export const forEmployee = (employeeId: number): Specification<EmployeeRole> =>

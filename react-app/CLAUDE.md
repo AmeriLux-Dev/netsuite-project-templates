@@ -19,10 +19,10 @@ Suitelet-hosted React application for NetSuite, scaffolded by create-netsuite-pr
 
 ## Layout
 
-- `api/src/` is flat per layer and the file name carries the layer (`userController.ts`, `userService.ts`, `activeUserRepository.ts`). A request goes endpoint → service → repository{{#if netsuiteRepository}} → specification{{/if}}.
+- `api/src/` is flat per layer and the file name carries the layer (`userController.ts`, `userService.ts`, `activeUserRepository.ts`). A request goes endpoint → service → repository.{{#if netsuiteRepository}} A read only one service makes is composed there from specifications and handed to the repository's `list<Set>`; a read a second caller needs becomes a named repository function.{{/if}}
   - `controllers/<name>Controller.ts`: one deployed Restlet or Suitelet{{#if netsuiteApi}}, with its wire shapes, its endpoints and its script declaration{{/if}}.
   - {{#if netsuiteApi}}`jobs/<name>/`: one Map/Reduce job per folder. {{/if}}`events/user/`, `events/client/`: self-contained record scripts, deployed by hand.
-  - `services/` decide, one per domain: a record type with everything that exists only as part of it (`salesOrderService` holds the lines; there is no `salesOrderLineService`), or an outside party (`carrierService` chooses between one repository per carrier). `repositories/` are the only code that touches NetSuite{{#if netsuiteRepository}}; `specifications/` are query filters for repositories; `models/` are the `@RecordType` classes{{/if}}.
+  - `services/` decide, one per domain: a record type with everything that exists only as part of it (`salesOrderService` holds the lines; there is no `salesOrderLineService`), or an outside party (`carrierService` chooses between one repository per carrier). `repositories/` are the only code that touches NetSuite{{#if netsuiteRepository}}; `specifications/` are the query conditions services{{#if netsuiteApi}}, jobs{{/if}} and repositories compose reads from; `models/` are the `@RecordType` classes{{/if}}.
   - `lib/`: plain helpers any layer may call, named for what they hold (`errors.ts`). They import only other `lib/` files; code that needs a record is a service, and a business rule stays in its domain's service.
   - `_host/`: the Suitelet that serves the app. Boilerplate; add nothing to it.
 - `client/src/`: `routes/` render `pages/`, pages call `hooks/`, hooks call {{#if netsuiteApi}}the generated `api/`{{/if}}{{#unless netsuiteApi}}the backend{{/unless}}. The client never imports from `api/`.

@@ -35,6 +35,7 @@
     "api/__tests__/controllers": "userRolesExample",
     "api/__tests__/services": "userRolesExample",
     "api/__tests__/repositories": "userRolesExample",
+    "api/__tests__/specifications": "userRolesExample",
     "client/src/hooks/user/useActiveUserRoles.ts": "userRolesExample",
     "client/src/pages/UserRolesPage.tsx": "userRolesExample",
     "client/__tests__/userQuery.test.ts": "userRolesExample",

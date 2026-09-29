@@ -4,13 +4,14 @@ import type { ActiveUser } from '../../src/repositories/activeUserRepository';
 import type { RoleSummary } from '../../src/services/userService';
 
 // The service is tested against mocked repositories, so the test sees only the service's decisions. Each mock is named
-// as the service imports its repository.
+// as the service imports its repository. The read it composes arrives as the specifications it names: each mocked
+// builder answers its name and arguments.
 const { activeUserRepository, employeeRolesRepository, userRolesRepository } = vi.hoisted(() => ({
     activeUserRepository: {
         readActiveUser: vi.fn<() => ActiveUser>(),
     },
     employeeRolesRepository: {
-        listEmployeeRolesByEmployee: vi.fn<(employeeId: number) => EmployeeRole[]>(),
+        listEmployeeRoles: vi.fn<(...specifications: unknown[]) => EmployeeRole[]>(),
     },
     userRolesRepository: {
         listRolesForEmployee: vi.fn<(employeeId: number) => RoleSummary[]>(),
@@ -19,13 +20,16 @@ const { activeUserRepository, employeeRolesRepository, userRolesRepository } = v
 vi.mock('../../src/repositories/activeUserRepository', () => activeUserRepository);
 vi.mock('../../src/repositories/employeeRolesRepository', () => employeeRolesRepository);
 vi.mock('../../src/repositories/userRolesRepository', () => userRolesRepository);
+vi.mock('../../src/specifications/employeeRolesSpecifications', () => ({
+    forEmployee: (employeeId: number) => ({ forEmployee: [employeeId] }),
+}));
 
 import { getActiveUserRoles, getRolesByEmployee } from '../../src/services/userService';
 
 describe('getRolesByEmployee', () => {
     beforeEach(() => {
-        employeeRolesRepository.listEmployeeRolesByEmployee.mockReset();
-        employeeRolesRepository.listEmployeeRolesByEmployee.mockReturnValue([
+        employeeRolesRepository.listEmployeeRoles.mockReset();
+        employeeRolesRepository.listEmployeeRoles.mockReturnValue([
             { roleId: 57, employeeId: 7, roleName: 'Data Warehouse Integrator' },
             { roleId: 3, employeeId: 7, roleName: 'Administrator' },
         ]);
@@ -36,11 +40,11 @@ describe('getRolesByEmployee', () => {
             { roleId: 3, roleName: 'Administrator' },
             { roleId: 57, roleName: 'Data Warehouse Integrator' },
         ]);
-        expect(employeeRolesRepository.listEmployeeRolesByEmployee).toHaveBeenCalledWith(7);
+        expect(employeeRolesRepository.listEmployeeRoles).toHaveBeenCalledWith({ forEmployee: [7] });
     });
 
     it('answers an empty list for an employee with no roles', () => {
-        employeeRolesRepository.listEmployeeRolesByEmployee.mockReturnValue([]);
+        employeeRolesRepository.listEmployeeRoles.mockReturnValue([]);
         expect(getRolesByEmployee(8)).toEqual([]);
     });
 });

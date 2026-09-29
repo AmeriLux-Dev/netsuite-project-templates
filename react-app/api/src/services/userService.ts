@@ -3,6 +3,7 @@ import type { ActiveUser } from '../repositories/activeUserRepository';
 import * as activeUserRepository from '../repositories/activeUserRepository';
 import * as employeeRolesRepository from '../repositories/employeeRolesRepository';
 import * as userRolesRepository from '../repositories/userRolesRepository';
+import { forEmployee } from '../specifications/employeeRolesSpecifications';
 
 /**
  * Decisions about the application's users: who is calling, and the roles an employee holds (a sublist of the
@@ -30,7 +31,7 @@ function buildRoleSummary(role: EmployeeRole): RoleSummary {
 
 /** Every role assigned to the employee, sorted by name. */
 export function getRolesByEmployee(employeeId: number): RoleSummary[] {
-    return employeeRolesRepository.listEmployeeRolesByEmployee(employeeId)
+    return employeeRolesRepository.listEmployeeRoles(forEmployee(employeeId))
         .map(buildRoleSummary)
         .sort((left, right) => left.roleName.localeCompare(right.roleName));
 }
