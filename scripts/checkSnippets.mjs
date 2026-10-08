@@ -111,6 +111,7 @@ const scenario = [
     { snippet: 'nspTestService', file: 'api/__tests__/services/salesOrderService.test.ts', values: { 1: 'SalesOrder' } },
     { snippet: 'nspTestRepository', file: 'api/__tests__/repositories/salesOrdersRepository.test.ts' },
     { snippet: 'nspTestRepositorySuitelet', file: 'api/__tests__/repositories/orderTotalsRepository.test.ts', values: { 2: 'byCustomer', 3: 'listOrderTotalsForCustomer', 4: 'customerId', 5: 'orderTotals', 6: '[{ id: 1, customerId: 7, memo: null }]' } },
+    { snippet: 'nspTestSpecification', file: 'api/__tests__/specifications/salesOrdersSpecifications.test.ts' },
     { snippet: 'nspTestHook', file: 'client/__tests__/ordersQuery.test.ts', values: { 2: 'byCustomer', 3: '{ customerId: 7, orders: [] }', 4: 'ordersByCustomer', 6: '{ customerId: 7 }' } },
 
     // The client: a query hook, a mutation, a page and its route.

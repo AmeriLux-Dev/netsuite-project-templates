@@ -214,13 +214,16 @@ export default defineConfig([
     },
     {
 {{#if bothNetsuitePackages}}
-        // Layers. Endpoint calls service, service calls repository, repository composes specifications over the generated
-        // sets. Client pages and routes call hooks, hooks call the generated client module. The client's whole view of
-        // the api is that generated module; pages and components may take its types (the rule for that is in the
-        // client block below, because this rule cannot tell a type import apart).
+        // Layers. Endpoint calls service, service calls repository, repository runs specifications over the generated
+        // sets. A read only one service or job makes is composed there, from the specifications, and handed to the
+        // repository's list<Set>; a read several share is a named repository function. Client pages and routes call
+        // hooks, hooks call the generated client module. The client's whole view of the api is that generated module;
+        // pages and components may take its types (the rule for that is in the client block below, because this rule
+        // cannot tell a type import apart).
 {{/if}}
 {{#unless bothNetsuitePackages}}
-        // Layers. Endpoint calls service, service calls repository{{#if netsuiteRepository}}, repository composes specifications over the generated sets{{/if}}.
+        // Layers. Endpoint calls service, service calls repository{{#if netsuiteRepository}}, repository runs specifications over the generated sets.
+        // A read only one service makes is composed there and handed to the repository's list<Set>; a read several share is a named repository function{{/if}}.
         // Client pages and routes call hooks{{#if netsuiteApi}}, hooks call the generated client module. The client's whole view of the api is that
         // generated module; pages and components may take its types (the rule for that is in the client block below,
         // because this rule cannot tell a type import apart){{/if}}.
@@ -231,10 +234,10 @@ export default defineConfig([
                 zones: [
                     { target: './api/src/controllers', from: ['./api/src/repositories'{{#if netsuiteRepository}}, './api/src/specifications', './api/src/models'{{/if}}], message: 'An endpoint never queries. Call a service.' },
 {{#if bothNetsuitePackages}}
-                    { target: './api/src/jobs', from: ['./api/src/specifications', './api/src/models'], message: 'A job decides and calls a repository, as a service does; it knows nothing about records or queries.' },
+                    { target: './api/src/jobs', from: './api/src/models', message: 'A job decides and calls a repository, as a service does: it names specifications and entity types, never a model.' },
 {{/if}}
 {{#if netsuiteRepository}}
-                    { target: './api/src/services', from: ['./api/src/specifications', './api/src/models'], message: 'A service decides; the repository queries.' },
+                    { target: './api/src/services', from: './api/src/models', message: 'A service decides and the repository queries: it names specifications and entity types, never a model.' },
 {{/if}}
                     { target: './api/src/repositories', from: './api/src/services', message: 'A repository never decides.' },
 {{#if netsuiteRepository}}

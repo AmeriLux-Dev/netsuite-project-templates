@@ -2,8 +2,10 @@
 
 One record type, the sales order. A model declares the fields this application uses, `npm run generate` turns it
 into types and a record set, the specifications name the filters, and the repository functions read and write
-through them. Nothing above the repository sees any of it: a service calls `listSalesOrdersByCustomer(7)` and gets
-`SalesOrder[]` back.{{#if netsuiteApi}} The [controller](../controllers/restlet-controller.md) and [job](../jobs/map-reduce-job.md)
+through them. Above the repository, only the specifications are seen: a read only one service makes, the service
+composes, `listSalesOrders(notModifiedSince(cutoff), withOpenLines())`, and a read more than one caller makes has a
+name, `listSalesOrdersByCustomer(7)`; either answers `SalesOrder[]`. A write only one service makes is a patch the
+service builds, `updateSalesOrder(id, { memo })`, and the set works out what changed and how to write it.{{#if netsuiteApi}} The [controller](../controllers/restlet-controller.md) and [job](../jobs/map-reduce-job.md)
 examples build on these functions.{{/if}}
 
 ## Steps
@@ -15,9 +17,12 @@ examples build on these functions.{{/if}}
 3. **The specifications**, `api/src/specifications/<records>Specifications.ts` (the `nspSpecification` snippet shows
    every kind of condition): one condition per builder.
 4. **The repository**, `api/src/repositories/<records>Repository.ts` (`nspRepository`, every read and write the set
-   offers): the only functions that touch the records.
-5. **The test**, `api/__tests__/repositories/<records>Repository.test.ts` (`nspTestRepository`), against a fake
-   `dbContext`.
+   offers): the only functions that touch the records. `list<Set>` runs the specifications a service composes for a
+   read only it makes, and `update<Record>` applies the patch a service builds for a write only it makes; a read or
+   write a second caller needs is a named function here.
+5. **The tests**, `api/__tests__/repositories/<records>Repository.test.ts` (`nspTestRepository`), against a fake
+   `dbContext`, and `api/__tests__/specifications/<records>Specifications.test.ts` (`nspTestSpecification`) for the
+   builders a service composes, since the service's own test sees only their names.
 
 ## The code
 
@@ -143,8 +148,9 @@ import type { Specification } from '@amerilux/netsuite-repository';
 import { type SalesOrder, SalesOrderFields as Fields } from '../repositories/generated/SalesOrder.gen';
 
 /**
- * The query vocabulary for sales orders: one condition per builder. A repository function composes them, and a
- * field path that does not exist on the model is a compile error here, not a failed query in NetSuite.
+ * The query vocabulary for sales orders: one condition per builder. A service composes a read only it makes from
+ * them, a repository function a read several share, and a field path that does not exist on the model is a compile
+ * error here, not a failed query in NetSuite.
  */
 
 export const forCustomer = (customerId: number): Specification<SalesOrder> =>
@@ -166,10 +172,12 @@ export const withOpenLines = (): Specification<SalesOrder> =>
 //                                                          and write of a sales order goes through here
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import type { SalesOrder } from '../types/models.gen';
+import * as log from 'N/log';
+import type { Specification } from '@amerilux/netsuite-repository';
+import type { SalesOrder, SalesOrderPatch } from '../types/models.gen';
 import { dbContext } from './generated/context.gen';
 import { SalesOrderFields as Fields } from './generated/SalesOrder.gen';
-import { forCustomer, notModifiedSince, withOpenLines } from '../specifications/salesOrdersSpecifications';
+import { forCustomer } from '../specifications/salesOrdersSpecifications';
 
 /**
  * Data access for sales orders. A read goes through `dbContext.salesOrders` and tracks nothing. A write asks
@@ -177,14 +185,17 @@ import { forCustomer, notModifiedSince, withOpenLines } from '../specifications/
  * record outlives the call that changed it.
  */
 
-/** Every sales order of the customer with its lines, newest first. */
-export function listSalesOrdersByCustomer(customerId: number): SalesOrder[] {
-    return dbContext.salesOrders.list(forCustomer(customerId), (query) => query.orderByDesc(Fields.tranDate));
+/**
+ * The orders the specifications ask for, applied in order as one query. A read only one service makes is composed
+ * there and handed over; a read a second caller needs is given a name below.
+ */
+export function listSalesOrders(...specifications: Specification<SalesOrder>[]): SalesOrder[] {
+    return dbContext.salesOrders.list(...specifications);
 }
 
-/** The orders nobody has changed since the cutoff that still have an open line, with their open lines. */
-export function listSalesOrdersNotModifiedSince(cutoff: Date): SalesOrder[] {
-    return dbContext.salesOrders.list(notModifiedSince(cutoff), withOpenLines());
+/** Every sales order of the customer with its lines, newest first: a read more than one caller makes, so it is named. */
+export function listSalesOrdersByCustomer(customerId: number): SalesOrder[] {
+    return dbContext.salesOrders.list(forCustomer(customerId), (query) => query.orderByDesc(Fields.tranDate));
 }
 
 /** One sales order with every line, or null when no sales order has the id. */
@@ -192,17 +203,17 @@ export function findSalesOrder(salesOrderId: number): SalesOrder | null {
     return dbContext.salesOrders.find(salesOrderId);
 }
 
-/** Replaces the memo, or clears it with null. Only a body field changes, so NetSuite is written with one submitFields call. */
-export function updateSalesOrderMemo(salesOrderId: number, memo: string | null): SalesOrder {
-    return dbContext.withTracking().salesOrders.update(salesOrderId, { memo });
-}
-
 /**
- * Closes the given lines. A sublist changes, so the record is loaded, the lines are changed and it is saved; a
- * line patch names its line by `id`. Throws when NetSuite refuses the save.
+ * Changes the fields the patch names and answers the order. The patch is the service's, for a write only it makes:
+ * the set loads the order, diffs the patch against it and plans the cheapest save. A body field alone (`{ memo }`) is
+ * one submitFields call; a sublist patch (`{ lines: { update: [{ id, isClosed: true }] } }`, each line named by its
+ * `id`) loads the record, changes the lines and saves it. The line names the fields; their values are the call's
+ * arguments. Throws when NetSuite refuses the save.
  */
-export function updateSalesOrderLinesClosed(salesOrderId: number, lineIds: number[]): SalesOrder {
-    return dbContext.withTracking().salesOrders.update(salesOrderId, { lines: { update: lineIds.map((id) => ({ id, isClosed: true })) } });
+export function updateSalesOrder(salesOrderId: number, patch: SalesOrderPatch): SalesOrder {
+    const updated = dbContext.withTracking().salesOrders.update(salesOrderId, patch);
+    log.audit('sales order updated', { salesOrderId, fields: Object.keys(patch) });
+    return updated;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -210,6 +221,7 @@ export function updateSalesOrderLinesClosed(salesOrderId: number, lineIds: numbe
 //                                                          a repository is tested against a fake dbContext
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
+import * as log from 'N/log';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The fake carries only what the repository touches: the set's list(), and withTracking() handing back a set
@@ -222,7 +234,8 @@ vi.mock('../../src/repositories/generated/context.gen', () => ({
     dbContext: { salesOrders: fakeSalesOrders, withTracking: () => ({ salesOrders: fakeTrackedSalesOrders }) },
 }));
 
-import { listSalesOrdersNotModifiedSince, updateSalesOrderLinesClosed } from '../../src/repositories/salesOrdersRepository';
+import { listSalesOrders, listSalesOrdersByCustomer, updateSalesOrder } from '../../src/repositories/salesOrdersRepository';
+import { forCustomer, withOpenLines } from '../../src/specifications/salesOrdersSpecifications';
 
 /** Makes list() apply every specification to a query that records what each one asks for. */
 function recordSpecifications(): Array<{ method: string; args: unknown[] }> {
@@ -246,25 +259,76 @@ beforeEach(() => {
     fakeTrackedSalesOrders.update.mockReset();
 });
 
-describe('listSalesOrdersNotModifiedSince', () => {
-    it('asks for the orders unchanged since the cutoff that still have an open line', () => {
-        const calls = recordSpecifications();
-        const cutoff = new Date('2026-06-01T00:00:00Z');
+// A read a service composes is the service's to test; the repository only has to hand the specifications on.
+describe('listSalesOrders', () => {
+    it('hands the specifications to the set in the order given', () => {
+        const specifications = [forCustomer(7), withOpenLines()];
 
-        listSalesOrdersNotModifiedSince(cutoff);
+        listSalesOrders(...specifications);
+
+        expect(fakeSalesOrders.list).toHaveBeenCalledWith(...specifications);
+    });
+});
+
+describe('listSalesOrdersByCustomer', () => {
+    it("asks for the customer's orders, newest first", () => {
+        const calls = recordSpecifications();
+
+        listSalesOrdersByCustomer(7);
 
         expect(calls).toEqual([
-            { method: 'where', args: ['lastModified', '<', cutoff] },
-            { method: 'where', args: ['lines.isClosed', '=', false] },
+            { method: 'where', args: ['customerId', '=', 7] },
+            { method: 'orderByDesc', args: ['tranDate'] },
         ]);
     });
 });
 
-describe('updateSalesOrderLinesClosed', () => {
-    it('patches each line by its id, through a tracker of its own', () => {
-        updateSalesOrderLinesClosed(12, [1, 3]);
+// The patch is the service's to test; the repository only has to hand it to a tracker of its own.
+describe('updateSalesOrder', () => {
+    it('hands the patch to update() through a tracker of its own, and logs the fields it names', () => {
+        const patch = { lines: { update: [{ id: 1, isClosed: true }, { id: 3, isClosed: true }] } };
 
-        expect(fakeTrackedSalesOrders.update).toHaveBeenCalledWith(12, { lines: { update: [{ id: 1, isClosed: true }, { id: 3, isClosed: true }] } });
+        updateSalesOrder(12, patch);
+
+        expect(fakeTrackedSalesOrders.update).toHaveBeenCalledWith(12, patch);
+        expect(log.audit).toHaveBeenCalledWith('sales order updated', { salesOrderId: 12, fields: ['lines'] });
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// api/__tests__/specifications/salesOrdersSpecifications.test.ts
+//                                                          what each builder a service composes asks for:
+//                                                          the service's test sees only their names
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+import { describe, expect, it } from 'vitest';
+import { notModifiedSince, withOpenLines } from '../../src/specifications/salesOrdersSpecifications';
+
+/** Applies the specification to a query that records what it asks for, and answers the calls. */
+function recordCalls(specification: (query: never) => unknown): Array<{ method: string; args: unknown[] }> {
+    const calls: Array<{ method: string; args: unknown[] }> = [];
+    const query: Record<string, (...args: unknown[]) => unknown> = {};
+    for (const method of ['where', 'orderByAsc', 'orderByDesc']) {
+        query[method] = (...args: unknown[]) => {
+            calls.push({ method, args });
+            return query;
+        };
+    }
+    specification(query as never);
+    return calls;
+}
+
+describe('notModifiedSince', () => {
+    it('asks for the orders last changed before the cutoff', () => {
+        const cutoff = new Date('2026-06-01T00:00:00Z');
+
+        expect(recordCalls(notModifiedSince(cutoff))).toEqual([{ method: 'where', args: ['lastModified', '<', cutoff] }]);
+    });
+});
+
+describe('withOpenLines', () => {
+    it('asks for the orders with a line still open', () => {
+        expect(recordCalls(withOpenLines())).toEqual([{ method: 'where', args: ['lines.isClosed', '=', false] }]);
     });
 });
 ```
@@ -277,12 +341,12 @@ sequenceDiagram
     participant Repository as salesOrdersRepository
     participant Set as dbContext.salesOrders
     participant NetSuite
-    Service->>Repository: listSalesOrdersNotModifiedSince(cutoff)
+    Service->>Repository: listSalesOrders(notModifiedSince(cutoff), withOpenLines())
     Repository->>Set: list(notModifiedSince(cutoff), withOpenLines())
     Set->>NetSuite: one N/query, lines joined, both conditions
     NetSuite-->>Set: rows
     Set-->>Service: SalesOrder[]
-    Service->>Repository: updateSalesOrderLinesClosed(id, lineIds)
+    Service->>Repository: updateSalesOrder(id, { lines: { update: lines } })
     Repository->>Set: withTracking().salesOrders.update(id, patch)
     Set->>NetSuite: record.load, change the lines, record.save
     Set-->>Service: SalesOrder
@@ -303,8 +367,8 @@ sequenceDiagram
 
 ## The variations
 
-- **A change across several records** keeps one tracker in a local, reads through it, changes the records it
-  answered, and saves once. `saveChanges()` does not throw: it answers an outcome per record, so a flow that must
+- **A change across several records** is a named function, since it does more than apply one patch: it keeps one
+  tracker in a local, reads through it, changes the records it answered, and saves once. `saveChanges()` does not throw: it answers an outcome per record, so a flow that must
   fail loudly reads it.
 
   ```typescript

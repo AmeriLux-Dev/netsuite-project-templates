@@ -86,14 +86,29 @@ export function startJobRun(job: JobRef, input: unknown): string {
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import * as salesOrdersRepository from '../repositories/salesOrdersRepository';
+{{#if netsuiteRepository}}
+import { notModifiedSince, withOpenLines } from '../specifications/salesOrdersSpecifications';
+{{/if}}
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
+{{#if netsuiteRepository}}
+/**
+ * The orders nobody has changed for the given number of days that still have an open line. Only the closeOldOrders
+ * job asks for them, so the read is composed here rather than named in the repository.
+ */
+export function getOldOrders(olderThanDays: number): SalesOrderSummary[] {
+    const cutoff = new Date(Date.now() - olderThanDays * MILLISECONDS_PER_DAY);
+    return salesOrdersRepository.listSalesOrders(notModifiedSince(cutoff), withOpenLines()).map(buildSalesOrderSummary);
+}
+{{/if}}
+{{#unless netsuiteRepository}}
 /** The open orders nobody has changed for the given number of days. */
 export function getOldOrders(olderThanDays: number): SalesOrderSummary[] {
     const cutoff = new Date(Date.now() - olderThanDays * MILLISECONDS_PER_DAY);
     return salesOrdersRepository.listSalesOrdersNotModifiedSince(cutoff).map(buildSalesOrderSummary);
 }
+{{/unless}}
 
 /** What closing one order came to. */
 export interface OrderClosing {
@@ -107,7 +122,7 @@ export function updateOrderClosed(orderId: number): OrderClosing {
     if (salesOrder === null) return { closed: false, reason: 'No such order' };
     const openLineIds = salesOrder.lines.filter((line) => !line.isClosed).map((line) => line.id);
     if (openLineIds.length === 0) return { closed: false, reason: 'Already closed' };
-    salesOrdersRepository.updateSalesOrderLinesClosed(orderId, openLineIds);
+    salesOrdersRepository.updateSalesOrder(orderId, { lines: { update: openLineIds.map((id) => ({ id, isClosed: true })) } });
     return { closed: true, reason: 'Closed' };
 }
 
@@ -409,7 +424,8 @@ reduce expecting another would be two statements about a value neither file shar
 there is one `CloseOutcome` for both to import, so they cannot drift apart, and the whole chain reads in one place.
 
 A job's folder is a service's peer: its stages call services and repositories, and touch no `N/*` beyond the
-context types, no {{#if netsuiteRepository}}model, specification or {{/if}}controller. Nothing below a job may import it; only a controller reaches
+context types, no {{#if netsuiteRepository}}model and no {{/if}}controller.{{#if netsuiteRepository}} A read only the job makes is
+composed from specifications, as a service does.{{/if}} Nothing below a job may import it; only a controller reaches
 in, for the `start<Name>` its `start.ts` declares. `npm run lint` says so otherwise.
 
 ## The variations

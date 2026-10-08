@@ -118,7 +118,7 @@ A job is background work: NetSuite runs it in stages, and it answers nothing to 
 
 Each stage is NetSuite's own entry point, in a file of its own name, built by the builder of that stage (`jobMap`, from the jobRunRepository `npm run add:jobs` writes), which handles the run and the JSON between the stages. The shapes the run carries are all in `contract.ts`, and every stage imports its types from there, so the chain reads in one place and two stages naming the same value name the one declaration. The job's ids are in `netsuite.ts`, under `jobs`, beside its SDF object.
 
-A job's folder is a service's peer: it calls services and repositories, and touches no `N/*` beyond the context types, no {{#if netsuiteRepository}}model, specification or {{/if}}controller. Nothing below it may import it; only a controller reaches in, for the `start<Name>` its `start.ts` declares.
+A job's folder is a service's peer: it calls services and repositories, {{#if netsuiteRepository}}composes a read only it makes from specifications as a service does, {{/if}}and touches no `N/*` beyond the context types, no {{#if netsuiteRepository}}model and no {{/if}}controller. Nothing below it may import it; only a controller reaches in, for the `start<Name>` its `start.ts` declares.
 
 [jobs/map-reduce-job.md](jobs/map-reduce-job.md) writes one end to end.
 
@@ -140,7 +140,7 @@ Events have no SDF object here: **you create their script record and deployments
 
 One file per domain, `<domain>Service.ts`.
 
-The decisions: plain arguments in (an id, a filter, the fields of a create), repository functions called by their domain names, a type the service declares itself out. A service never names a controller, so any controller can call it and shape its own reply. What it exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check); a `build<Type>` stays inside it. Each repository is imported as a namespace (`salesOrdersRepository.findSalesOrder(id)`), so a service function can share a name with the repository function it calls ([naming.md](naming.md)).
+The decisions: plain arguments in (an id, a filter, the fields of a create), repository functions called by their domain names{{#if netsuiteRepository}} or a read only this service makes composed from specifications ([src/specifications/](#srcspecifications)){{/if}}, a type the service declares itself out. A service never names a controller, so any controller can call it and shape its own reply. What it exports starts with `get`, `create`, `update` or `remove` (`is` or `has` for a yes-or-no check); a `build<Type>` stays inside it. Each repository is imported as a namespace (`salesOrdersRepository.findSalesOrder(id)`), so a service function can share a name with the repository function it calls ([naming.md](naming.md)).
 
 **A domain** is a NetSuite record type with everything that exists only as part of it, or an outside party or capability with no record of its own:
 
@@ -198,13 +198,21 @@ One file per record type or outside system, `<subject>Repository.ts`, never one 
 The only code that touches NetSuite: records, queries, the session, other scripts, outside systems. An outside system with several providers of one operation is one repository per provider, each exporting the same functions, with the shape they share in a repository file of its own ([src/services/](#srcservices), "Several providers of one operation").
 {{#if netsuiteRepository}}
 
+A read is composed by its one caller or named here. `list<Set>(...specifications)` runs whatever specifications a service{{#if netsuiteApi}} or a job{{/if}} hands it, and nothing else. A read a second caller needs, or one that does more than compose (a guard, error handling, paging, a grouped read, SuiteQL, a condition every read of the record must carry), is a named function (`listSalesOrdersByCustomer`). A write works the same way with a patch: `update<Record>(id, patch)` applies the `<Record>Patch` its one caller builds, and the record set loads the record, diffs the patch against it and writes only what differs. A write a second caller needs, or one that does more than apply a patch (several records under one tracker, a value converted for NetSuite), is a named function. A caller hands over the fields it changes, never a whole entity it read earlier, so nothing someone else changed since is written back.
+
 `generated/` is written by `npm run generate`. [repositories/model-and-repository.md](repositories/model-and-repository.md) walks from a model to its repository functions.
 
 ### src/specifications/
 
 One file per record type, `<record>Specifications.ts`.
 
-Reusable query filters, used by repositories.
+The query vocabulary: one condition per builder, no decisions. A service{{#if netsuiteApi}} or a job{{/if}} composes a read only it makes from them and hands it to its repository's `list<Set>`:
+
+```typescript
+return salesOrdersRepository.listSalesOrders(forCustomer(customerId), newestFirst()).map(buildSalesOrderSummary);
+```
+
+When a second caller needs the same read, it moves into the repository as a named function, which composes the same builders, and both callers call it. A controller never imports a specification. The service's test sees the builders by name only, so what each asks the query for is tested in `__tests__/specifications/`.
 
 ### src/models/
 
@@ -385,10 +393,10 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`{{#if netsuiteApi}}, `chec
 {{/if}}
 | `nspUserEvent`, `nspClientEvent` | `api/src/events/user/<subject>.ts`, `api/src/events/client/<subject>.ts`: self-contained SuiteScript with every entry point of its kind |
 {{#if userRolesExample}}
-| `nspService` | `api/src/services/<domain>Service.ts`: `<Model>Summary` and the `build<Model>Summary` it maps with, a list, a single read, a create, an update, a removal and a permission check |
+| `nspService` | `api/src/services/<domain>Service.ts`: `<Model>Summary` and the `build<Model>Summary` it maps with, a list composed from specifications, a single read, a create, an update, a removal and a permission check |
 {{/if}}
 {{#if netsuiteRepository}}
-| `nspRepository` | `api/src/repositories/<set>Repository.ts` over `dbContext`: every read the set offers, every write through `withTracking()`, several records saved at once |
+| `nspRepository` | `api/src/repositories/<set>Repository.ts` over `dbContext`: `list<Set>` for the reads a service composes, every named read the set offers, every write through `withTracking()`, several records saved at once |
 {{/if}}
 {{#if netsuiteApi}}
 | `nspRepositorySuitelet` | `api/src/repositories/<name>Repository.ts` calling another controller of this application through its Suitelet client |
@@ -399,7 +407,7 @@ Node scripts run by npm: `deploy.mjs`, `buildInfo.cjs`{{#if netsuiteApi}}, `chec
 | `nspModel`, `nspModelBase` | `api/src/models/<Record>.ts`: one record class with every decorator and option, commented; the subrecord and sublist line classes it imports are models in files of their own; an abstract base a record class extends |
 {{/if}}
 {{#if codeGeneration}}
-| {{#if netsuiteApi}}`nspTestController`, {{/if}}{{#if userRolesExample}}`nspTestService`, {{/if}}{{#if netsuiteRepository}}`nspTestRepository`{{/if}}{{#if bothNetsuitePackages}}, {{/if}}{{#if netsuiteApi}}`nspTestRepositorySuitelet`{{/if}} | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below, one `describe` per function the matching snippet writes |
+| {{#if netsuiteApi}}`nspTestController`, {{/if}}{{#if userRolesExample}}`nspTestService`, {{/if}}{{#if netsuiteRepository}}`nspTestRepository`{{/if}}{{#if bothNetsuitePackages}}, {{/if}}{{#if netsuiteApi}}`nspTestRepositorySuitelet`{{/if}}{{#if netsuiteRepository}}, `nspTestSpecification`{{/if}} | `api/__tests__/<layer>/<name>.test.ts`, each against a fake of the layer below, one `describe` per function the matching snippet writes |
 {{/if}}
 {{#if netsuiteApi}}
 | `nspTestHook` | `client/__tests__/<controller>Query.test.ts` |

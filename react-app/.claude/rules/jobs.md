@@ -14,5 +14,8 @@ paths:
 - `jobGetInputData` opens the run and hands the stage what the run was started with; what `jobSummarize` answers becomes the run's result and closes the run. The first type argument of `jobGetInputData` and the second of `jobSummarize` are the run's contract: `npm run generate` copies the result's type into `client/src/api/<name>Job.gen.ts` (`jobs.<name>.Result`), so it holds no `Date` and no class. The rest of `contract.ts` stays on the server.
 - Export getInputData, map or reduce, and summarize always: the run is closed in summarize. A job that leaves nothing behind answers `null` from `jobSummarize<Outcome, null>`.
 - A stage that needs NetSuite's context writes the entry point itself (`export function map(context: EntryPoints.MapReduce.mapContext)`) and calls `openJobRun<Request>` / `closeJobRun<Result>` from `jobRunRepository`; the generator reads either form.
+{{#if netsuiteRepository}}
+- A stage calls services and repositories as a service does, and a read only the job makes it composes from specifications and hands to the repository's `list<Set>`, the same way.
+{{/if}}
 - A page follows a run with `useJobRun({ job, runId })` (409 when every deployment of the job is already running). Show `itemsProcessed` of `itemsTotal`: `stagePercentComplete` belongs to the stage being worked, not the run, and starts again at each stage.
 - Worked example, including following a run and refreshing the page: `how-to-use/jobs/map-reduce-job.md`.
